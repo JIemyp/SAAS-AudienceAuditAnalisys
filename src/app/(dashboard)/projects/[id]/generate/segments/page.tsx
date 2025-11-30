@@ -179,11 +179,11 @@ function EditableSegmentCard({
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <button
-        onClick={onToggle}
-        className="w-full p-5 flex items-center justify-between hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex items-center gap-4">
+      <div className="w-full p-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+        <div
+          className="flex items-center gap-4 flex-1 cursor-pointer"
+          onClick={onToggle}
+        >
           <div
             className={cn(
               "w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg bg-gradient-to-br",
@@ -202,22 +202,25 @@ function EditableSegmentCard({
         <div className="flex items-center gap-2">
           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
             <button
-              onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
+              onClick={() => setIsEditing(true)}
               className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm border"
             >
               <Pencil className="w-4 h-4" />
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              onClick={onDelete}
               className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
-          <div className={cn(
-            "p-2 rounded-lg transition-colors",
-            isExpanded ? "bg-slate-100" : "hover:bg-slate-100"
-          )}>
+          <div
+            onClick={onToggle}
+            className={cn(
+              "p-2 rounded-lg transition-colors cursor-pointer",
+              isExpanded ? "bg-slate-100" : "hover:bg-slate-100"
+            )}
+          >
             {isExpanded ? (
               <ChevronUp className="w-5 h-5 text-slate-500" />
             ) : (
@@ -225,7 +228,7 @@ function EditableSegmentCard({
             )}
           </div>
         </div>
-      </button>
+      </div>
 
       <AnimatePresence>
         {isExpanded && (
