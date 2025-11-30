@@ -100,23 +100,39 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
 
   const fetchSegments = async () => {
     try {
-      const res = await fetch(`/api/segments?projectId=${projectId}`);
+      console.log(`[SegmentGenerationPage] Fetching segments for project: ${projectId}, stepType: ${stepType}`);
+      const res = await fetch(`/api/segments?projectId=${projectId}&stepType=${stepType}`);
       const data = await res.json();
+      console.log(`[SegmentGenerationPage] Segments response:`, data);
 
       if (data.success && data.segments) {
+        console.log(`[SegmentGenerationPage] Found ${data.segments.length} segments`);
         setSegments(data.segments);
+
+        // Use statuses from API if available
+        if (data.statuses && data.statuses.length > 0) {
+          console.log(`[SegmentGenerationPage] Setting statuses from API:`, data.statuses);
+          setSegmentStatuses(data.statuses);
+        }
 
         // Select first segment by default
         if (data.segments.length > 0 && !selectedSegmentId) {
+          console.log(`[SegmentGenerationPage] Selecting first segment: ${data.segments[0].id}`);
           setSelectedSegmentId(data.segments[0].id);
         }
 
-        // Build progress data
-        const progressData = await fetchAllSegmentProgress(data.segments);
-        setSegmentProgressData(progressData);
+        // Build progress data (skip if no segments)
+        if (data.segments.length > 0) {
+          const progressData = await fetchAllSegmentProgress(data.segments);
+          setSegmentProgressData(progressData);
+        }
+      } else {
+        console.warn(`[SegmentGenerationPage] No segments found or error:`, data);
+        setIsLoading(false);
       }
     } catch (err) {
-      console.error("Failed to fetch segments:", err);
+      console.error("[SegmentGenerationPage] Failed to fetch segments:", err);
+      setIsLoading(false);
     }
   };
 
@@ -158,12 +174,15 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   const fetchDraftsForSegment = async (segmentId: string) => {
     try {
       setIsLoading(true);
+      console.log(`[SegmentGenerationPage] Fetching drafts for segment: ${segmentId}, table: ${draftTable}`);
       const res = await fetch(
         `/api/drafts?projectId=${projectId}&table=${draftTable}&segmentId=${segmentId}`
       );
       const data = await res.json();
+      console.log(`[SegmentGenerationPage] Drafts response:`, data);
 
       if (data.success && data.drafts) {
+        console.log(`[SegmentGenerationPage] Found ${data.drafts.length} drafts`);
         setDrafts(data.drafts);
         if (data.drafts.length > 0) {
           setSelectedDraftId(data.drafts[0].id);
@@ -172,7 +191,7 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
         }
       }
     } catch (err) {
-      console.error("Failed to fetch drafts:", err);
+      console.error("[SegmentGenerationPage] Failed to fetch drafts:", err);
     } finally {
       setIsLoading(false);
     }
@@ -213,11 +232,17 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   };
 
   const handleGenerate = async () => {
-    if (!selectedSegmentId) return;
+    if (!selectedSegmentId) {
+      console.warn("[SegmentGenerationPage] handleGenerate called but no segment selected!");
+      return;
+    }
 
     try {
       setIsGenerating(true);
       setError(null);
+
+      console.log(`[SegmentGenerationPage] Starting generation for segment: ${selectedSegmentId}`);
+      console.log(`[SegmentGenerationPage] POST ${generateEndpoint} with:`, { projectId, segmentId: selectedSegmentId });
 
       const res = await fetch(generateEndpoint, {
         method: "POST",
@@ -226,19 +251,29 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
       });
 
       const data = await res.json();
+      console.log(`[SegmentGenerationPage] Generate response:`, data);
 
       if (!res.ok) {
         throw new Error(data.error || "Generation failed");
       }
 
       if (data.draft) {
+        console.log(`[SegmentGenerationPage] Draft created:`, data.draft.id);
         setDrafts(prev => [data.draft, ...prev]);
         setSelectedDraftId(data.draft.id);
+      } else if (data.drafts) {
+        // Some endpoints return array of drafts
+        console.log(`[SegmentGenerationPage] Multiple drafts created:`, data.drafts.length);
+        setDrafts(data.drafts);
+        if (data.drafts.length > 0) {
+          setSelectedDraftId(data.drafts[0].id);
+        }
       }
 
       // Update statuses
       await updateSegmentStatuses();
     } catch (err) {
+      console.error("[SegmentGenerationPage] Generation error:", err);
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setIsGenerating(false);
