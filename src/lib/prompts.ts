@@ -572,11 +572,10 @@ Return ONLY valid JSON:
 // =====================================================
 
 // Prompt 9: Segments
+// Prompt 9: Segments - now works with just Portrait Final (no Jobs/Triggers required)
 export function buildSegmentsPrompt(
   onboarding: OnboardingData,
-  portraitFinal: PortraitFinal,
-  jobs: Jobs,
-  triggers: Triggers
+  portraitFinal: PortraitFinal
 ): string {
   return `You are an expert marketing strategist specializing in audience segmentation.
 Always respond in English, regardless of input language.
@@ -586,35 +585,52 @@ Always respond in English, regardless of input language.
 ${portraitFinal.sociodemographics}
 ${portraitFinal.psychographics}
 
-## Jobs to Be Done
+## Demographic Details
 
-Functional: ${jobs.functional_jobs.map((j) => j.job).join(", ")}
-Emotional: ${jobs.emotional_jobs.map((j) => j.job).join(", ")}
-Social: ${jobs.social_jobs.map((j) => j.job).join(", ")}
+- Age Range: ${portraitFinal.age_range}
+- Gender: ${portraitFinal.gender_distribution}
+- Income: ${portraitFinal.income_level}
+- Location: ${portraitFinal.location}
+- Occupation: ${portraitFinal.occupation}
+- Education: ${portraitFinal.education}
+- Family Status: ${portraitFinal.family_status}
 
-## Deep Triggers
+## Psychographic Profile
 
-${triggers.triggers.map((t) => `- ${t.name}: ${t.description}`).join("\n")}
+Values & Beliefs: ${portraitFinal.values_beliefs?.join(", ") || "N/A"}
+Lifestyle: ${portraitFinal.lifestyle_habits?.join(", ") || "N/A"}
+Interests: ${portraitFinal.interests_hobbies?.join(", ") || "N/A"}
+Personality: ${portraitFinal.personality_traits?.join(", ") || "N/A"}
 
 ## Brand Context
 
 Brand: ${onboarding.brandName}
 Product: ${onboarding.productService}
+Format: ${onboarding.productFormat}
 Price Segment: ${onboarding.priceSegment}
+Business Model: ${onboarding.businessModel}
+Geography: ${onboarding.geography}
+
+Problems Solved:
+${onboarding.problems.map((p) => `- ${p}`).join("\n")}
+
+USP: ${onboarding.usp}
+Differentiation: ${onboarding.differentiation}
 
 ## Task
 
-Divide this broad audience into UP TO 10 distinct segments.
+Based on the audience portrait above, divide this broad audience into 3-5 distinct segments.
 
 Each segment should be:
-- Meaningfully different from others
-- Large enough to be worth targeting
+- Meaningfully different from others in motivations and needs
+- Large enough to be worth targeting separately
 - Specific enough to create targeted messaging
+- Based on different combinations of psychographic and demographic traits
 
 For each segment provide:
-1. Name - memorable, descriptive
-2. Description - who they are (2-3 sentences)
-3. Sociodemographics - specific to this segment
+1. Name - memorable, descriptive (e.g., "Career-Focused Achievers")
+2. Description - who they are, their key motivations (2-3 sentences)
+3. Sociodemographics - specific demographic profile for this segment
 
 ## Output Format
 
@@ -629,7 +645,7 @@ Return ONLY valid JSON:
       "sociodemographics": "35-50, 60% women, $100k+ income, urban, executives and entrepreneurs"
     }
   ],
-  "total_segments": 10
+  "total_segments": 5
 }`;
 }
 

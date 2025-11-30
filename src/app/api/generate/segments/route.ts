@@ -1,5 +1,6 @@
 // =====================================================
 // Generate Segments - Prompt 9
+// Now works with just Portrait Final (Segments come BEFORE Jobs/Triggers in v4)
 // =====================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -7,7 +8,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
 import { buildSegmentsPrompt, SegmentsResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
-import { Project, PortraitFinal, Jobs, Triggers } from "@/types";
+import { Project, PortraitFinal } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
 
     const typedProject = project as Project;
 
+    // Get approved Portrait Final
     const { data: portraitFinal } = await supabase
       .from("portrait_final")
       .select("*")
@@ -46,38 +48,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!portraitFinal) {
-      throw new ApiError("Portrait final not found", 400);
+      throw new ApiError("Portrait Final not found. Complete Portrait Final step first.", 400);
     }
 
-    const { data: jobs } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("approved_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (!jobs) {
-      throw new ApiError("Jobs not found", 400);
-    }
-
-    const { data: triggers } = await supabase
-      .from("triggers")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("approved_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (!triggers) {
-      throw new ApiError("Triggers not found", 400);
-    }
-
+    // Build prompt with just onboarding and portrait final (no Jobs/Triggers needed)
     const prompt = buildSegmentsPrompt(
       typedProject.onboarding_data,
-      portraitFinal as PortraitFinal,
-      jobs as Jobs,
-      triggers as Triggers
+      portraitFinal as PortraitFinal
     );
 
     const response = await withRetry(async () => {
