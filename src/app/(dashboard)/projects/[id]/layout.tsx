@@ -17,18 +17,23 @@ const tabs = [
 const pagesWithoutTabs = ["/edit", "/processing", "/generate"];
 
 // Generation step configuration
+// Correct order: Portrait → Segments → Deep Analysis (per segment) → Pains/Canvas
 const GENERATION_STEPS = [
+    // Block 1: Portrait
     { step: "validation", label: "Validation", block: 1 },
     { step: "portrait", label: "Portrait", block: 1 },
     { step: "portrait-review", label: "Portrait Review", block: 1 },
     { step: "portrait-final", label: "Portrait Final", block: 1 },
-    { step: "jobs", label: "Jobs to Be Done", block: 2 },
-    { step: "preferences", label: "Preferences", block: 2 },
-    { step: "difficulties", label: "Difficulties", block: 2 },
-    { step: "triggers", label: "Triggers", block: 2 },
-    { step: "segments", label: "Segments", block: 3 },
-    { step: "segments-review", label: "Segments Review", block: 3 },
-    { step: "segment-details", label: "Segment Details", block: 3 },
+    // Block 2: Segmentation (BEFORE deep analysis)
+    { step: "segments", label: "Segments", block: 2 },
+    { step: "segments-review", label: "Segments Review", block: 2 },
+    { step: "segment-details", label: "Segment Details", block: 2 },
+    // Block 3: Deep Analysis (per segment)
+    { step: "jobs", label: "Jobs to Be Done", block: 3 },
+    { step: "preferences", label: "Preferences", block: 3 },
+    { step: "difficulties", label: "Difficulties", block: 3 },
+    { step: "triggers", label: "Triggers", block: 3 },
+    // Block 4: Pains & Canvas (per segment)
     { step: "pains", label: "Pains", block: 4 },
     { step: "pains-ranking", label: "Pains Ranking", block: 4 },
     { step: "canvas", label: "Canvas", block: 4 },
