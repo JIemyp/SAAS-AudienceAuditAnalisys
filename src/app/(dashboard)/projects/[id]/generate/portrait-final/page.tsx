@@ -25,7 +25,7 @@ export default function PortraitFinalPage({
       generateEndpoint="/api/generate/portrait-final"
       approveEndpoint="/api/approve/portrait-final"
       draftTable="portrait_final_drafts"
-      nextStepUrl="/generate/jobs"
+      nextStepUrl="/generate/segments"
       icon={<Crown className="w-6 h-6" />}
       emptyStateMessage="Generate the final, improved portrait that incorporates all review feedback."
       renderDraft={(draft, onEdit) => (
