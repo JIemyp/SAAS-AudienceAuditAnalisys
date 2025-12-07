@@ -1,13 +1,15 @@
-// Approve Canvas Extended - Prompt 15 (Per Segment)
+// Approve Canvas Extended V2 - Prompt 15 (Per Pain)
+// V2: Uses pain_id, structured JSONB output
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { handleApiError, ApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectId, draftIds, segmentId } = await request.json();
+    const { projectId, draftIds, segmentId, painId } = await request.json();
 
-    if (!projectId || !draftIds) throw new ApiError("Project ID and Draft IDs required", 400);
+    if (!projectId) throw new ApiError("Project ID is required", 400);
+    if (!draftIds) throw new ApiError("Draft IDs are required", 400);
     if (!segmentId) throw new ApiError("Segment ID is required", 400);
 
     const supabase = await createServerClient();
@@ -15,129 +17,131 @@ export async function POST(request: NextRequest) {
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
     const ids = Array.isArray(draftIds) ? draftIds : [draftIds];
-    const { data: drafts } = await supabase
+
+    // Get drafts from V2 table
+    const { data: drafts, error: draftsError } = await supabase
       .from("canvas_extended_drafts")
       .select("*")
       .in("id", ids)
       .eq("segment_id", segmentId);
 
-    if (!drafts || drafts.length === 0) throw new ApiError("Drafts not found", 404);
+    if (draftsError || !drafts || drafts.length === 0) {
+      throw new ApiError("Drafts not found", 404);
+    }
 
     const approved = [];
     for (const draft of drafts) {
-      const { data: canvasExt, error } = await supabase
+      // Check if already approved for this pain_id
+      const { data: existing } = await supabase
         .from("canvas_extended")
-        .insert({
-          project_id: projectId,
-          segment_id: segmentId,
-          canvas_id: draft.canvas_id,
-          extended_analysis: draft.extended_analysis,
-          different_angles: draft.different_angles,
-          journey_description: draft.journey_description,
-          emotional_peaks: draft.emotional_peaks,
-          purchase_moment: draft.purchase_moment,
-          post_purchase: draft.post_purchase,
-        })
-        .select()
+        .select("id")
+        .eq("pain_id", draft.pain_id)
+        .eq("project_id", projectId)
         .single();
 
-      if (!error) approved.push(canvasExt);
+      if (existing) {
+        // Update existing
+        const { data: canvasExt, error } = await supabase
+          .from("canvas_extended")
+          .update({
+            customer_journey: draft.customer_journey,
+            emotional_map: draft.emotional_map,
+            narrative_angles: draft.narrative_angles,
+            messaging_framework: draft.messaging_framework,
+            voice_and_tone: draft.voice_and_tone,
+            approved_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id)
+          .select()
+          .single();
+
+        if (!error) approved.push(canvasExt);
+      } else {
+        // Insert new
+        const { data: canvasExt, error } = await supabase
+          .from("canvas_extended")
+          .insert({
+            project_id: projectId,
+            segment_id: segmentId,
+            pain_id: draft.pain_id,
+            customer_journey: draft.customer_journey,
+            emotional_map: draft.emotional_map,
+            narrative_angles: draft.narrative_angles,
+            messaging_framework: draft.messaging_framework,
+            voice_and_tone: draft.voice_and_tone,
+          })
+          .select()
+          .single();
+
+        if (!error) approved.push(canvasExt);
+      }
     }
 
-    // Note: Final compilation happens when ALL segments are approved
-    // This is handled at the frontend level
+    // Check if all canvas_extended for this segment are approved
+    const { data: topPains } = await supabase
+      .from("pains_ranking")
+      .select("pain_id")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .eq("is_top_pain", true);
 
-    return NextResponse.json({ success: true, approved, segment_id: segmentId });
+    const topPainIds = topPains?.map(p => p.pain_id) || [];
+
+    const { data: approvedExtended } = await supabase
+      .from("canvas_extended")
+      .select("pain_id")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .in("pain_id", topPainIds);
+
+    const segmentComplete = approvedExtended?.length === topPainIds.length;
+
+    // Check if all segments are complete
+    let allSegmentsComplete = false;
+    if (segmentComplete) {
+      const { data: allSegments } = await supabase
+        .from("segments")
+        .select("id")
+        .eq("project_id", projectId);
+
+      if (allSegments) {
+        const { data: allTopPains } = await supabase
+          .from("pains_ranking")
+          .select("pain_id")
+          .eq("project_id", projectId)
+          .eq("is_top_pain", true);
+
+        const allTopPainIds = allTopPains?.map(p => p.pain_id) || [];
+
+        const { data: allApproved } = await supabase
+          .from("canvas_extended")
+          .select("pain_id")
+          .eq("project_id", projectId)
+          .in("pain_id", allTopPainIds);
+
+        allSegmentsComplete = allApproved?.length === allTopPainIds.length;
+      }
+    }
+
+    // Update project step if all segments complete
+    if (allSegmentsComplete) {
+      await supabase
+        .from("projects")
+        .update({
+          current_step: "completed",
+          status: "completed",
+        })
+        .eq("id", projectId);
+    }
+
+    return NextResponse.json({
+      success: true,
+      approved,
+      segment_id: segmentId,
+      segment_complete: segmentComplete,
+      all_segments_complete: allSegmentsComplete,
+    });
   } catch (error) {
     return handleApiError(error);
-  }
-}
-
-async function compileFinalReports(supabase: any, projectId: string) {
-  // Get all approved data
-  const { data: validation } = await supabase.from("validation").select("*").eq("project_id", projectId).single();
-  const { data: portraitFinal } = await supabase.from("portrait_final").select("*").eq("project_id", projectId).single();
-  const { data: jobs } = await supabase.from("jobs").select("*").eq("project_id", projectId).single();
-  const { data: preferences } = await supabase.from("preferences").select("*").eq("project_id", projectId).single();
-  const { data: difficulties } = await supabase.from("difficulties").select("*").eq("project_id", projectId).single();
-  const { data: triggers } = await supabase.from("triggers").select("*").eq("project_id", projectId).single();
-
-  // Create audience record
-  if (validation && portraitFinal) {
-    await supabase.from("audience").upsert({
-      project_id: projectId,
-      product_understanding: {
-        what_brand_sells: validation.what_brand_sells,
-        problem_solved: validation.problem_solved,
-        key_differentiator: validation.key_differentiator,
-      },
-      sociodemographics: portraitFinal.sociodemographics,
-      psychographics: portraitFinal.psychographics,
-      demographics_detailed: {
-        age_range: portraitFinal.age_range,
-        gender_distribution: portraitFinal.gender_distribution,
-        income_level: portraitFinal.income_level,
-        education: portraitFinal.education,
-        location: portraitFinal.location,
-        occupation: portraitFinal.occupation,
-        family_status: portraitFinal.family_status,
-      },
-      jobs_to_be_done: jobs ? {
-        functional: jobs.functional_jobs,
-        emotional: jobs.emotional_jobs,
-        social: jobs.social_jobs,
-      } : null,
-      product_preferences: preferences?.preferences,
-      difficulties: difficulties?.difficulties,
-      deep_triggers: triggers?.triggers,
-    }, { onConflict: "project_id" });
-  }
-
-  // Compile segments with details
-  const { data: segmentsInitial } = await supabase.from("segments_initial").select("*").eq("project_id", projectId).order("segment_index");
-  if (segmentsInitial) {
-    for (const seg of segmentsInitial) {
-      const { data: details } = await supabase.from("segment_details").select("*").eq("segment_id", seg.id).single();
-
-      await supabase.from("segments").upsert({
-        id: seg.id,
-        project_id: projectId,
-        order_index: seg.segment_index,
-        name: seg.name,
-        description: seg.description,
-        sociodemographics: seg.sociodemographics,
-        needs: details?.needs,
-        triggers: details?.triggers,
-        core_values: details?.core_values,
-        awareness_level: details?.awareness_level,
-        objections: details?.objections,
-      }, { onConflict: "id" });
-    }
-  }
-
-  // Compile pains with canvas data
-  const { data: painsInitial } = await supabase.from("pains_initial").select("*").eq("project_id", projectId);
-  if (painsInitial) {
-    for (const pain of painsInitial) {
-      const { data: ranking } = await supabase.from("pains_ranking").select("*").eq("pain_id", pain.id).single();
-      const { data: canvas } = await supabase.from("canvas").select("*").eq("pain_id", pain.id).single();
-      const { data: canvasExt } = canvas ? await supabase.from("canvas_extended").select("*").eq("canvas_id", canvas.id).single() : { data: null };
-
-      await supabase.from("pains").upsert({
-        id: pain.id,
-        project_id: projectId,
-        segment_id: pain.segment_id,
-        name: pain.name,
-        description: pain.description,
-        deep_triggers: pain.deep_triggers,
-        examples: pain.examples,
-        impact_score: ranking?.impact_score,
-        is_top_pain: ranking?.is_top_pain,
-        canvas_emotional_aspects: canvas?.emotional_aspects,
-        canvas_behavioral_patterns: canvas?.behavioral_patterns,
-        canvas_buying_signals: canvas?.buying_signals,
-        canvas_extended_analysis: canvasExt?.extended_analysis,
-      }, { onConflict: "id" });
-    }
   }
 }

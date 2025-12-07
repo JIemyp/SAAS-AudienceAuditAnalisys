@@ -9,15 +9,18 @@ export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-5-20250514";
 export interface GenerateOptions {
   prompt: string;
   maxTokens?: number;
+  systemPrompt?: string;
 }
 
 export async function generateWithClaude({
   prompt,
   maxTokens = 4096,
+  systemPrompt,
 }: GenerateOptions): Promise<string> {
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: maxTokens,
+    ...(systemPrompt && { system: systemPrompt }),
     messages: [
       {
         role: "user",

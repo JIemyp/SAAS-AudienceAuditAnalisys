@@ -7,7 +7,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
 import { buildTriggersPrompt, TriggersResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
-import { Project, PortraitFinal, Jobs, Difficulties, Segment } from "@/types";
+import { Project, PortraitFinal, Jobs, Preferences, Difficulties, Segment, SegmentDetails } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,6 +65,16 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Segment not found", 404);
     }
 
+    // Get approved segment details for this segment
+    const { data: segmentDetails } = await supabase
+      .from("segment_details")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
     // Get approved jobs for this segment
     const { data: jobs } = await supabase
       .from("jobs")
@@ -77,6 +87,20 @@ export async function POST(request: NextRequest) {
 
     if (!jobs) {
       throw new ApiError("Jobs not found for this segment", 400);
+    }
+
+    // Get approved preferences for this segment
+    const { data: preferences } = await supabase
+      .from("preferences")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!preferences) {
+      throw new ApiError("Preferences not found for this segment. Approve preferences first.", 400);
     }
 
     // Get approved difficulties for this segment
@@ -96,9 +120,11 @@ export async function POST(request: NextRequest) {
     const prompt = buildTriggersPrompt(
       typedProject.onboarding_data,
       portraitFinal as PortraitFinal,
+      segment as Segment,
+      segmentDetails as SegmentDetails | null,
       jobs as Jobs,
-      difficulties as Difficulties,
-      segment as Segment
+      preferences as Preferences,
+      difficulties as Difficulties
     );
 
     const response = await withRetry(async () => {

@@ -1,5 +1,5 @@
 // Approve Segment Details - Prompt 11
-// This endpoint also creates final segments in 'segments' table for deep analysis
+// Uses segments_final as the source (after review decisions applied)
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { handleApiError, ApiError, getNextStep } from "@/lib/api-utils";
@@ -17,20 +17,52 @@ export async function POST(request: NextRequest) {
     const { data: drafts } = await supabase.from("segment_details_drafts").select("*").in("id", ids);
     if (!drafts || drafts.length === 0) throw new ApiError("Drafts not found", 404);
 
-    // Get initial segments to combine with details
-    const { data: initialSegments } = await supabase
-      .from("segments_initial")
+    // Get segments_final (NOT segments_initial)
+    const { data: finalSegments } = await supabase
+      .from("segments_final")
       .select("*")
       .eq("project_id", projectId);
 
     const approved = [];
-    const finalSegments = [];
+    const segments = [];
 
     for (const draft of drafts) {
-      // 1. Save to segment_details
+      // 1. Find matching final segment and create combined segment in 'segments' table FIRST
+      const segment = finalSegments?.find(s => s.id === draft.segment_id);
+      if (!segment) {
+        console.error(`[approve/segment-details] No matching segment_final for draft.segment_id: ${draft.segment_id}`);
+        throw new ApiError(`Segment not found for draft`, 404);
+      }
+
+      const { data: combinedSegment, error: segError } = await supabase.from("segments").insert({
+        project_id: projectId,
+        order_index: segment.segment_index,
+        name: segment.name,
+        description: segment.description,
+        sociodemographics: segment.sociodemographics,
+        needs: draft.needs,
+        triggers: draft.triggers,
+        core_values: draft.core_values,
+      }).select().single();
+
+      if (segError || !combinedSegment) {
+        console.error(`[approve/segment-details] Failed to create combined segment:`, segError);
+        throw new ApiError(`Failed to create segment: ${segError?.message}`, 500);
+      }
+
+      segments.push(combinedSegment);
+      console.log(`[approve/segment-details] Created combined segment: ${combinedSegment.id}`);
+
+      // 2. Save to segment_details with the NEW segment ID from 'segments' table
       const { data: detail, error } = await supabase.from("segment_details").insert({
         project_id: projectId,
-        segment_id: draft.segment_id,
+        segment_id: combinedSegment.id, // Use the new segment ID!
+        // New behavior fields
+        sociodemographics: draft.sociodemographics,
+        psychographics: draft.psychographics,
+        online_behavior: draft.online_behavior,
+        buying_behavior: draft.buying_behavior,
+        // Original fields
         needs: draft.needs,
         triggers: draft.triggers,
         core_values: draft.core_values,
@@ -38,38 +70,23 @@ export async function POST(request: NextRequest) {
         objections: draft.objections,
       }).select().single();
 
-      if (!error) approved.push(detail);
-
-      // 2. Find matching initial segment and create final segment
-      const initialSegment = initialSegments?.find(s => s.id === draft.segment_id);
-      if (initialSegment) {
-        const { data: finalSegment, error: segError } = await supabase.from("segments").insert({
-          project_id: projectId,
-          order_index: initialSegment.segment_index,
-          name: initialSegment.name,
-          description: initialSegment.description,
-          sociodemographics: initialSegment.sociodemographics,
-          needs: draft.needs,
-          triggers: draft.triggers,
-          core_values: draft.core_values,
-        }).select().single();
-
-        if (!segError && finalSegment) {
-          finalSegments.push(finalSegment);
-          console.log(`[approve/segment-details] Created final segment: ${finalSegment.id} for initial: ${initialSegment.id}`);
-        } else if (segError) {
-          console.error(`[approve/segment-details] Failed to create final segment:`, segError);
-        }
+      if (error) {
+        console.error(`[approve/segment-details] Failed to insert detail:`, error);
+        throw new ApiError(`Failed to approve segment details: ${error.message}`, 500);
       }
+
+      approved.push(detail);
     }
 
-    const nextStep = getNextStep("segment_details_draft");
+    const nextStep = getNextStep("segment_details_approved");
     await supabase.from("projects").update({ current_step: nextStep }).eq("id", projectId);
+
+    console.log(`[approve/segment-details] Approved ${approved.length} details, next step: ${nextStep}`);
 
     return NextResponse.json({
       success: true,
       approved,
-      segments: finalSegments,
+      segments,
       next_step: nextStep
     });
   } catch (error) { return handleApiError(error); }

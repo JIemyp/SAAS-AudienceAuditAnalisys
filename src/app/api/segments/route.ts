@@ -42,9 +42,11 @@ export async function GET(request: NextRequest) {
       const draftTable = `${stepType}_drafts`;
       const approvedTable = stepType === "pains" ? "pains_initial" : stepType;
 
+      console.log(`[segments] Checking status for stepType: ${stepType}, draftTable: ${draftTable}, approvedTable: ${approvedTable}`);
+
       for (const seg of segments) {
         // Check drafts
-        const { data: drafts } = await supabase
+        const { data: drafts, error: draftsError } = await supabase
           .from(draftTable)
           .select("id")
           .eq("project_id", projectId)
@@ -52,12 +54,14 @@ export async function GET(request: NextRequest) {
           .limit(1);
 
         // Check approved
-        const { data: approved } = await supabase
+        const { data: approved, error: approvedError } = await supabase
           .from(approvedTable)
           .select("id")
           .eq("project_id", projectId)
           .eq("segment_id", seg.id)
           .limit(1);
+
+        console.log(`[segments] Segment ${seg.name}: drafts=${drafts?.length || 0} (err: ${draftsError?.message || 'none'}), approved=${approved?.length || 0} (err: ${approvedError?.message || 'none'})`);
 
         statuses.push({
           segmentId: seg.id,

@@ -12,12 +12,16 @@ import {
   AlertCircle,
   RefreshCw,
   X,
-  Trash2
+  Trash2,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Segment } from "@/types";
 import { SegmentTabs, SegmentStatus } from "./SegmentTabs";
 import { SegmentProgress } from "./SegmentProgress";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
+import { useTranslation } from "@/lib/hooks/useTranslation";
 
 // =====================================================
 // Types
@@ -36,6 +40,8 @@ export interface SegmentGenerationPageProps<T> {
   renderDraft: (draft: T, onEdit: (updates: Partial<T>) => void) => React.ReactNode;
   emptyStateMessage?: string;
   icon?: React.ReactNode;
+  // Optional function to get custom label for draft selector (e.g., pain names for Canvas)
+  getDraftLabel?: (draft: T, index: number, total: number) => string;
 }
 
 interface SegmentProgressData {
@@ -62,6 +68,7 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   renderDraft,
   emptyStateMessage = "No draft generated yet",
   icon,
+  getDraftLabel,
 }: SegmentGenerationPageProps<T>) {
   const router = useRouter();
 
@@ -79,7 +86,17 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   const [error, setError] = useState<string | null>(null);
   const [editedDraft, setEditedDraft] = useState<Partial<T> | null>(null);
 
-  const selectedDraft = drafts.find(d => d.id === selectedDraftId);
+  // Language translation
+  const { language, setLanguage } = useLanguage();
+  const { translatedContent, isTranslating } = useTranslation({
+    content: drafts,
+    language,
+    enabled: drafts.length > 0,
+  });
+
+  // Use translated drafts if available
+  const displayDrafts = (translatedContent as T[]) || drafts;
+  const selectedDraft = displayDrafts.find(d => d.id === selectedDraftId);
 
   // Fetch segments on mount
   useEffect(() => {
@@ -143,10 +160,20 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
       const completedSteps: string[] = [];
 
       // Check each step type for this segment
-      const stepsToCheck = ["jobs", "preferences", "difficulties", "triggers", "pains", "canvas", "canvas-extended"];
+      // Map step names to draft table names
+      const stepToDraftTable: Record<string, string> = {
+        jobs: "jobs_drafts",
+        preferences: "preferences_drafts",
+        difficulties: "difficulties_drafts",
+        triggers: "triggers_drafts",
+        pains: "pains_drafts",
+        canvas: "canvas_drafts",
+        "canvas-extended": "canvas_extended_drafts",
+      };
+      const stepsToCheck = Object.keys(stepToDraftTable);
 
       for (const step of stepsToCheck) {
-        const tableName = step === "canvas-extended" ? "canvas_extended" : step;
+        const tableName = stepToDraftTable[step];
         try {
           const res = await fetch(
             `/api/drafts?projectId=${projectId}&table=${tableName}&segmentId=${seg.id}&checkApproved=true`
@@ -202,9 +229,10 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
 
     for (const seg of segments) {
       try {
-        // Check for approved data
+        // Check for approved data - use draftTable with checkApproved=true
+        // /api/drafts will resolve the approved table automatically
         const approvedRes = await fetch(
-          `/api/drafts?projectId=${projectId}&table=${approvedTable}&segmentId=${seg.id}&checkApproved=true`
+          `/api/drafts?projectId=${projectId}&table=${draftTable}&segmentId=${seg.id}&checkApproved=true`
         );
         const approvedData = await approvedRes.json();
 
@@ -297,6 +325,7 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
+          draftId: selectedDraftId,
           draftIds: [selectedDraftId],
           segmentId: selectedSegmentId,
         }),
@@ -311,7 +340,21 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
       // Update statuses
       await updateSegmentStatuses();
 
-      // Refresh progress data
+      // Quick update for current segment progress
+      setSegmentProgressData(prev =>
+        prev.map(p =>
+          p.segmentId === selectedSegmentId
+            ? {
+                ...p,
+                completedSteps: p.completedSteps.includes(stepType)
+                  ? p.completedSteps
+                  : [...p.completedSteps, stepType],
+              }
+            : p
+        )
+      );
+
+      // Refresh full progress data in background
       const progressData = await fetchAllSegmentProgress(segments);
       setSegmentProgressData(progressData);
 
@@ -324,6 +367,121 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
       if (nextIncomplete) {
         setSelectedSegmentId(nextIncomplete.id);
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Approval failed");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // Generate all segments at once
+  const handleGenerateAll = async () => {
+    // Find segments without drafts (no data generated yet)
+    const segmentsWithoutData = segments.filter(seg => {
+      const status = segmentStatuses.find(s => s.segmentId === seg.id);
+      return !status?.hasData && !status?.isApproved;
+    });
+
+    if (segmentsWithoutData.length === 0) return;
+
+    try {
+      setIsGenerating(true);
+      setError(null);
+
+      for (const seg of segmentsWithoutData) {
+        console.log(`[SegmentGenerationPage] Generating for segment: ${seg.name} (${seg.id})`);
+
+        const res = await fetch(generateEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId, segmentId: seg.id }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `Failed to generate for segment: ${seg.name}`);
+        }
+
+        console.log(`[SegmentGenerationPage] Generated for segment: ${seg.name}`);
+      }
+
+      // Refresh drafts for current segment and update statuses
+      if (selectedSegmentId) {
+        await fetchDraftsForSegment(selectedSegmentId);
+      }
+      await updateSegmentStatuses();
+
+      // Refresh progress data
+      const progressData = await fetchAllSegmentProgress(segments);
+      setSegmentProgressData(progressData);
+    } catch (err) {
+      console.error("[SegmentGenerationPage] Generate all error:", err);
+      setError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Approve all segments at once
+  const handleApproveAll = async () => {
+    const unapprovedSegments = segments.filter(seg => {
+      const status = segmentStatuses.find(s => s.segmentId === seg.id);
+      return status?.hasData && !status?.isApproved;
+    });
+
+    if (unapprovedSegments.length === 0) return;
+
+    try {
+      setIsApproving(true);
+      setError(null);
+
+      for (const seg of unapprovedSegments) {
+        // Get draft for this segment
+        const draftRes = await fetch(
+          `/api/drafts?projectId=${projectId}&table=${draftTable}&segmentId=${seg.id}`
+        );
+        const draftData = await draftRes.json();
+
+        if (!draftData.success || !draftData.drafts?.length) continue;
+
+        const draftId = draftData.drafts[0].id;
+
+        // Approve this segment
+        const res = await fetch(approveEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId,
+            draftId,
+            draftIds: [draftId],
+            segmentId: seg.id,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || `Failed to approve segment: ${seg.name}`);
+        }
+      }
+
+      // Update statuses after all approvals
+      await updateSegmentStatuses();
+
+      // Quick update for current step progress (mark all as completed)
+      // This is faster than fetchAllSegmentProgress which checks all steps
+      setSegmentProgressData(prev =>
+        prev.map(p => ({
+          ...p,
+          completedSteps: p.completedSteps.includes(stepType)
+            ? p.completedSteps
+            : [...p.completedSteps, stepType],
+        }))
+      );
+
+      // Also refresh full progress data in background
+      const progressData = await fetchAllSegmentProgress(segments);
+      setSegmentProgressData(progressData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approval failed");
     } finally {
@@ -417,6 +575,32 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Language Toggle */}
+          <LanguageToggle
+            currentLanguage={language}
+            onLanguageChange={setLanguage}
+            isLoading={isTranslating}
+          />
+
+          {/* Generate All button - show when there are segments without data */}
+          {(() => {
+            const segmentsWithoutData = segmentStatuses.filter(s => !s.hasData && !s.isApproved).length;
+            if (segmentsWithoutData > 1) {
+              return (
+                <Button
+                  variant="outline"
+                  onClick={handleGenerateAll}
+                  disabled={isGenerating}
+                  isLoading={isGenerating}
+                  className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate All ({segmentsWithoutData})
+                </Button>
+              );
+            }
+            return null;
+          })()}
           {drafts.length > 0 && !currentSegmentStatus?.isApproved && (
             <Button
               variant="outline"
@@ -428,34 +612,82 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
               Regenerate
             </Button>
           )}
-          {currentSegmentStatus?.isApproved ? (
-            <Button
-              disabled
-              className="gap-2 bg-emerald-500"
-            >
-              <Check className="w-4 h-4" />
-              Approved
-            </Button>
-          ) : (
-            <Button
-              onClick={drafts.length === 0 ? handleGenerate : handleApprove}
-              disabled={isGenerating || isApproving || !selectedSegmentId || (drafts.length > 0 && !selectedDraftId)}
-              isLoading={isGenerating || isApproving}
-              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-            >
-              {drafts.length === 0 ? (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Generate
-                </>
-              ) : (
-                <>
+          {/* Approve All button - show when there are unapproved segments with data */}
+          {(() => {
+            const unapprovedWithData = segmentStatuses.filter(s => s.hasData && !s.isApproved).length;
+            const allApproved = segmentStatuses.every(s => s.isApproved);
+            if (unapprovedWithData > 1 && !allApproved) {
+              return (
+                <Button
+                  variant="outline"
+                  onClick={handleApproveAll}
+                  disabled={isApproving}
+                  isLoading={isApproving}
+                  className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                >
                   <Check className="w-4 h-4" />
-                  Approve for this Segment
-                </>
-              )}
-            </Button>
-          )}
+                  Approve All ({unapprovedWithData})
+                </Button>
+              );
+            }
+            return null;
+          })()}
+          {/* Main action button - shows Continue when all approved, otherwise Approve/Generate */}
+          {(() => {
+            const allSegmentsApproved = segments.length > 0 &&
+              segments.every(seg => {
+                const progress = segmentProgressData.find(p => p.segmentId === seg.id);
+                return progress?.completedSteps.includes(stepType);
+              });
+
+            // When ALL segments are approved - show Continue to Next Step
+            if (allSegmentsApproved) {
+              return (
+                <Button
+                  onClick={() => router.push(`/projects/${projectId}${nextStepUrl}`)}
+                  className="gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+                >
+                  Continue to Next Step
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              );
+            }
+
+            // When current segment is approved but not all - show disabled Approved
+            if (currentSegmentStatus?.isApproved) {
+              return (
+                <Button
+                  disabled
+                  className="gap-2 bg-emerald-500"
+                >
+                  <Check className="w-4 h-4" />
+                  Approved
+                </Button>
+              );
+            }
+
+            // Not approved - show Generate or Approve button
+            return (
+              <Button
+                onClick={drafts.length === 0 ? handleGenerate : handleApprove}
+                disabled={isGenerating || isApproving || !selectedSegmentId || (drafts.length > 0 && !selectedDraftId)}
+                isLoading={isGenerating || isApproving}
+                className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                {drafts.length === 0 ? (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Generate
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Approve for this Segment
+                  </>
+                )}
+              </Button>
+            );
+          })()}
         </div>
       </motion.div>
 
@@ -486,31 +718,38 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
         )}
       </AnimatePresence>
 
-      {/* Draft Version Selector */}
-      {drafts.length > 1 && !currentSegmentStatus?.isApproved && (
+      {/* Draft Version Selector - show for multiple drafts OR when custom labels provided (e.g., pain names) */}
+      {(drafts.length > 1 || (getDraftLabel && drafts.length >= 1)) && !currentSegmentStatus?.isApproved && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="flex items-center gap-2 p-3 bg-slate-100 rounded-xl"
         >
-          <span className="text-sm text-slate-500 font-medium">Versions:</span>
-          <div className="flex gap-2">
-            {drafts.map((draft, index) => (
-              <button
-                key={draft.id}
-                onClick={() => setSelectedDraftId(draft.id)}
-                className={cn(
-                  "px-3 py-1.5 text-sm rounded-lg transition-all",
-                  selectedDraftId === draft.id
-                    ? "bg-white text-slate-900 shadow-sm font-medium"
-                    : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                )}
-              >
-                v{drafts.length - index}
-              </button>
-            ))}
+          <span className="text-sm text-slate-500 font-medium">
+            {getDraftLabel ? "Select:" : "Versions:"}
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            {drafts.map((draft, index) => {
+              const label = getDraftLabel
+                ? getDraftLabel(draft, index, drafts.length)
+                : `v${drafts.length - index}`;
+              return (
+                <button
+                  key={draft.id}
+                  onClick={() => setSelectedDraftId(draft.id)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm rounded-lg transition-all",
+                    selectedDraftId === draft.id
+                      ? "bg-white text-slate-900 shadow-sm font-medium"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
-          {selectedDraftId && drafts.length > 1 && (
+          {selectedDraftId && drafts.length > 1 && !getDraftLabel && (
             <button
               onClick={() => handleDeleteDraft(selectedDraftId)}
               className="ml-auto p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -579,10 +818,10 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
 
       {/* Segment Progress Footer */}
       <SegmentProgress
-        projectId={projectId}
         segments={segments}
         segmentProgressData={segmentProgressData}
         currentStepType={stepType}
+        projectId={projectId}
         nextStepUrl={nextStepUrl}
       />
     </div>

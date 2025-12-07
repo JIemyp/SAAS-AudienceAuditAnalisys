@@ -1,13 +1,12 @@
 "use client";
 
-import { use, useState } from "react";
+import React, { use, useState, useEffect, createContext, useContext } from "react";
 import {
   GenerationPage,
   DraftCard,
-  DraftSection,
 } from "@/components/generation/GenerationPage";
-import { SegmentDetailsDraft, NeedItem, SegmentTriggerItem, CoreValueItem, ObjectionItem, AwarenessLevel } from "@/types";
-import { FileText, Target, Zap, Heart, Shield, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { NeedItem, CoreValueItem, ObjectionItem, AwarenessLevel, SegmentFinal } from "@/types";
+import { FileText, Target, Heart, Shield, Eye, ChevronDown, ChevronUp, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -18,7 +17,6 @@ interface SegmentDetailsDraftData {
   segment_id: string;
   segment_name?: string;
   needs: NeedItem[];
-  triggers: SegmentTriggerItem[];
   core_values: CoreValueItem[];
   awareness_level: AwarenessLevel;
   objections: ObjectionItem[];
@@ -26,28 +24,58 @@ interface SegmentDetailsDraftData {
   created_at: string;
 }
 
+// Context for segment names
+interface SegmentNamesContextValue {
+  segmentNames: Record<string, string>;
+}
+
+const SegmentNamesContext = createContext<SegmentNamesContextValue>({ segmentNames: {} });
+
 export default function SegmentDetailsPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id: projectId } = use(params);
+  const [segmentNames, setSegmentNames] = useState<Record<string, string>>({});
+
+  // Fetch segment names from segments_final
+  useEffect(() => {
+    const fetchSegmentNames = async () => {
+      try {
+        const res = await fetch(`/api/segments/${projectId}?source=final`);
+        const data = await res.json();
+        if (data.success && data.segments) {
+          const names: Record<string, string> = {};
+          data.segments.forEach((seg: SegmentFinal) => {
+            names[seg.id] = seg.name;
+          });
+          setSegmentNames(names);
+        }
+      } catch (err) {
+        console.error("Failed to fetch segment names:", err);
+      }
+    };
+    fetchSegmentNames();
+  }, [projectId]);
 
   return (
-    <GenerationPage<SegmentDetailsDraftData>
-      projectId={projectId}
-      title="Segment Details"
-      description="Deep dive into each segment with needs, triggers, values, awareness levels, and objections."
-      generateEndpoint="/api/generate/segment-details"
-      approveEndpoint="/api/approve/segment-details"
-      draftTable="segment_details_drafts"
-      nextStepUrl="/generate/pains"
-      icon={<FileText className="w-6 h-6" />}
-      emptyStateMessage="Generate detailed analysis for each segment including needs, triggers, core values, and potential objections."
-      renderDraft={(draft, onEdit) => (
-        <SegmentDetailsDraftView draft={draft} onEdit={onEdit} />
-      )}
-    />
+    <SegmentNamesContext.Provider value={{ segmentNames }}>
+      <GenerationPage<SegmentDetailsDraftData>
+        projectId={projectId}
+        title="Segment Details"
+        description="Deep dive into each segment with needs, values, awareness levels, and objections."
+        generateEndpoint="/api/generate/segment-details"
+        approveEndpoint="/api/approve/segment-details"
+        draftTable="segment_details_drafts"
+        nextStepUrl="/generate/jobs"
+        icon={<FileText className="w-6 h-6" />}
+        emptyStateMessage="Generate detailed analysis for each segment including needs, core values, and potential objections."
+        renderDraft={(draft, onEdit) => (
+          <SegmentDetailsDraftView draft={draft} onEdit={onEdit} />
+        )}
+      />
+    </SegmentNamesContext.Provider>
   );
 }
 
@@ -58,7 +86,10 @@ function SegmentDetailsDraftView({
   draft: SegmentDetailsDraftData;
   onEdit: (updates: Partial<SegmentDetailsDraftData>) => void;
 }) {
+  const { segmentNames } = useContext(SegmentNamesContext);
   const [expandedSections, setExpandedSections] = useState<string[]>(["needs", "awareness"]);
+
+  const segmentName = segmentNames[draft.segment_id] || "Loading...";
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev =>
@@ -70,6 +101,17 @@ function SegmentDetailsDraftView({
 
   return (
     <div className="space-y-6">
+      {/* Segment Name Header */}
+      <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl">
+        <div className="p-2 bg-indigo-500/10 rounded-lg">
+          <Users className="w-5 h-5 text-indigo-600" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-indigo-600 uppercase tracking-wider">Segment</p>
+          <h2 className="text-lg font-bold text-slate-900">{segmentName}</h2>
+        </div>
+      </div>
+
       {/* Awareness Level Banner */}
       <AwarenessLevelCard level={draft.awareness_level} />
 
@@ -85,22 +127,6 @@ function SegmentDetailsDraftView({
         <div className="space-y-3">
           {draft.needs?.map((need, index) => (
             <NeedCard key={index} need={need} />
-          ))}
-        </div>
-      </CollapsibleSection>
-
-      {/* Triggers */}
-      <CollapsibleSection
-        title="Triggers"
-        icon={<Zap className="w-5 h-5" />}
-        color="orange"
-        isExpanded={expandedSections.includes("triggers")}
-        onToggle={() => toggleSection("triggers")}
-        count={draft.triggers?.length || 0}
-      >
-        <div className="space-y-3">
-          {draft.triggers?.map((trigger, index) => (
-            <TriggerCard key={index} trigger={trigger} />
           ))}
         </div>
       </CollapsibleSection>
@@ -294,18 +320,6 @@ function NeedCard({ need }: { need: NeedItem }) {
       <span className={cn("px-2 py-1 text-xs font-medium rounded-full ml-3", intensityColors[need.intensity])}>
         {need.intensity}
       </span>
-    </div>
-  );
-}
-
-function TriggerCard({ trigger }: { trigger: SegmentTriggerItem }) {
-  return (
-    <div className="p-4 bg-orange-50 rounded-xl">
-      <p className="text-sm font-medium text-slate-900 mb-2">{trigger.trigger}</p>
-      <div className="flex items-center gap-2 text-xs text-orange-700">
-        <Zap className="w-3 h-3" />
-        <span>Trigger Moment: {trigger.trigger_moment}</span>
-      </div>
     </div>
   );
 }

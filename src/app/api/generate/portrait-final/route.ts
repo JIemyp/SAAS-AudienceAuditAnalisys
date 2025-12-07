@@ -1,5 +1,6 @@
 // =====================================================
 // Generate Portrait Final - Prompt 4
+// Uses user decisions from portrait review to apply only accepted changes
 // =====================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -7,7 +8,60 @@ import { createServerClient } from "@/lib/supabase/server";
 import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
 import { buildPortraitFinalPrompt, PortraitFinalResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
-import { Portrait, PortraitReview } from "@/types";
+import { Portrait, PortraitReview, RecommendationDecision } from "@/types";
+
+// Filter review items based on user decisions
+function filterReviewByDecisions(
+  review: PortraitReview,
+  decisions: Record<string, RecommendationDecision>
+): PortraitReview {
+  const filteredReview = { ...review };
+
+  // Filter what_to_change - keep only applied or edited
+  if (review.what_to_change) {
+    filteredReview.what_to_change = review.what_to_change.filter((_, index) => {
+      const decision = decisions[`change-${index}`];
+      return decision && (decision.status === "applied" || decision.status === "edited");
+    }).map((item, index) => {
+      const decision = decisions[`change-${index}`];
+      // If edited, use the edited text (parse it back to structure if possible)
+      if (decision?.status === "edited" && decision.editedText) {
+        return { ...item, suggested: decision.editedText };
+      }
+      return item;
+    });
+  }
+
+  // Filter what_to_add - keep only applied or edited
+  if (review.what_to_add) {
+    filteredReview.what_to_add = review.what_to_add.filter((_, index) => {
+      const decision = decisions[`addition-${index}`];
+      return decision && (decision.status === "applied" || decision.status === "edited");
+    }).map((item, index) => {
+      const decision = decisions[`addition-${index}`];
+      if (decision?.status === "edited" && decision.editedText) {
+        return { ...item, addition: decision.editedText };
+      }
+      return item;
+    });
+  }
+
+  // Filter what_to_remove - keep only applied or edited
+  if (review.what_to_remove) {
+    filteredReview.what_to_remove = review.what_to_remove.filter((_, index) => {
+      const decision = decisions[`removal-${index}`];
+      return decision && (decision.status === "applied" || decision.status === "edited");
+    }).map((item, index) => {
+      const decision = decisions[`removal-${index}`];
+      if (decision?.status === "edited" && decision.editedText) {
+        return { ...item, removal: decision.editedText };
+      }
+      return item;
+    });
+  }
+
+  return filteredReview;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +91,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Portrait not found", 400);
     }
 
-    // Get approved review
+    // Get approved review with decisions
     const { data: review, error: reviewError } = await supabase
       .from("portrait_review")
       .select("*")
@@ -50,7 +104,15 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Portrait review not found", 400);
     }
 
-    const prompt = buildPortraitFinalPrompt(portrait as Portrait, review as PortraitReview);
+    // Get decisions from the review
+    const decisions = (review.decisions as Record<string, RecommendationDecision>) || {};
+
+    // Filter review to only include applied/edited items
+    const filteredReview = filterReviewByDecisions(review as PortraitReview, decisions);
+
+    console.log(`[portrait-final] Applying ${filteredReview.what_to_change?.length || 0} changes, ${filteredReview.what_to_add?.length || 0} additions, ${filteredReview.what_to_remove?.length || 0} removals`);
+
+    const prompt = buildPortraitFinalPrompt(portrait as Portrait, filteredReview);
 
     const response = await withRetry(async () => {
       const text = await generateWithClaude({ prompt, maxTokens: 4096 });

@@ -3,11 +3,18 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Download, AlertCircle, CheckCircle2, Lock, Circle, Loader2, Home, FolderOpen, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Download, AlertCircle, CheckCircle2, Lock, Circle, Loader2, Home, FolderOpen, ChevronRight, FileText, Search, Compass } from "lucide-react";
 import { use, useEffect, useState } from "react";
 
-const tabs = [
+// Results section tabs
+const resultsTabs = [
     { name: "Overview", href: "/overview", icon: LayoutDashboard },
+    { name: "Full Report", href: "/report", icon: FileText },
+    { name: "Explorer", href: "/explorer", icon: Compass },
+];
+
+// Legacy tabs (for data management)
+const dataTabs = [
     { name: "Segments", href: "/segments", icon: Users },
     { name: "Pains", href: "/pains", icon: AlertCircle },
     { name: "Export", href: "/export", icon: Download },
@@ -27,6 +34,7 @@ const GENERATION_STEPS = [
     // Block 2: Segmentation (BEFORE deep analysis)
     { step: "segments", label: "Segments", block: 2 },
     { step: "segments-review", label: "Segments Review", block: 2 },
+    { step: "segments-final", label: "Segments Final", block: 2 },
     { step: "segment-details", label: "Segment Details", block: 2 },
     // Block 3: Deep Analysis (per segment)
     { step: "jobs", label: "Jobs to Be Done", block: 3 },
@@ -252,37 +260,51 @@ export default function ProjectLayout({
         return <>{children}</>;
     }
 
+    const renderTabGroup = (tabs: typeof resultsTabs, label?: string) => (
+        <div className="flex items-center">
+            {label && (
+                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider mr-4 pr-4 border-r border-slate-200">
+                    {label}
+                </span>
+            )}
+            <div className="flex space-x-6">
+                {tabs.map((tab) => {
+                    const href = `${baseHref}${tab.href}`;
+                    const isActive = pathname === href || pathname.startsWith(`${href}/`);
+
+                    return (
+                        <Link
+                            key={tab.name}
+                            href={href}
+                            className={cn(
+                                "group flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors",
+                                isActive
+                                    ? "border-blue-600 text-blue-600"
+                                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900"
+                            )}
+                        >
+                            <tab.icon
+                                className={cn(
+                                    "h-4 w-4",
+                                    isActive
+                                        ? "text-blue-600"
+                                        : "text-slate-400 group-hover:text-slate-600"
+                                )}
+                            />
+                            {tab.name}
+                        </Link>
+                    );
+                })}
+            </div>
+        </div>
+    );
+
     return (
         <div className="space-y-6">
-            <nav className="border-b border-border">
-                <div className="flex space-x-8">
-                    {tabs.map((tab) => {
-                        const href = `${baseHref}${tab.href}`;
-                        const isActive = pathname === href || pathname.startsWith(`${href}/`);
-
-                        return (
-                            <Link
-                                key={tab.name}
-                                href={href}
-                                className={cn(
-                                    "group flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium transition-colors",
-                                    isActive
-                                        ? "border-accent text-accent"
-                                        : "border-transparent text-text-secondary hover:border-gray-300 hover:text-text-primary"
-                                )}
-                            >
-                                <tab.icon
-                                    className={cn(
-                                        "h-4 w-4",
-                                        isActive
-                                            ? "text-accent"
-                                            : "text-text-secondary group-hover:text-text-primary"
-                                    )}
-                                />
-                                {tab.name}
-                            </Link>
-                        );
-                    })}
+            <nav className="border-b border-slate-200 bg-white -mx-8 px-8 -mt-8">
+                <div className="flex items-center justify-between">
+                    {renderTabGroup(resultsTabs, "Results")}
+                    {renderTabGroup(dataTabs, "Data")}
                 </div>
             </nav>
 

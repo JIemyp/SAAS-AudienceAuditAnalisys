@@ -17,6 +17,7 @@ const VALID_TABLES = [
   "triggers_drafts",
   "segments_drafts",
   "segments_review_drafts",
+  "segments_final_drafts",
   "segment_details_drafts",
   "pains_drafts",
   "pains_ranking_drafts",
@@ -40,6 +41,7 @@ const APPROVED_TABLES: Record<string, string> = {
   portrait_final_drafts: "portrait_final",
   segments_drafts: "segments_initial",
   segments_review_drafts: "segments_review",
+  segments_final_drafts: "segments_final",
   segment_details_drafts: "segment_details",
   pains_ranking_drafts: "pains_ranking",
 };
@@ -51,6 +53,7 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const table = searchParams.get("table");
     const segmentId = searchParams.get("segmentId");
+    const painId = searchParams.get("painId");
     const checkApproved = searchParams.get("checkApproved") === "true";
 
     if (!projectId) throw new ApiError("Project ID is required", 400);
@@ -70,6 +73,10 @@ export async function GET(request: NextRequest) {
 
       if (segmentId) {
         query = query.eq("segment_id", segmentId);
+      }
+
+      if (painId) {
+        query = query.eq("pain_id", painId);
       }
 
       const { data: approvedData, error: approvedError } = await query.limit(1);
@@ -93,6 +100,11 @@ export async function GET(request: NextRequest) {
     // Filter by segment_id if provided
     if (segmentId) {
       query = query.eq("segment_id", segmentId);
+    }
+
+    // Filter by pain_id if provided (for canvas_extended V2)
+    if (painId) {
+      query = query.eq("pain_id", painId);
     }
 
     query = query.order("created_at", { ascending: false });

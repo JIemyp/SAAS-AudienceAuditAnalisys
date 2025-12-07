@@ -16,13 +16,35 @@ export async function POST(request: NextRequest) {
     const { data: drafts } = await supabase.from("pains_ranking_drafts").select("*").in("id", ids);
     if (!drafts || drafts.length === 0) throw new ApiError("Drafts not found", 404);
 
+    // Filter only TOP pains (is_top_pain = true)
+    const topPainDrafts = drafts.filter(d => d.is_top_pain === true);
+    if (topPainDrafts.length === 0) throw new ApiError("No TOP pains selected", 400);
+
+    // Clear existing pains_ranking for this project before approving new ones
+    await supabase
+      .from("pains_ranking")
+      .delete()
+      .eq("project_id", projectId);
+
     const approved = [];
-    for (const draft of drafts) {
+    for (const draft of topPainDrafts) {
+      // Get segment_id from pains_initial if not in draft
+      let segmentId = draft.segment_id;
+      if (!segmentId && draft.pain_id) {
+        const { data: pain } = await supabase
+          .from("pains_initial")
+          .select("segment_id")
+          .eq("id", draft.pain_id)
+          .single();
+        segmentId = pain?.segment_id;
+      }
+
       const { data: ranking, error } = await supabase.from("pains_ranking").insert({
         project_id: projectId,
+        segment_id: segmentId,
         pain_id: draft.pain_id,
         impact_score: draft.impact_score,
-        is_top_pain: draft.is_top_pain,
+        is_top_pain: true,
         ranking_reasoning: draft.ranking_reasoning,
       }).select().single();
 

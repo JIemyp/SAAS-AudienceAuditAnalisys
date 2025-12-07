@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
     const { data: segments } = await supabase.from("segments_initial").select("*").eq("project_id", projectId).order("segment_index");
     if (!segments || segments.length === 0) throw new ApiError("Segments not found", 400);
 
+    console.log(`[segments-review] Analyzing ${segments.length} segments:`, segments.map(s => s.name));
+
     const prompt = buildSegmentsReviewPrompt((project as Project).onboarding_data, segments as SegmentInitial[]);
 
     const response = await withRetry(async () => {
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     const { data: draft, error } = await supabase.from("segments_review_drafts").insert({
       project_id: projectId,
-      overlaps: response.overlaps,
+      segment_overlaps: response.overlaps,
       too_broad: response.too_broad,
       too_narrow: response.too_narrow,
       missing_segments: response.missing_segments,
@@ -38,7 +40,10 @@ export async function POST(request: NextRequest) {
       version: 1,
     }).select().single();
 
-    if (error) throw new ApiError("Failed to save draft", 500);
+    if (error) {
+      console.error("Segments review insert error:", error);
+      throw new ApiError(`Failed to save draft: ${error.message}`, 500);
+    }
 
     await supabase.from("projects").update({ current_step: "segments_review_draft" }).eq("id", projectId);
     return NextResponse.json({ success: true, draft });

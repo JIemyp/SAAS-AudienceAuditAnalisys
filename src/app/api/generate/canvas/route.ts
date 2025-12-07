@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
 import { buildCanvasPrompt, CanvasResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
-import { Segment, PainInitial } from "@/types";
+import { Project, PortraitFinal, Segment, SegmentDetails, Jobs, Preferences, Difficulties, Triggers, PainInitial } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +17,25 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
+    // Get project
+    const { data: project } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("id", projectId)
+      .eq("user_id", user.id)
+      .single();
+    if (!project) throw new ApiError("Project not found", 404);
+
+    // Get portrait final
+    const { data: portraitFinal } = await supabase
+      .from("portrait_final")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+    if (!portraitFinal) throw new ApiError("Portrait final not found", 400);
+
     // Get segment
     const { data: segment, error: segmentError } = await supabase
       .from("segments")
@@ -24,47 +43,105 @@ export async function POST(request: NextRequest) {
       .eq("id", segmentId)
       .eq("project_id", projectId)
       .single();
-
     if (segmentError || !segment) throw new ApiError("Segment not found", 404);
 
-    // Get top pains for this segment (is_top_pain = true)
+    // Get segment details
+    const { data: segmentDetails } = await supabase
+      .from("segment_details")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Get jobs
+    const { data: jobs } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Get preferences
+    const { data: preferences } = await supabase
+      .from("preferences")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Get difficulties
+    const { data: difficulties } = await supabase
+      .from("difficulties")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Get triggers
+    const { data: triggers } = await supabase
+      .from("triggers")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Get TOP pains for this segment
     let painsToProcess: PainInitial[] = [];
 
     if (painId) {
+      // Single pain specified
       const { data: pain } = await supabase
         .from("pains_initial")
         .select("*")
         .eq("id", painId)
-        .eq("segment_id", segmentId)
         .single();
       if (!pain) throw new ApiError("Pain not found", 404);
       painsToProcess = [pain as PainInitial];
     } else {
-      // Get all top pains for this segment
+      // Get TOP pain IDs from pains_ranking
       const { data: rankings } = await supabase
         .from("pains_ranking")
         .select("pain_id")
         .eq("project_id", projectId)
-        .eq("segment_id", segmentId)
-        .eq("is_top_pain", true);
+        .eq("segment_id", segmentId);
 
       if (!rankings || rankings.length === 0) {
-        throw new ApiError("No top pains found for this segment. Complete pains ranking first.", 400);
+        throw new ApiError("No TOP pains found for this segment. Complete pains ranking first.", 400);
       }
 
-      for (const ranking of rankings) {
-        const { data: pain } = await supabase
-          .from("pains_initial")
-          .select("*")
-          .eq("id", ranking.pain_id)
-          .single();
-        if (pain) painsToProcess.push(pain as PainInitial);
-      }
+      // Get full pain data from pains_initial
+      const painIds = rankings.map(r => r.pain_id).filter(Boolean);
+      const { data: pains } = await supabase
+        .from("pains_initial")
+        .select("*")
+        .in("id", painIds);
+
+      painsToProcess = (pains || []) as PainInitial[];
     }
 
     const drafts = [];
     for (const pain of painsToProcess) {
-      const prompt = buildCanvasPrompt(segment as Segment, pain);
+      const prompt = buildCanvasPrompt(
+        (project as Project).onboarding_data,
+        portraitFinal as PortraitFinal,
+        segment as Segment,
+        segmentDetails as SegmentDetails | null,
+        jobs as Jobs | null,
+        preferences as Preferences | null,
+        difficulties as Difficulties | null,
+        triggers as Triggers | null,
+        pain
+      );
 
       const response = await withRetry(async () => {
         const text = await generateWithClaude({ prompt, maxTokens: 6144 });

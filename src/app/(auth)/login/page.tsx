@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -8,13 +9,36 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 
 export default function LoginPage() {
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
     const supabase = createClient();
+
+    // Redirect if already logged in
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                router.replace("/projects");
+            } else {
+                setIsCheckingAuth(false);
+            }
+        };
+        checkAuth();
+    }, [router, supabase.auth]);
+
+    if (isCheckingAuth) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-bg-secondary">
+                <div className="animate-pulse text-text-secondary">Loading...</div>
+            </div>
+        );
+    }
 
     const handleEmailAuth = async (e: React.FormEvent) => {
         e.preventDefault();

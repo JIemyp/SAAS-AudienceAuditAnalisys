@@ -134,7 +134,7 @@ export default function SegmentDetailPage({
                         <h1 className="text-3xl font-bold text-text-primary">{segment.name}</h1>
                         <p className="mt-2 text-text-secondary">{segment.description}</p>
                     </div>
-                    <Badge variant="secondary">#{segment.segment_index + 1}</Badge>
+                    <Badge variant="secondary">#{(segment.segment_index ?? 0) + 1}</Badge>
                 </div>
             </div>
 

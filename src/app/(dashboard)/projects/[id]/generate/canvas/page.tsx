@@ -1,16 +1,35 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   DraftCard,
   DraftSection,
 } from "@/components/generation/GenerationPage";
-import { SegmentGenerationPage } from "@/components/generation/SegmentGenerationPage";
-import { CanvasDraft, EmotionalAspect, BehavioralPattern, BuyingSignal } from "@/types";
-import { Palette, Heart, Activity, ShoppingCart, ChevronDown, ChevronUp, Pencil, Trash2, Check, X } from "lucide-react";
+import { CanvasDraft, EmotionalAspect, BehavioralPattern, BuyingSignal, PainInitial, Segment } from "@/types";
+import { Palette, Heart, Activity, ShoppingCart, ChevronDown, ChevronUp, Pencil, Trash2, Check, X, Star, Sparkles, Loader2, AlertCircle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { EditableField } from "@/components/generation/EditableField";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
+import { useTranslation } from "@/lib/hooks/useTranslation";
+
+interface TopPain {
+  id: string;
+  name: string;
+  description: string;
+  segment_id: string;
+  impact_score: number;
+  ranking_reasoning: string;
+  has_canvas: boolean;
+}
+
+// Store pains globally for CanvasDraftView
+let globalPains: PainInitial[] = [];
 
 export default function CanvasPage({
   params,
@@ -18,35 +37,538 @@ export default function CanvasPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: projectId } = use(params);
+  const router = useRouter();
+
+  // State
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+  const [topPains, setTopPains] = useState<TopPain[]>([]);
+  const [selectedPainId, setSelectedPainId] = useState<string | null>(null);
+  const [canvasDraft, setCanvasDraft] = useState<CanvasDraft | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingPainId, setGeneratingPainId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvedDraftIds, setApprovedDraftIds] = useState<Set<string>>(new Set());
+
+  // Language translation
+  const { language, setLanguage } = useLanguage();
+  const { translatedContent: translatedTopPains, isTranslating: isTranslatingPains } = useTranslation({
+    content: topPains,
+    language,
+    enabled: topPains.length > 0,
+  });
+  const { translatedContent: translatedCanvas, isTranslating: isTranslatingCanvas } = useTranslation({
+    content: canvasDraft,
+    language,
+    enabled: !!canvasDraft,
+  });
+
+  // Use translated content if available
+  const displayTopPains = (translatedTopPains as TopPain[]) || topPains;
+  const displayCanvasDraft = (translatedCanvas as CanvasDraft) || canvasDraft;
+  const isTranslating = isTranslatingPains || isTranslatingCanvas;
+
+  // Load segments
+  useEffect(() => {
+    const fetchSegments = async () => {
+      try {
+        const res = await fetch(`/api/segments?projectId=${projectId}&stepType=canvas`);
+        const data = await res.json();
+        if (data.success && data.segments) {
+          setSegments(data.segments);
+          if (data.segments.length > 0 && !selectedSegmentId) {
+            setSelectedSegmentId(data.segments[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch segments:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSegments();
+  }, [projectId]);
+
+  // Load TOP pains when segment changes
+  useEffect(() => {
+    if (!selectedSegmentId) return;
+
+    const fetchTopPains = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`/api/top-pains?projectId=${projectId}&segmentId=${selectedSegmentId}`);
+        const data = await res.json();
+        if (data.success && data.topPains) {
+          setTopPains(data.topPains);
+          // Auto-select first pain with canvas, or first pain
+          const firstWithCanvas = data.topPains.find((p: TopPain) => p.has_canvas);
+          setSelectedPainId(firstWithCanvas?.id || data.topPains[0]?.id || null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch top pains:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTopPains();
+  }, [projectId, selectedSegmentId]);
+
+  // Load canvas draft when pain changes
+  useEffect(() => {
+    if (!selectedPainId || !selectedSegmentId) {
+      setCanvasDraft(null);
+      return;
+    }
+
+    const fetchCanvasDraft = async () => {
+      try {
+        const res = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_drafts&segmentId=${selectedSegmentId}`);
+        const data = await res.json();
+        if (data.success && data.drafts) {
+          const draft = data.drafts.find((d: CanvasDraft) => d.pain_id === selectedPainId);
+          setCanvasDraft(draft || null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch canvas draft:", err);
+      }
+    };
+    fetchCanvasDraft();
+  }, [projectId, selectedSegmentId, selectedPainId]);
+
+  // Load all pains for globalPains (for CanvasDraftView)
+  useEffect(() => {
+    const fetchAllPains = async () => {
+      try {
+        const res = await fetch(`/api/pains?projectId=${projectId}`);
+        const data = await res.json();
+        if (data.success && data.pains) {
+          globalPains = data.pains;
+        }
+      } catch (err) {
+        console.error("Failed to fetch pains:", err);
+      }
+    };
+    fetchAllPains();
+  }, [projectId]);
+
+  // Generate canvas for a specific pain
+  const handleGenerateForPain = async (painId: string) => {
+    try {
+      setIsGenerating(true);
+      setGeneratingPainId(painId);
+      setError(null);
+
+      const res = await fetch("/api/generate/canvas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId: selectedSegmentId,
+          painId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Generation failed");
+      }
+
+      // Refresh top pains to update has_canvas status
+      const topPainsRes = await fetch(`/api/top-pains?projectId=${projectId}&segmentId=${selectedSegmentId}`);
+      const topPainsData = await topPainsRes.json();
+      if (topPainsData.success) {
+        setTopPains(topPainsData.topPains);
+      }
+
+      // Select the generated pain and load its draft
+      setSelectedPainId(painId);
+      if (data.drafts && data.drafts.length > 0) {
+        setCanvasDraft(data.drafts[0]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setIsGenerating(false);
+      setGeneratingPainId(null);
+    }
+  };
+
+  // Generate canvas for all pains without canvas
+  const handleGenerateAll = async () => {
+    const painsWithoutCanvas = topPains.filter(p => !p.has_canvas);
+    for (const pain of painsWithoutCanvas) {
+      await handleGenerateForPain(pain.id);
+    }
+  };
+
+  const handleEditDraft = async (updates: Partial<CanvasDraft>) => {
+    if (!canvasDraft) return;
+
+    try {
+      const res = await fetch("/api/drafts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: "canvas_drafts",
+          id: canvasDraft.id,
+          updates,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setCanvasDraft({ ...canvasDraft, ...updates });
+      }
+    } catch (err) {
+      console.error("Failed to save edit:", err);
+    }
+  };
+
+  // Approve all canvas drafts for current segment and continue to extended canvas
+  const handleApproveAllAndContinue = async () => {
+    if (!selectedSegmentId) return;
+
+    try {
+      setIsApproving(true);
+      setError(null);
+
+      // Fetch all drafts for this segment
+      const draftsRes = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_drafts&segmentId=${selectedSegmentId}`);
+      const draftsData = await draftsRes.json();
+
+      if (!draftsData.success || !draftsData.drafts || draftsData.drafts.length === 0) {
+        throw new Error("No canvas drafts to approve for this segment");
+      }
+
+      const draftIds = draftsData.drafts.map((d: CanvasDraft) => d.id);
+
+      // Call approve endpoint
+      const res = await fetch("/api/approve/canvas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId: selectedSegmentId,
+          draftIds,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to approve canvas");
+      }
+
+      // Mark as approved
+      setApprovedDraftIds(prev => new Set([...prev, ...draftIds]));
+
+      // Navigate to next step
+      router.push(`/projects/${projectId}/generate/canvas-extended`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve canvas");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // Approve all canvas for ALL segments at once
+  const handleApproveAll = async () => {
+    try {
+      setIsApproving(true);
+      setError(null);
+
+      // Get all segments and approve each
+      for (const segment of segments) {
+        const draftsRes = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_drafts&segmentId=${segment.id}`);
+        const draftsData = await draftsRes.json();
+
+        if (draftsData.success && draftsData.drafts && draftsData.drafts.length > 0) {
+          const draftIds = draftsData.drafts.map((d: CanvasDraft) => d.id);
+
+          await fetch("/api/approve/canvas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              projectId,
+              segmentId: segment.id,
+              draftIds,
+            }),
+          });
+
+          setApprovedDraftIds(prev => new Set([...prev, ...draftIds]));
+        }
+      }
+
+      // Navigate to next step
+      router.push(`/projects/${projectId}/generate/canvas-extended`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve canvas");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const selectedSegment = segments.find(s => s.id === selectedSegmentId);
+  const selectedPain = displayTopPains.find(p => p.id === selectedPainId);
+  const painsWithCanvas = displayTopPains.filter(p => p.has_canvas).length;
+  const painsWithoutCanvas = topPains.filter(p => !p.has_canvas).length;
 
   return (
-    <SegmentGenerationPage<CanvasDraft>
-      projectId={projectId}
-      title="Pain Canvas"
-      description="Deep dive into top pain points with emotional aspects, behavioral patterns, and buying signals. Complete this for each segment."
-      stepType="canvas"
-      generateEndpoint="/api/generate/canvas"
-      approveEndpoint="/api/approve/canvas"
-      draftTable="canvas_drafts"
-      approvedTable="canvas"
-      nextStepUrl="/generate/canvas-extended"
-      icon={<Palette className="w-6 h-6" />}
-      emptyStateMessage="Generate a comprehensive canvas analysis for each top pain point."
-      renderDraft={(draft, onEdit) => (
-        <CanvasDraftView draft={draft} onEdit={onEdit} />
+    <div className="space-y-6">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-start justify-between"
+      >
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-purple-500/20">
+            <Palette className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              Pain Canvas
+            </h1>
+            <p className="mt-1 text-slate-500 max-w-xl">
+              Deep analysis of TOP pain points. Select a segment, then generate canvas for each TOP pain.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <LanguageToggle
+            currentLanguage={language}
+            onLanguageChange={setLanguage}
+            isLoading={isTranslating}
+          />
+          {painsWithoutCanvas > 0 && (
+            <Button
+              onClick={handleGenerateAll}
+              disabled={isGenerating || isApproving}
+              isLoading={isGenerating}
+              className="gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generate All ({painsWithoutCanvas})
+            </Button>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Error */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700"
+          >
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Segment Selector */}
+      <div className="flex gap-2 flex-wrap">
+        {segments.map((segment) => (
+          <button
+            key={segment.id}
+            onClick={() => setSelectedSegmentId(segment.id)}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              selectedSegmentId === segment.id
+                ? "bg-purple-100 text-purple-700 shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            )}
+          >
+            {segment.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Main Content */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        </div>
+      ) : displayTopPains.length === 0 ? (
+        <Card className="border-2 border-dashed border-slate-200 bg-slate-50/50">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+              <Star className="w-8 h-8 text-purple-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              No TOP Pains for This Segment
+            </h3>
+            <p className="text-slate-500 text-center max-w-md">
+              Complete Pain Points Ranking first to select TOP pains for this segment.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-12 gap-6">
+          {/* TOP Pains List */}
+          <div className="col-span-4">
+            <Card>
+              <div className="p-4 border-b border-slate-100">
+                <h3 className="font-semibold text-slate-900">TOP Pains</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {painsWithCanvas}/{displayTopPains.length} with canvas
+                </p>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+                {displayTopPains.map((pain) => (
+                  <div
+                    key={pain.id}
+                    onClick={() => setSelectedPainId(pain.id)}
+                    className={cn(
+                      "w-full p-4 text-left transition-all hover:bg-slate-50 cursor-pointer",
+                      selectedPainId === pain.id && "bg-purple-50 border-l-4 border-purple-500"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Star className={cn(
+                            "w-4 h-4 flex-shrink-0",
+                            pain.has_canvas ? "text-amber-500 fill-amber-500" : "text-slate-300"
+                          )} />
+                          <span className="font-medium text-slate-900 truncate">
+                            {pain.name}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                          {pain.description}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={cn(
+                          "px-2 py-0.5 text-xs font-medium rounded-full",
+                          pain.impact_score >= 8 ? "bg-rose-100 text-rose-700" :
+                          pain.impact_score >= 6 ? "bg-amber-100 text-amber-700" :
+                          "bg-slate-100 text-slate-600"
+                        )}>
+                          {pain.impact_score}
+                        </span>
+                        {pain.has_canvas ? (
+                          <Check className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateForPain(pain.id);
+                            }}
+                            disabled={isGenerating}
+                            className="p-1 text-purple-600 hover:bg-purple-100 rounded"
+                          >
+                            {generatingPainId === pain.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          {/* Canvas Content */}
+          <div className="col-span-8">
+            {selectedPain && !selectedPain.has_canvas ? (
+              <Card className="border-2 border-dashed border-purple-200 bg-purple-50/50">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
+                    <Palette className="w-8 h-8 text-purple-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                    Generate Canvas for "{selectedPain.name}"
+                  </h3>
+                  <p className="text-slate-500 text-center max-w-md mb-6">
+                    Create deep analysis with emotional aspects, behavioral patterns, and buying signals.
+                  </p>
+                  <Button
+                    onClick={() => handleGenerateForPain(selectedPain.id)}
+                    disabled={isGenerating}
+                    isLoading={generatingPainId === selectedPain.id}
+                    className="gap-2 bg-gradient-to-r from-purple-600 to-indigo-600"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Generate Canvas
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : displayCanvasDraft ? (
+              <CanvasDraftView draft={displayCanvasDraft} onEdit={handleEditDraft} pains={globalPains} />
+            ) : (
+              <div className="flex items-center justify-center py-24">
+                <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+              </div>
+            )}
+          </div>
+        </div>
       )}
-    />
+
+      {/* Navigation */}
+      <div className="flex justify-between items-center pt-6 border-t border-slate-200">
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/projects/${projectId}/generate/pains-ranking`)}
+        >
+          Back to Pain Ranking
+        </Button>
+        {/* Main action button - only show when all pains have canvas */}
+        {painsWithCanvas > 0 && painsWithoutCanvas === 0 ? (
+          <Button
+            onClick={handleApproveAll}
+            disabled={isApproving || isGenerating}
+            isLoading={isApproving}
+            className="gap-2 bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+          >
+            <Check className="w-4 h-4" />
+            Approve All & Continue
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        ) : (
+          <Button
+            disabled
+            variant="outline"
+            className="gap-2"
+          >
+            Generate all canvas first
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
 function CanvasDraftView({
   draft,
   onEdit,
+  pains = [],
 }: {
   draft: CanvasDraft;
   onEdit: (updates: Partial<CanvasDraft>) => void;
+  pains?: PainInitial[];
 }) {
   const [expandedSections, setExpandedSections] = useState<string[]>(["emotional", "behavioral", "buying"]);
+
+  // Find the pain name for this canvas
+  const pain = pains.find(p => p.id === draft.pain_id);
+  const painName = pain?.name || "Unknown Pain";
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev =>
@@ -91,6 +613,22 @@ function CanvasDraftView({
 
   return (
     <div className="space-y-6">
+      {/* Pain Header - Shows which pain this canvas is for */}
+      <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-purple-100 rounded-lg">
+            <Star className="w-5 h-5 text-purple-600 fill-purple-300" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Canvas for Pain Point</p>
+            <h3 className="text-lg font-semibold text-slate-900">{painName}</h3>
+          </div>
+          <Badge className="ml-auto bg-purple-100 text-purple-700">
+            TOP Pain
+          </Badge>
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-4">
         <OverviewCard
           icon={<Heart className="w-5 h-5" />}

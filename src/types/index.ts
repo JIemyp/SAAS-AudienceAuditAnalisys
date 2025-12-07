@@ -14,6 +14,29 @@ export type AwarenessLevel = 'unaware' | 'problem_aware' | 'solution_aware' | 'p
 export type ImportanceLevel = 'critical' | 'high' | 'medium' | 'low';
 export type FrequencyLevel = 'constant' | 'frequent' | 'occasional' | 'rare';
 
+// =====================================================
+// Language / Translation
+// =====================================================
+
+export type ContentLanguage = 'en' | 'uk' | 'ru' | 'de' | 'es' | 'fr';
+
+export const LANGUAGE_LABELS: Record<ContentLanguage, string> = {
+  en: 'English',
+  uk: 'Українська',
+  ru: 'Русский',
+  de: 'Deutsch',
+  es: 'Español',
+  fr: 'Français',
+};
+
+export interface UserPreferences {
+  id: string;
+  user_id: string;
+  preferred_language: ContentLanguage;
+  created_at: string;
+  updated_at: string;
+}
+
 // Project Status (legacy)
 export type ProjectStatus = 'draft' | 'processing' | 'completed' | 'failed';
 
@@ -28,6 +51,7 @@ export type ProjectStep =
   // Block 2: Segmentation (MOVED BEFORE Deep Analysis)
   | 'segments_draft' | 'segments_approved'
   | 'segments_review_draft' | 'segments_review_approved'
+  | 'segments_final_draft' | 'segments_final_approved'
   | 'segment_details_draft' | 'segment_details_approved'
   // Block 3: Deep Analysis PER SEGMENT
   | 'jobs_draft' | 'jobs_approved'
@@ -54,6 +78,7 @@ export const PROJECT_STEPS: ProjectStep[] = [
   // Segmentation block (now BEFORE deep analysis)
   'segments_draft', 'segments_approved',
   'segments_review_draft', 'segments_review_approved',
+  'segments_final_draft', 'segments_final_approved',
   'segment_details_draft', 'segment_details_approved',
   // Deep analysis per segment
   'jobs_draft', 'jobs_approved',
@@ -615,6 +640,170 @@ export interface CanvasExtended {
 }
 
 // =====================================================
+// Canvas Extended V2 Types (Refactored)
+// =====================================================
+
+// Customer Journey Stages
+export interface CustomerJourneyUnawareStage {
+  life_context: string;
+  internal_dialogue: string;
+  emotional_state: string;
+  duration: string;
+}
+
+export interface CustomerJourneyProblemAware {
+  trigger_moment: string;
+  internal_dialogue: string;
+  emotional_state: string;
+  actions: string[];
+}
+
+export interface CustomerJourneySolutionSeeking {
+  where_they_look: string[];
+  what_they_try: string[];
+  internal_dialogue: string;
+  frustrations: string[];
+}
+
+export interface CustomerJourneyEvaluation {
+  criteria: string[];
+  comparison_behavior: string;
+  internal_dialogue: string;
+  dealbreakers: string[];
+}
+
+export interface CustomerJourneyDecisionTrigger {
+  trigger_moment: string;
+  internal_dialogue: string;
+  what_they_need_to_hear: string;
+  final_hesitation: string;
+}
+
+export interface CustomerJourneyPostPurchase {
+  first_week: string;
+  confirmation_moments: string[];
+  doubt_moments: string[];
+  advocacy_trigger: string;
+}
+
+export interface CustomerJourney {
+  unaware_stage: CustomerJourneyUnawareStage;
+  problem_aware: CustomerJourneyProblemAware;
+  solution_seeking: CustomerJourneySolutionSeeking;
+  evaluation: CustomerJourneyEvaluation;
+  decision_trigger: CustomerJourneyDecisionTrigger;
+  post_purchase: CustomerJourneyPostPurchase;
+}
+
+// Emotional Map Types
+export interface EmotionalPeak {
+  moment: string;
+  trigger: string;
+  internal_dialogue: string;
+  intensity: number; // 1-10
+  duration: string;
+}
+
+export interface EmotionalValley {
+  moment: string;
+  trigger: string;
+  internal_dialogue: string;
+  intensity: number; // 1-10
+  duration: string;
+}
+
+export interface EmotionalTurningPoint {
+  from_state: string;
+  to_state: string;
+  catalyst: string;
+  internal_shift: string;
+}
+
+export interface EmotionalMap {
+  peaks: EmotionalPeak[];
+  valleys: EmotionalValley[];
+  turning_points: EmotionalTurningPoint[];
+}
+
+// Narrative Angles
+export interface NarrativeAngle {
+  angle_name: string;
+  who_this_is: string;
+  their_story: string;
+  core_belief: string;
+  breakthrough_moment: string;
+  key_message: string;
+  proof_they_need: string;
+  objection_to_address: string;
+}
+
+// Messaging Framework
+export interface ProofFraming {
+  type: string;
+  format: string;
+  language: string;
+}
+
+export interface ObjectionHandler {
+  objection: string;
+  handler: string;
+}
+
+export interface MessagingFramework {
+  headlines: string[];
+  opening_hooks: string[];
+  bridge_statements: string[];
+  proof_framing: ProofFraming;
+  objection_handlers: ObjectionHandler[];
+  cta_options: string[];
+}
+
+// Voice and Tone
+export interface VoiceAndTone {
+  do: string[];
+  dont: string[];
+  words_that_resonate: string[];
+  words_to_avoid: string[];
+}
+
+// Main Canvas Extended V2 Types
+export interface CanvasExtendedV2Draft {
+  id: string;
+  project_id: string;
+  pain_id: string;
+  segment_id: string;
+  customer_journey: CustomerJourney;
+  emotional_map: EmotionalMap;
+  narrative_angles: NarrativeAngle[];
+  messaging_framework: MessagingFramework;
+  voice_and_tone: VoiceAndTone;
+  version: number;
+  created_at: string;
+}
+
+export interface CanvasExtendedV2 {
+  id: string;
+  project_id: string;
+  pain_id: string;
+  segment_id: string;
+  customer_journey: CustomerJourney;
+  emotional_map: EmotionalMap;
+  narrative_angles: NarrativeAngle[];
+  messaging_framework: MessagingFramework;
+  voice_and_tone: VoiceAndTone;
+  approved_at: string;
+}
+
+// API Response type for Canvas Extended V2 generation
+export interface CanvasExtendedV2Response {
+  customer_journey: CustomerJourney;
+  emotional_map: EmotionalMap;
+  narrative_angles: NarrativeAngle[];
+  messaging_framework: MessagingFramework;
+  voice_and_tone: VoiceAndTone;
+}
+
+// =====================================================
 // Final Report Tables
 // =====================================================
 
@@ -812,4 +1001,46 @@ export interface ApproveResponse<T> {
   approved?: T;
   next_step: ProjectStep;
   error?: string;
+}
+
+// =====================================================
+// Recommendation Decision Types (Apply/Edit/Dismiss)
+// =====================================================
+
+export type RecommendationStatus = "pending" | "applied" | "edited" | "dismissed";
+
+export interface RecommendationDecision {
+  id: string;
+  status: RecommendationStatus;
+  originalText: string;
+  editedText?: string;
+}
+
+// =====================================================
+// Segments Final Types (applies Segments Review decisions)
+// =====================================================
+
+export interface SegmentFinalDraft {
+  id: string;
+  project_id: string;
+  segment_index: number;
+  name: string;
+  description: string;
+  sociodemographics: string;
+  changes_applied: string[];
+  is_new: boolean;
+  version: number;
+  created_at: string;
+}
+
+export interface SegmentFinal {
+  id: string;
+  project_id: string;
+  segment_index: number;
+  name: string;
+  description: string;
+  sociodemographics: string;
+  changes_applied: string[];
+  is_new: boolean;
+  approved_at: string;
 }

@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
+import { useTranslation } from "@/lib/hooks/useTranslation";
 import {
   Loader2,
   Sparkles,
@@ -34,6 +37,14 @@ export interface GenerationPageProps<T> {
   renderDraft: (draft: T, onEdit: (updates: Partial<T>) => void) => React.ReactNode;
   emptyStateMessage?: string;
   icon?: React.ReactNode;
+  // Optional callback to check if approve is allowed (e.g., all recommendations reviewed)
+  canApprove?: boolean;
+  // Optional message when approve is blocked
+  approveBlockedMessage?: string;
+  // Optional pending count for UI feedback
+  pendingDecisionsCount?: number;
+  // Optional decisions object to pass to approve endpoint
+  decisions?: Record<string, unknown>;
 }
 
 // =====================================================
@@ -51,6 +62,10 @@ export function GenerationPage<T extends { id: string }>({
   renderDraft,
   emptyStateMessage = "No draft generated yet",
   icon,
+  canApprove = true,
+  approveBlockedMessage,
+  pendingDecisionsCount,
+  decisions,
 }: GenerationPageProps<T>) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<T[]>([]);
@@ -61,14 +76,25 @@ export function GenerationPage<T extends { id: string }>({
   const [error, setError] = useState<string | null>(null);
   const [editedDraft, setEditedDraft] = useState<Partial<T> | null>(null);
 
-  const selectedDraft = drafts.find(d => d.id === selectedDraftId);
+  // Language translation
+  const { language, setLanguage } = useLanguage();
+  const { translatedContent, isTranslating } = useTranslation({
+    content: drafts,
+    language,
+    enabled: drafts.length > 0,
+  });
+
+  // Use translated drafts if available
+  const displayDrafts = (translatedContent as T[]) || drafts;
+
+  const selectedDraft = displayDrafts.find(d => d.id === selectedDraftId);
 
   // Fetch existing drafts
   useEffect(() => {
     fetchDrafts();
   }, [projectId, draftTable]);
 
-  const fetchDrafts = async () => {
+  const fetchDrafts = async (forceSelectFirst = false) => {
     try {
       setIsLoading(true);
       const res = await fetch(`/api/drafts?projectId=${projectId}&table=${draftTable}`);
@@ -76,8 +102,15 @@ export function GenerationPage<T extends { id: string }>({
 
       if (data.success && data.drafts) {
         setDrafts(data.drafts);
-        if (data.drafts.length > 0 && !selectedDraftId) {
-          setSelectedDraftId(data.drafts[0].id);
+        if (data.drafts.length > 0) {
+          // Always select first if forceSelectFirst, or if no draft is selected,
+          // or if currently selected draft no longer exists
+          const currentDraftExists = data.drafts.some((d: { id: string }) => d.id === selectedDraftId);
+          if (forceSelectFirst || !selectedDraftId || !currentDraftExists) {
+            setSelectedDraftId(data.drafts[0].id);
+          }
+        } else {
+          setSelectedDraftId(null);
         }
       }
     } catch (err) {
@@ -104,10 +137,11 @@ export function GenerationPage<T extends { id: string }>({
         throw new Error(data.error || "Generation failed");
       }
 
-      if (data.draft) {
-        setDrafts(prev => [data.draft, ...prev]);
-        setSelectedDraftId(data.draft.id);
-      }
+      // After generation, always refetch drafts from server to get fresh data
+      // This handles both single draft (data.draft) and multiple drafts (data.drafts) cases
+      // and ensures we don't have duplicates after regeneration
+      // forceSelectFirst=true ensures the first draft is selected after regeneration
+      await fetchDrafts(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -120,7 +154,7 @@ export function GenerationPage<T extends { id: string }>({
   };
 
   const handleApprove = async () => {
-    if (!selectedDraftId) return;
+    if (!selectedDraftId && drafts.length === 0) return;
 
     try {
       setIsApproving(true);
@@ -131,10 +165,19 @@ export function GenerationPage<T extends { id: string }>({
         await handleSaveEdit();
       }
 
+      // Send both draftId (single) and draftIds (array) for compatibility
+      // Some endpoints expect draftId (single draft), others expect draftIds (multiple drafts)
+      const allDraftIds = drafts.map(d => d.id);
+
       const res = await fetch(approveEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, draftId: selectedDraftId }),
+        body: JSON.stringify({
+          projectId,
+          draftId: selectedDraftId,
+          draftIds: allDraftIds,
+          decisions
+        }),
       });
 
       const data = await res.json();
@@ -228,6 +271,13 @@ export function GenerationPage<T extends { id: string }>({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Language Toggle */}
+          <LanguageToggle
+            currentLanguage={language}
+            onLanguageChange={setLanguage}
+            isLoading={isTranslating}
+          />
+
           {drafts.length > 0 && (
             <Button
               variant="outline"
@@ -239,24 +289,38 @@ export function GenerationPage<T extends { id: string }>({
               Regenerate
             </Button>
           )}
-          <Button
-            onClick={drafts.length === 0 ? handleGenerate : handleApprove}
-            disabled={isGenerating || isApproving || (drafts.length > 0 && !selectedDraftId)}
-            isLoading={isGenerating || isApproving}
-            className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-          >
-            {drafts.length === 0 ? (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Generate
-              </>
-            ) : (
-              <>
-                <Check className="w-4 h-4" />
-                Approve & Continue
-              </>
+          <div className="relative group">
+            <Button
+              onClick={drafts.length === 0 ? handleGenerate : handleApprove}
+              disabled={isGenerating || isApproving || (drafts.length > 0 && !selectedDraftId) || (drafts.length > 0 && !canApprove)}
+              isLoading={isGenerating || isApproving}
+              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              {drafts.length === 0 ? (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Generate
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Approve & Continue
+                  {pendingDecisionsCount !== undefined && pendingDecisionsCount > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 text-xs bg-warning/20 text-warning rounded-full">
+                      {pendingDecisionsCount}
+                    </span>
+                  )}
+                </>
+              )}
+            </Button>
+            {/* Tooltip when approve is blocked */}
+            {drafts.length > 0 && !canApprove && approveBlockedMessage && (
+              <div className="absolute bottom-full mb-2 right-0 w-64 p-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                {approveBlockedMessage}
+                <div className="absolute bottom-0 right-4 translate-y-1/2 rotate-45 w-2 h-2 bg-slate-900" />
+              </div>
             )}
-          </Button>
+          </div>
         </div>
       </motion.div>
 

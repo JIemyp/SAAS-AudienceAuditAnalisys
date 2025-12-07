@@ -1,22 +1,34 @@
 "use client";
 
-import { use, useState } from "react";
-import {
-  GenerationPage,
-  DraftCard,
-  DraftSection,
-} from "@/components/generation/GenerationPage";
-import { SegmentDraft } from "@/types";
-import { Users, ChevronDown, ChevronUp, User2, Pencil, Trash2, Check, X, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { use, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
+import { useTranslation } from "@/lib/hooks/useTranslation";
+import {
+  Users,
+  ChevronDown,
+  ChevronUp,
+  User2,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  Plus,
+  Sparkles,
+  RefreshCw,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { SegmentDraft } from "@/types";
 
-interface SegmentsDraftData {
-  id: string;
-  project_id: string;
-  segments: SegmentDraft[];
+interface VersionGroup {
   version: number;
-  created_at: string;
+  segments: SegmentDraft[];
 }
 
 export default function SegmentsPage({
@@ -25,125 +37,521 @@ export default function SegmentsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: projectId } = use(params);
+  const router = useRouter();
 
-  return (
-    <GenerationPage<SegmentsDraftData>
-      projectId={projectId}
-      title="Audience Segments"
-      description="Generate 10 distinct audience segments based on the portrait, jobs, and triggers. Each segment represents a unique subset of your target audience."
-      generateEndpoint="/api/generate/segments"
-      approveEndpoint="/api/approve/segments"
-      draftTable="segments_drafts"
-      nextStepUrl="/generate/segments-review"
-      icon={<Users className="w-6 h-6" />}
-      emptyStateMessage="Generate distinct audience segments to better understand the different types of customers within your target market."
-      renderDraft={(draft, onEdit) => (
-        <SegmentsDraftView draft={draft} onEdit={onEdit} />
-      )}
-    />
-  );
-}
+  const [versions, setVersions] = useState<VersionGroup[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [expandedSegments, setExpandedSegments] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editedSegments, setEditedSegments] = useState<Record<string, Partial<SegmentDraft>>>({});
+  const [isDeletingVersion, setIsDeletingVersion] = useState(false);
 
-function SegmentsDraftView({
-  draft,
-  onEdit,
-}: {
-  draft: SegmentsDraftData;
-  onEdit: (updates: Partial<SegmentsDraftData>) => void;
-}) {
-  const [expandedSegments, setExpandedSegments] = useState<number[]>([0]);
+  // Language translation
+  const { language, setLanguage } = useLanguage();
+  const currentVersionSegments = versions.find(v => v.version === selectedVersion)?.segments || [];
+  const { translatedContent, isTranslating } = useTranslation({
+    content: currentVersionSegments,
+    language,
+    enabled: currentVersionSegments.length > 0,
+  });
 
-  const toggleSegment = (index: number) => {
-    setExpandedSegments(prev =>
-      prev.includes(index)
-        ? prev.filter(i => i !== index)
-        : [...prev, index]
+  // Fetch segments grouped by version
+  useEffect(() => {
+    fetchSegments();
+  }, [projectId]);
+
+  const fetchSegments = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/drafts?projectId=${projectId}&table=segments_drafts`);
+      const data = await res.json();
+
+      if (data.success && data.drafts) {
+        // Group by version
+        const grouped = data.drafts.reduce((acc: Record<number, SegmentDraft[]>, segment: SegmentDraft) => {
+          const v = segment.version || 1;
+          if (!acc[v]) acc[v] = [];
+          acc[v].push(segment);
+          return acc;
+        }, {});
+
+        // Convert to array and sort by version descending
+        const versionGroups: VersionGroup[] = Object.entries(grouped)
+          .map(([v, segments]) => ({
+            version: parseInt(v),
+            segments: (segments as SegmentDraft[]).sort((a, b) => (a.segment_index || 0) - (b.segment_index || 0)),
+          }))
+          .sort((a, b) => b.version - a.version);
+
+        setVersions(versionGroups);
+
+        // Select latest version by default
+        if (versionGroups.length > 0 && !selectedVersion) {
+          setSelectedVersion(versionGroups[0].version);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch segments:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    try {
+      setIsGenerating(true);
+      setError(null);
+
+      const res = await fetch("/api/generate/segments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Generation failed");
+      }
+
+      // Refresh segments list
+      await fetchSegments();
+
+      // Select the new version
+      if (data.drafts && data.drafts.length > 0) {
+        setSelectedVersion(data.drafts[0].version);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!selectedVersion) return;
+
+    try {
+      setIsApproving(true);
+      setError(null);
+
+      // Save any pending edits first
+      await saveAllEdits();
+
+      const res = await fetch("/api/approve/segments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, version: selectedVersion }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Approval failed");
+      }
+
+      // Navigate to next step
+      router.push(`/projects/${projectId}/generate/segments-review`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Approval failed");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const saveAllEdits = async () => {
+    const editPromises = Object.entries(editedSegments).map(async ([id, updates]) => {
+      await fetch("/api/drafts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: "segments_drafts",
+          id,
+          updates,
+        }),
+      });
+    });
+    await Promise.all(editPromises);
+    setEditedSegments({});
+  };
+
+  const handleEditSegment = (segmentId: string, updates: Partial<SegmentDraft>) => {
+    setEditedSegments(prev => ({
+      ...prev,
+      [segmentId]: { ...prev[segmentId], ...updates },
+    }));
+
+    // Also update local state for immediate UI feedback
+    setVersions(prev =>
+      prev.map(v => ({
+        ...v,
+        segments: v.segments.map(s =>
+          s.id === segmentId ? { ...s, ...updates } : s
+        ),
+      }))
     );
   };
 
-  const segments = Array.isArray(draft) ? draft : (draft.segments || [draft]);
+  const handleDeleteSegment = async (segmentId: string) => {
+    try {
+      const res = await fetch(`/api/drafts?table=segments_drafts&id=${segmentId}`, {
+        method: "DELETE",
+      });
 
-  const handleEditSegment = (index: number, updated: SegmentDraft) => {
-    const newSegments = [...segments];
-    newSegments[index] = updated;
-    onEdit({ segments: newSegments });
+      if (res.ok) {
+        setVersions(prev =>
+          prev.map(v => ({
+            ...v,
+            segments: v.segments.filter(s => s.id !== segmentId),
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to delete segment:", err);
+    }
   };
 
-  const handleDeleteSegment = (index: number) => {
-    const newSegments = segments.filter((_, i) => i !== index);
-    onEdit({ segments: newSegments });
+  const handleAddSegment = async (segment: Omit<SegmentDraft, "id" | "created_at">) => {
+    try {
+      const currentVersionSegments = versions.find(v => v.version === selectedVersion)?.segments || [];
+      const maxIndex = Math.max(...currentVersionSegments.map(s => s.segment_index || 0), 0);
+
+      const res = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: "segments_drafts",
+          data: {
+            project_id: projectId,
+            version: selectedVersion,
+            segment_index: maxIndex + 1,
+            name: segment.name,
+            description: segment.description,
+            sociodemographics: segment.sociodemographics,
+          },
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.draft) {
+        setVersions(prev =>
+          prev.map(v =>
+            v.version === selectedVersion
+              ? { ...v, segments: [...v.segments, data.draft] }
+              : v
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to add segment:", err);
+    }
   };
 
-  const handleAddSegment = (segment: SegmentDraft) => {
-    onEdit({ segments: [...segments, segment] });
+  const handleDeleteVersion = async (version: number) => {
+    if (!confirm(`Delete version ${version} with all its segments? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setIsDeletingVersion(true);
+      setError(null);
+
+      const res = await fetch(`/api/drafts/version?projectId=${projectId}&version=${version}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete version");
+      }
+
+      // Remove version from local state
+      setVersions(prev => prev.filter(v => v.version !== version));
+
+      // If we deleted the selected version, select another one
+      if (selectedVersion === version) {
+        const remaining = versions.filter(v => v.version !== version);
+        if (remaining.length > 0) {
+          setSelectedVersion(remaining[0].version);
+        } else {
+          setSelectedVersion(null);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete version");
+    } finally {
+      setIsDeletingVersion(false);
+    }
   };
+
+  const toggleSegment = (segmentId: string) => {
+    setExpandedSegments(prev =>
+      prev.includes(segmentId)
+        ? prev.filter(id => id !== segmentId)
+        : [...prev, segmentId]
+    );
+  };
+
+  const expandAll = () => {
+    const currentSegments = versions.find(v => v.version === selectedVersion)?.segments || [];
+    setExpandedSegments(currentSegments.map(s => s.id));
+  };
+
+  const collapseAll = () => {
+    setExpandedSegments([]);
+  };
+
+  const currentVersionData = versions.find(v => v.version === selectedVersion);
+  const segments = currentVersionData?.segments || [];
+  const hasUnsavedChanges = Object.keys(editedSegments).length > 0;
 
   return (
     <div className="space-y-6">
-      <div className="p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <Users className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-indigo-900">
-                {segments.length} Audience Segments
-              </h3>
-              <p className="text-sm text-indigo-600">
-                Click to expand and edit details
-              </p>
-            </div>
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-start justify-between"
+      >
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg shadow-indigo-500/20">
+            <Users className="w-6 h-6" />
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setExpandedSegments(segments.map((_, i) => i))}
-              className="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
-            >
-              Expand All
-            </button>
-            <button
-              onClick={() => setExpandedSegments([])}
-              className="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
-            >
-              Collapse All
-            </button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              Audience Segments
+            </h1>
+            <p className="mt-1 text-slate-500 max-w-xl">
+              Generate 10 distinct audience segments based on the portrait. Each segment represents a unique subset of your target audience.
+            </p>
           </div>
         </div>
-      </div>
 
-      <div className="space-y-4">
-        {segments.map((segment, index) => (
-          <EditableSegmentCard
-            key={segment.id || index}
-            segment={segment}
-            index={index}
-            isExpanded={expandedSegments.includes(index)}
-            onToggle={() => toggleSegment(index)}
-            onEdit={(updated) => handleEditSegment(index, updated)}
-            onDelete={() => handleDeleteSegment(index)}
+        <div className="flex items-center gap-3">
+          {/* Language Toggle */}
+          <LanguageToggle
+            currentLanguage={language}
+            onLanguageChange={setLanguage}
+            isLoading={isTranslating}
           />
-        ))}
-        <AddSegmentForm onAdd={handleAddSegment} />
-      </div>
+
+          {versions.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="gap-2"
+            >
+              <RefreshCw className={cn("w-4 h-4", isGenerating && "animate-spin")} />
+              Regenerate
+            </Button>
+          )}
+          <Button
+            onClick={versions.length === 0 ? handleGenerate : handleApprove}
+            disabled={isGenerating || isApproving || (versions.length > 0 && segments.length < 3)}
+            isLoading={isGenerating || isApproving}
+            className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+          >
+            {versions.length === 0 ? (
+              <>
+                <Sparkles className="w-4 h-4" />
+                Generate
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Approve & Continue
+              </>
+            )}
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Error Message */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700"
+          >
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Version Tabs */}
+      {versions.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-between p-3 bg-slate-100 rounded-xl"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500 font-medium">Versions:</span>
+            <div className="flex gap-2">
+              {versions.map((v) => (
+                <button
+                  key={v.version}
+                  onClick={() => setSelectedVersion(v.version)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm rounded-lg transition-all",
+                    selectedVersion === v.version
+                      ? "bg-white text-slate-900 shadow-sm font-medium"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  v{v.version} ({v.segments.length})
+                </button>
+              ))}
+            </div>
+          </div>
+          {versions.length > 1 && selectedVersion && (
+            <button
+              onClick={() => handleDeleteVersion(selectedVersion)}
+              disabled={isDeletingVersion}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete v{selectedVersion}
+            </button>
+          )}
+        </motion.div>
+      )}
+
+      {/* Main Content */}
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center justify-center py-24"
+          >
+            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+          </motion.div>
+        ) : isGenerating ? (
+          <GeneratingState key="generating" />
+        ) : segments.length > 0 ? (
+          <motion.div
+            key="segments"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            {/* Summary Header */}
+            <div className="p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <Users className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-indigo-900">
+                      {segments.length} Audience Segments
+                    </h3>
+                    <p className="text-sm text-indigo-600">
+                      Click to expand and edit details • Min 3 required for approval
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={expandAll}
+                    className="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                  >
+                    Expand All
+                  </button>
+                  <button
+                    onClick={collapseAll}
+                    className="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                  >
+                    Collapse All
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Segments List */}
+            <div className="space-y-4">
+              {segments.map((segment, index) => (
+                <SegmentCard
+                  key={segment.id}
+                  segment={segment}
+                  index={index}
+                  isExpanded={expandedSegments.includes(segment.id)}
+                  onToggle={() => toggleSegment(segment.id)}
+                  onEdit={(updates) => handleEditSegment(segment.id, updates)}
+                  onDelete={() => handleDeleteSegment(segment.id)}
+                  canDelete={segments.length > 3}
+                />
+              ))}
+              <AddSegmentForm onAdd={handleAddSegment} version={selectedVersion || 1} />
+            </div>
+          </motion.div>
+        ) : (
+          <EmptyState
+            key="empty"
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Unsaved Changes Banner */}
+      <AnimatePresence>
+        {hasUnsavedChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 right-6 flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xl"
+          >
+            <span className="text-sm text-slate-600">You have unsaved changes</span>
+            <Button variant="outline" size="sm" onClick={() => setEditedSegments({})}>
+              Discard
+            </Button>
+            <Button size="sm" onClick={saveAllEdits}>
+              Save Changes
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function EditableSegmentCard({
+// =====================================================
+// Segment Card Component
+// =====================================================
+
+function SegmentCard({
   segment,
   index,
   isExpanded,
   onToggle,
   onEdit,
   onDelete,
+  canDelete,
 }: {
   segment: SegmentDraft;
   index: number;
   isExpanded: boolean;
   onToggle: () => void;
-  onEdit: (segment: SegmentDraft) => void;
+  onEdit: (updates: Partial<SegmentDraft>) => void;
   onDelete: () => void;
+  canDelete: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(segment.name);
@@ -166,7 +574,7 @@ function EditableSegmentCard({
   const gradientColor = colors[index % colors.length];
 
   const handleSave = () => {
-    onEdit({ ...segment, name, description, sociodemographics });
+    onEdit({ name, description, sociodemographics });
     setIsEditing(false);
   };
 
@@ -176,6 +584,13 @@ function EditableSegmentCard({
     setSociodemographics(segment.sociodemographics);
     setIsEditing(false);
   };
+
+  // Sync local state when segment changes
+  useEffect(() => {
+    setName(segment.name);
+    setDescription(segment.description);
+    setSociodemographics(segment.sociodemographics);
+  }, [segment]);
 
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -207,12 +622,14 @@ function EditableSegmentCard({
             >
               <Pencil className="w-4 h-4" />
             </button>
-            <button
-              onClick={onDelete}
-              className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {canDelete && (
+              <button
+                onClick={onDelete}
+                className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <div
             onClick={onToggle}
@@ -313,7 +730,17 @@ function EditableSegmentCard({
   );
 }
 
-function AddSegmentForm({ onAdd }: { onAdd: (segment: SegmentDraft) => void }) {
+// =====================================================
+// Add Segment Form
+// =====================================================
+
+function AddSegmentForm({
+  onAdd,
+  version
+}: {
+  onAdd: (segment: Omit<SegmentDraft, "id" | "created_at">) => void;
+  version: number;
+}) {
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -322,13 +749,12 @@ function AddSegmentForm({ onAdd }: { onAdd: (segment: SegmentDraft) => void }) {
   const handleAdd = () => {
     if (name.trim() && description.trim()) {
       onAdd({
-        id: `new-${Date.now()}`,
         project_id: "",
         name: name.trim(),
         description: description.trim(),
         sociodemographics: sociodemographics.trim(),
-        version: 1,
-        created_at: new Date().toISOString(),
+        version,
+        segment_index: 0,
       });
       setName("");
       setDescription("");
@@ -404,5 +830,147 @@ function AddSegmentForm({ onAdd }: { onAdd: (segment: SegmentDraft) => void }) {
       <Plus className="w-4 h-4" />
       Add Segment
     </button>
+  );
+}
+
+// =====================================================
+// Generating State
+// =====================================================
+
+function GeneratingState() {
+  const steps = [
+    "Sending request to AI...",
+    "Analyzing portrait data...",
+    "Identifying distinct segments...",
+    "Building segment profiles...",
+    "Generating 10 segments...",
+  ];
+  const [currentStep, setCurrentStep] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentStep(prev => (prev < steps.length - 1 ? prev + 1 : prev));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [steps.length]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="flex flex-col items-center justify-center py-24"
+    >
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur-xl opacity-30 animate-pulse" />
+        <div className="relative w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-white animate-pulse" />
+        </div>
+      </div>
+
+      <h3 className="mt-8 text-xl font-semibold text-slate-900">
+        Generating 10 Segments
+      </h3>
+
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={currentStep}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mt-2 text-slate-500"
+        >
+          {steps[currentStep]}
+        </motion.p>
+      </AnimatePresence>
+
+      <div className="mt-6 w-64">
+        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500"
+            initial={{ width: "0%" }}
+            animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          />
+        </div>
+        <div className="flex justify-between mt-2 text-xs text-slate-400">
+          <span>Step {currentStep + 1} of {steps.length}</span>
+          <span>{formatTime(elapsedTime)}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 flex gap-1.5">
+        {steps.map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              "w-2 h-2 rounded-full transition-colors duration-300",
+              index < currentStep
+                ? "bg-emerald-500"
+                : index === currentStep
+                ? "bg-indigo-500"
+                : "bg-slate-200"
+            )}
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// =====================================================
+// Empty State
+// =====================================================
+
+function EmptyState({
+  onGenerate,
+  isGenerating,
+}: {
+  onGenerate: () => void;
+  isGenerating: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+    >
+      <Card className="border-2 border-dashed border-slate-200 bg-slate-50/50">
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-6">
+            <Users className="w-8 h-8 text-slate-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            Ready to Generate Segments
+          </h3>
+          <p className="text-slate-500 text-center max-w-md mb-6">
+            Generate 10 distinct audience segments to better understand the different types of customers within your target market.
+          </p>
+          <Button
+            onClick={onGenerate}
+            disabled={isGenerating}
+            isLoading={isGenerating}
+            className="gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+          >
+            <Sparkles className="w-4 h-4" />
+            Generate 10 Segments
+          </Button>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

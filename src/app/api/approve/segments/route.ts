@@ -1,17 +1,26 @@
 // =====================================================
 // Approve Segments - Prompt 9
+// Approves all segments of a specific version (or by draftIds)
+// Minimum 3 segments required for approval
 // =====================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { handleApiError, ApiError, getNextStep } from "@/lib/api-utils";
 
+const MIN_SEGMENTS_FOR_APPROVE = 3;
+
 export async function POST(request: NextRequest) {
   try {
-    const { projectId, draftIds } = await request.json();
+    const { projectId, draftIds, version } = await request.json();
 
-    if (!projectId || !draftIds || !Array.isArray(draftIds)) {
-      throw new ApiError("Project ID and Draft IDs array are required", 400);
+    if (!projectId) {
+      throw new ApiError("Project ID is required", 400);
+    }
+
+    // Either draftIds or version must be provided
+    if (!draftIds && !version) {
+      throw new ApiError("Either Draft IDs or version number is required", 400);
     }
 
     const supabase = await createServerClient();
@@ -21,16 +30,49 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    // Get all drafts
-    const { data: drafts, error: draftsError } = await supabase
-      .from("segments_drafts")
-      .select("*")
-      .in("id", draftIds)
-      .eq("project_id", projectId);
+    // Get drafts - either by IDs or by version
+    let drafts;
+    if (draftIds && Array.isArray(draftIds)) {
+      const { data, error } = await supabase
+        .from("segments_drafts")
+        .select("*")
+        .in("id", draftIds)
+        .eq("project_id", projectId)
+        .order("segment_index", { ascending: true });
 
-    if (draftsError || !drafts || drafts.length === 0) {
+      if (error) throw new ApiError("Failed to fetch drafts", 500);
+      drafts = data;
+    } else if (version) {
+      const { data, error } = await supabase
+        .from("segments_drafts")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("version", version)
+        .order("segment_index", { ascending: true });
+
+      if (error) throw new ApiError("Failed to fetch drafts", 500);
+      drafts = data;
+    }
+
+    if (!drafts || drafts.length === 0) {
       throw new ApiError("Drafts not found", 404);
     }
+
+    // Validate minimum segments
+    if (drafts.length < MIN_SEGMENTS_FOR_APPROVE) {
+      throw new ApiError(
+        `Minimum ${MIN_SEGMENTS_FOR_APPROVE} segments required for approval. Found: ${drafts.length}`,
+        400
+      );
+    }
+
+    console.log(`[approve/segments] Approving ${drafts.length} segments`);
+
+    // Delete existing approved segments for this project (fresh start)
+    await supabase
+      .from("segments_initial")
+      .delete()
+      .eq("project_id", projectId);
 
     // Insert approved segments
     const approved = [];
@@ -54,13 +96,20 @@ export async function POST(request: NextRequest) {
       approved.push(segment);
     }
 
+    console.log(`[approve/segments] Approved ${approved.length} segments`);
+
     const nextStep = getNextStep("segments_draft");
     await supabase
       .from("projects")
       .update({ current_step: nextStep })
       .eq("id", projectId);
 
-    return NextResponse.json({ success: true, approved, next_step: nextStep });
+    return NextResponse.json({
+      success: true,
+      approved,
+      count: approved.length,
+      next_step: nextStep
+    });
   } catch (error) {
     return handleApiError(error);
   }

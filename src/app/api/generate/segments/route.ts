@@ -62,7 +62,21 @@ export async function POST(request: NextRequest) {
       return parseJSONResponse<SegmentsResponse>(text);
     });
 
-    // Insert each segment as a separate draft
+    // Get max version for this project to determine next version number
+    const { data: existingDrafts } = await supabase
+      .from("segments_drafts")
+      .select("version")
+      .eq("project_id", projectId)
+      .order("version", { ascending: false })
+      .limit(1);
+
+    const nextVersion = existingDrafts && existingDrafts.length > 0
+      ? existingDrafts[0].version + 1
+      : 1;
+
+    console.log(`[generate/segments] Creating ${response.segments.length} segments with version ${nextVersion}`);
+
+    // Insert all 10 segments with same version
     const drafts = [];
     for (const segment of response.segments) {
       const { data: draft, error: insertError } = await supabase
@@ -73,7 +87,7 @@ export async function POST(request: NextRequest) {
           name: segment.name,
           description: segment.description,
           sociodemographics: segment.sociodemographics,
-          version: 1,
+          version: nextVersion,
         })
         .select()
         .single();
@@ -84,6 +98,8 @@ export async function POST(request: NextRequest) {
       }
       drafts.push(draft);
     }
+
+    console.log(`[generate/segments] Created ${drafts.length} segment drafts`);
 
     await supabase
       .from("projects")

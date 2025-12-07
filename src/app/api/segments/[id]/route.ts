@@ -1,35 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/supabase/server";
+import { handleApiError, ApiError } from "@/lib/api-utils";
 
-// GET - Fetch segment by ID
+// GET - Fetch segments for a project by project ID
+// Supports ?source=final to get from segments_final table
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = await params;
-        const supabase = await createClient();
+        const { id: projectId } = await params;
+        const { searchParams } = new URL(request.url);
+        const source = searchParams.get("source"); // "final" for segments_final table
 
-        const { data, error } = await supabase
-            .from("audience_segments")
-            .select("*")
-            .eq("id", id)
-            .single();
-
-        if (error) {
-            if (error.code === "PGRST116") {
-                return NextResponse.json({ error: "Segment not found" }, { status: 404 });
-            }
-            throw error;
+        const supabase = await createServerClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            throw new ApiError("Unauthorized", 401);
         }
 
-        return NextResponse.json(data);
+        // Choose table based on source parameter
+        const table = source === "final" ? "segments_final" : "segments";
+        const orderColumn = source === "final" ? "segment_index" : "order_index";
+
+        const { data: segments, error } = await supabase
+            .from(table)
+            .select("*")
+            .eq("project_id", projectId)
+            .order(orderColumn, { ascending: true });
+
+        if (error) {
+            console.error(`Error fetching segments from ${table}:`, error);
+            return NextResponse.json({ success: true, segments: [] });
+        }
+
+        return NextResponse.json({ success: true, segments: segments || [] });
     } catch (error) {
-        console.error("Error fetching segment:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch segment" },
-            { status: 500 }
-        );
+        return handleApiError(error);
     }
 }
 
@@ -40,7 +47,7 @@ export async function PATCH(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        const supabase = await createServerClient();
         const body = await request.json();
 
         // Validate allowed fields
@@ -69,7 +76,7 @@ export async function PATCH(
         }
 
         const { data, error } = await supabase
-            .from("audience_segments")
+            .from("segments")
             .update(updateData)
             .eq("id", id)
             .select()
@@ -99,7 +106,7 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        const supabase = await createServerClient();
 
         // First delete associated pains
         const { error: painsError } = await supabase
@@ -111,7 +118,7 @@ export async function DELETE(
 
         // Then delete the segment
         const { error } = await supabase
-            .from("audience_segments")
+            .from("segments")
             .delete()
             .eq("id", id);
 

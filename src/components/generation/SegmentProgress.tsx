@@ -1,9 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, ChevronRight, Lock } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Segment, ProjectStep } from "@/types";
+import { Segment } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 
@@ -26,24 +26,21 @@ interface SegmentProgressData {
 }
 
 interface SegmentProgressProps {
-  projectId: string;
   segments: Segment[];
   segmentProgressData: SegmentProgressData[];
   currentStepType: string;
-  nextStepUrl: string;
-  onContinue?: () => void;
+  projectId?: string;
+  nextStepUrl?: string;
 }
 
 export function SegmentProgress({
-  projectId,
   segments,
   segmentProgressData,
   currentStepType,
+  projectId,
   nextStepUrl,
-  onContinue,
 }: SegmentProgressProps) {
   const router = useRouter();
-
   // Check if all segments have completed current step
   const allSegmentsCompleted = segments.length > 0 &&
     segments.every(seg => {
@@ -58,27 +55,30 @@ export function SegmentProgress({
   ).length;
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
 
-  const handleContinue = () => {
-    if (onContinue) {
-      onContinue();
-    } else {
-      router.push(`/projects/${projectId}${nextStepUrl}`);
-    }
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border border-slate-200"
     >
-      <div className="flex items-start justify-between gap-6">
+      <div className="flex items-start gap-6">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-slate-900 mb-1">
-            {SEGMENT_STEP_LABELS[currentStepType] || currentStepType} Progress
-          </h3>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-lg font-semibold text-slate-900">
+              {SEGMENT_STEP_LABELS[currentStepType] || currentStepType} Progress
+            </h3>
+            {allSegmentsCompleted && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+                <Check className="w-4 h-4" />
+                All Complete
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-500 mb-4">
-            Complete this step for all segments to continue
+            {allSegmentsCompleted
+              ? "All segments completed! Use the button above to continue."
+              : "Complete this step for all segments to continue"
+            }
           </p>
 
           {/* Progress bar */}
@@ -135,32 +135,19 @@ export function SegmentProgress({
               );
             })}
           </div>
-        </div>
 
-        {/* Continue button */}
-        <div className="flex-shrink-0">
-          <Button
-            onClick={handleContinue}
-            disabled={!allSegmentsCompleted}
-            className={cn(
-              "gap-2",
-              allSegmentsCompleted
-                ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
-                : "bg-slate-300 cursor-not-allowed"
-            )}
-          >
-            {allSegmentsCompleted ? (
-              <>
+          {/* Continue button when all segments are completed */}
+          {allSegmentsCompleted && projectId && nextStepUrl && (
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <Button
+                onClick={() => router.push(`/projects/${projectId}${nextStepUrl}`)}
+                className="w-full gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+              >
                 Continue to Next Step
                 <ChevronRight className="w-4 h-4" />
-              </>
-            ) : (
-              <>
-                <Lock className="w-4 h-4" />
-                Complete All Segments
-              </>
-            )}
-          </Button>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

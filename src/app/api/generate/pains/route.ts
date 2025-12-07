@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
 import { buildPainsPrompt, PainsResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
-import { Project, Segment, SegmentDetails } from "@/types";
+import { Project, PortraitFinal, Segment, SegmentDetails, Jobs, Preferences, Difficulties, Triggers } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,6 +25,17 @@ export async function POST(request: NextRequest) {
       .single();
     if (!project) throw new ApiError("Project not found", 404);
 
+    // Get portrait final
+    const { data: portraitFinal } = await supabase
+      .from("portrait_final")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!portraitFinal) throw new ApiError("Portrait final not found", 400);
+
     // Get segment
     const { data: segment, error: segmentError } = await supabase
       .from("segments")
@@ -39,6 +50,7 @@ export async function POST(request: NextRequest) {
     const { data: segmentDetails } = await supabase
       .from("segment_details")
       .select("*")
+      .eq("project_id", projectId)
       .eq("segment_id", segmentId)
       .order("approved_at", { ascending: false })
       .limit(1)
@@ -48,10 +60,63 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Segment details not found. Approve segment details first.", 400);
     }
 
+    // Get approved jobs for this segment
+    const { data: jobs } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!jobs) throw new ApiError("Jobs not found. Approve jobs first.", 400);
+
+    // Get approved preferences for this segment
+    const { data: preferences } = await supabase
+      .from("preferences")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!preferences) throw new ApiError("Preferences not found. Approve preferences first.", 400);
+
+    // Get approved difficulties for this segment
+    const { data: difficulties } = await supabase
+      .from("difficulties")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!difficulties) throw new ApiError("Difficulties not found. Approve difficulties first.", 400);
+
+    // Get approved triggers for this segment
+    const { data: triggers } = await supabase
+      .from("triggers")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!triggers) throw new ApiError("Triggers not found. Approve triggers first.", 400);
+
     const prompt = buildPainsPrompt(
       (project as Project).onboarding_data,
+      portraitFinal as PortraitFinal,
       segment as Segment,
-      segmentDetails as SegmentDetails
+      segmentDetails as SegmentDetails,
+      jobs as Jobs,
+      preferences as Preferences,
+      difficulties as Difficulties,
+      triggers as Triggers
     );
 
     const response = await withRetry(async () => {

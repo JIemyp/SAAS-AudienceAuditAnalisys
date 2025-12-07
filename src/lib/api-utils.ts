@@ -156,7 +156,9 @@ export const STEP_TO_PAGE: Record<ProjectStep, string> = {
   segments_draft: "/generate/segments",
   segments_approved: "/generate/segments-review",
   segments_review_draft: "/generate/segments-review",
-  segments_review_approved: "/generate/segment-details",
+  segments_review_approved: "/generate/segments-final", // Apply decisions to segments
+  segments_final_draft: "/generate/segments-final",
+  segments_final_approved: "/generate/segment-details",
   segment_details_draft: "/generate/segment-details",
   segment_details_approved: "/generate/jobs", // After segment details, start deep analysis
   // Deep analysis per segment
