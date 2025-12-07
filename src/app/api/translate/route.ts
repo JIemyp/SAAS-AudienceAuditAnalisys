@@ -13,12 +13,18 @@ const DEEPL_LANG_CODES: Record<ContentLanguage, deepl.TargetLanguageCode> = {
   en: "en-US",
   ru: "ru",
   uk: "uk",
+  de: "de",
+  es: "es",
+  fr: "fr",
 };
 
 const GOOGLE_LANG_CODES: Record<ContentLanguage, string> = {
   en: "en",
   ru: "ru",
   uk: "uk",
+  de: "de",
+  es: "es",
+  fr: "fr",
 };
 
 // DeepL client (lazy init)
@@ -40,8 +46,11 @@ async function batchTranslateDeepL(
   if (!client || texts.length === 0) return null;
 
   try {
-    const results = await client.translateText(texts, null, targetLang);
-    return Array.isArray(results) ? results.map(r => r.text) : [results.text];
+    const results = await client.translateText(texts, null, targetLang) as deepl.TextResult | deepl.TextResult[];
+    if (Array.isArray(results)) {
+      return results.map((r: deepl.TextResult) => r.text);
+    }
+    return [(results as deepl.TextResult).text];
   } catch (err: unknown) {
     const error = err as Error & { code?: string };
     if (error.message?.includes("456") || error.message?.includes("quota")) {

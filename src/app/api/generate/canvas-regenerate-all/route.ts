@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
           if (!error && draft) {
             allDrafts.push(draft);
             processedPains++;
-            console.log(`[canvas-regenerate-all] Generated canvas for pain: ${pain.pain_name} (${processedPains}/${totalTopPains})`);
+            console.log(`[canvas-regenerate-all] Generated canvas for pain: ${pain.name} (${processedPains}/${totalTopPains})`);
           }
         } catch (err) {
           console.error(`[canvas-regenerate-all] Error generating canvas for pain ${pain.id}:`, err);
