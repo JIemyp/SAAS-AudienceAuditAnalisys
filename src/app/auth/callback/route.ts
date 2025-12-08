@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
     const requestUrl = new URL(request.url);
     const code = requestUrl.searchParams.get("code");
+    const type = requestUrl.searchParams.get("type");
 
     if (code) {
         const cookieStore = await cookies();
@@ -26,7 +27,17 @@ export async function GET(request: Request) {
             }
         );
 
-        await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+        // If this is a password recovery, redirect to reset password page
+        if (!error && type === "recovery") {
+            return NextResponse.redirect(new URL("/reset-password", request.url));
+        }
+
+        // If session exchange succeeded and it's a recovery type from session
+        if (!error && data?.session?.user?.recovery_sent_at) {
+            return NextResponse.redirect(new URL("/reset-password", request.url));
+        }
     }
 
     // Redirect to projects page after successful auth

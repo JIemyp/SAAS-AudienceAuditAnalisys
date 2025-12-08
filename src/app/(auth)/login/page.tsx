@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 
+type ViewMode = "login" | "signup" | "forgot";
+
 export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
-    const [isSignUp, setIsSignUp] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>("login");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,13 @@ export default function LoginPage() {
         try {
             setIsLoading(true);
 
-            if (isSignUp) {
+            if (viewMode === "forgot") {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+                });
+                if (error) throw error;
+                setMessage("Check your email for the password reset link!");
+            } else if (viewMode === "signup") {
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
@@ -91,19 +99,30 @@ export default function LoginPage() {
         }
     };
 
+    const getTitle = () => {
+        if (viewMode === "forgot") return "Reset Password";
+        if (viewMode === "signup") return "Create account";
+        return "Welcome back";
+    };
+
+    const getDescription = () => {
+        if (viewMode === "forgot") return "Enter your email to receive a reset link";
+        if (viewMode === "signup") return "Sign up to get started";
+        return "Sign in to your account to continue";
+    };
+
+    const getButtonText = () => {
+        if (viewMode === "forgot") return "Send Reset Link";
+        if (viewMode === "signup") return "Sign Up";
+        return "Sign In";
+    };
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-bg-secondary p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">
-                        {isSignUp ? "Create account" : "Welcome back"}
-                    </CardTitle>
-                    <CardDescription>
-                        {isSignUp
-                            ? "Sign up to get started"
-                            : "Sign in to your account to continue"
-                        }
-                    </CardDescription>
+                    <CardTitle className="text-2xl">{getTitle()}</CardTitle>
+                    <CardDescription>{getDescription()}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <form onSubmit={handleEmailAuth} className="space-y-4">
@@ -118,18 +137,20 @@ export default function LoginPage() {
                                 required
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                minLength={6}
-                            />
-                        </div>
+                        {viewMode !== "forgot" && (
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    minLength={6}
+                                />
+                            </div>
+                        )}
 
                         {error && (
                             <p className="text-sm text-red-500">{error}</p>
@@ -143,59 +164,108 @@ export default function LoginPage() {
                             className="w-full"
                             isLoading={isLoading}
                         >
-                            {isSignUp ? "Sign Up" : "Sign In"}
+                            {getButtonText()}
                         </Button>
                     </form>
 
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-border" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-bg-primary px-2 text-text-secondary">
-                                Or continue with
-                            </span>
-                        </div>
-                    </div>
-
-                    <Button
-                        type="button"
-                        className="w-full"
-                        onClick={handleGoogleLogin}
-                        disabled={isLoading}
-                        variant="outline"
-                    >
-                        <svg
-                            className="mr-2 h-4 w-4"
-                            aria-hidden="true"
-                            focusable="false"
-                            data-prefix="fab"
-                            data-icon="google"
-                            role="img"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 488 512"
-                        >
-                            <path
-                                fill="currentColor"
-                                d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
-                            ></path>
-                        </svg>
-                        Google
-                    </Button>
-
-                    <p className="text-center text-sm text-text-secondary">
-                        {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+                    {viewMode === "login" && (
                         <button
                             type="button"
                             onClick={() => {
-                                setIsSignUp(!isSignUp);
+                                setViewMode("forgot");
                                 setError(null);
                                 setMessage(null);
                             }}
-                            className="text-accent-primary hover:underline"
+                            className="w-full text-center text-sm text-text-secondary hover:text-accent-primary"
                         >
-                            {isSignUp ? "Sign In" : "Sign Up"}
+                            Forgot password?
                         </button>
+                    )}
+
+                    {viewMode !== "forgot" && (
+                        <>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t border-border" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-bg-primary px-2 text-text-secondary">
+                                        Or continue with
+                                    </span>
+                                </div>
+                            </div>
+
+                            <Button
+                                type="button"
+                                className="w-full"
+                                onClick={handleGoogleLogin}
+                                disabled={isLoading}
+                                variant="outline"
+                            >
+                                <svg
+                                    className="mr-2 h-4 w-4"
+                                    aria-hidden="true"
+                                    focusable="false"
+                                    data-prefix="fab"
+                                    data-icon="google"
+                                    role="img"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 488 512"
+                                >
+                                    <path
+                                        fill="currentColor"
+                                        d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+                                    ></path>
+                                </svg>
+                                Google
+                            </Button>
+                        </>
+                    )}
+
+                    <p className="text-center text-sm text-text-secondary">
+                        {viewMode === "forgot" ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setViewMode("login");
+                                    setError(null);
+                                    setMessage(null);
+                                }}
+                                className="text-accent-primary hover:underline"
+                            >
+                                Back to Sign In
+                            </button>
+                        ) : viewMode === "signup" ? (
+                            <>
+                                Already have an account?{" "}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setViewMode("login");
+                                        setError(null);
+                                        setMessage(null);
+                                    }}
+                                    className="text-accent-primary hover:underline"
+                                >
+                                    Sign In
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                Don&apos;t have an account?{" "}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setViewMode("signup");
+                                        setError(null);
+                                        setMessage(null);
+                                    }}
+                                    className="text-accent-primary hover:underline"
+                                >
+                                    Sign Up
+                                </button>
+                            </>
+                        )}
                     </p>
                 </CardContent>
             </Card>
