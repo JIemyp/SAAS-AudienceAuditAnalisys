@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
+import { LanguageToggle } from "@/components/ui/LanguageToggle";
+import { useLanguage } from "@/lib/contexts/LanguageContext";
+import { useTranslation } from "@/lib/hooks/useTranslation";
 import {
     Play,
     Pencil,
@@ -83,6 +86,14 @@ export default function ProjectPage({
     const [showResetModal, setShowResetModal] = useState(false);
     const supabase = createClient();
 
+    // Language & Translation
+    const { language, setLanguage } = useLanguage();
+    const { translatedContent, isTranslating } = useTranslation({
+        content: project?.onboarding_data,
+        language,
+        enabled: !!project?.onboarding_data,
+    });
+
     useEffect(() => {
         async function fetchProject() {
             const { data, error } = await supabase
@@ -147,7 +158,10 @@ export default function ProjectPage({
         return null;
     }
 
-    const data = project.onboarding_data;
+    // Use translated content if available, otherwise use original
+    const data = (translatedContent && typeof translatedContent === 'object')
+        ? (translatedContent as Project['onboarding_data'])
+        : project.onboarding_data;
     const stepNumber = getStepNumber(project.current_step);
     const stepLabel = getStepLabel(stepNumber);
     const progress = getProgressPercentage(project.current_step);
@@ -168,18 +182,36 @@ export default function ProjectPage({
                             : "Review your project data and start the analysis."}
                     </p>
                 </div>
-                <Badge
-                    variant={
-                        project.status === "failed"
-                            ? "destructive"
-                            : project.status === "completed"
-                            ? "default"
-                            : "secondary"
-                    }
-                >
-                    {project.status}
-                </Badge>
+                <div className="flex items-center gap-3">
+                    <LanguageToggle
+                        currentLanguage={language}
+                        onLanguageChange={setLanguage}
+                        isLoading={isTranslating}
+                    />
+                    <Badge
+                        variant={
+                            project.status === "failed"
+                                ? "destructive"
+                                : project.status === "completed"
+                                ? "default"
+                                : "secondary"
+                        }
+                    >
+                        {project.status}
+                    </Badge>
+                </div>
             </div>
+
+            {/* Translation in progress banner */}
+            {isTranslating && language !== 'en' && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
+                    <div>
+                        <p className="text-amber-800 font-medium">Translating content...</p>
+                        <p className="text-amber-600 text-sm">FREE translation (no AI tokens used)</p>
+                    </div>
+                </div>
+            )}
 
             {/* Analysis Progress & Actions Card */}
             <Card className="overflow-hidden">
