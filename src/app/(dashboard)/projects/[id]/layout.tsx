@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Users, Download, AlertCircle, CheckCircle2, Lock, Circle, Loader2, Home, FolderOpen, ChevronRight, FileText, Search, Compass } from "lucide-react";
+import { LayoutDashboard, Users, Download, AlertCircle, CheckCircle2, Lock, Circle, Loader2, Home, FolderOpen, ChevronRight, FileText, Search, Compass, Settings } from "lucide-react";
 import { use, useEffect, useState } from "react";
 
 // Results section tabs
@@ -18,6 +18,7 @@ const dataTabs = [
     { name: "Segments", href: "/segments", icon: Users },
     { name: "Pains", href: "/pains", icon: AlertCircle },
     { name: "Export", href: "/export", icon: Download },
+    { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 // Pages that should not show the tab navigation

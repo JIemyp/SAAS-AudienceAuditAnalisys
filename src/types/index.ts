@@ -1044,3 +1044,53 @@ export interface SegmentFinal {
   is_new: boolean;
   approved_at: string;
 }
+
+// =====================================================
+// Project Collaboration Types
+// =====================================================
+
+export type ProjectRole = 'owner' | 'viewer';
+
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: ProjectRole;
+  invited_by: string | null;
+  joined_at: string;
+  // Joined from auth.users
+  email?: string;
+}
+
+export interface ProjectInvite {
+  id: string;
+  project_id: string;
+  email: string;
+  role: ProjectRole;
+  token: string;
+  invited_by: string | null;
+  created_at: string;
+  expires_at: string;
+  accepted_at: string | null;
+}
+
+export interface ProjectMemberRow {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: ProjectRole;
+  invited_by: string | null;
+  joined_at: string;
+}
+
+export interface ProjectInviteRow {
+  id: string;
+  project_id: string;
+  email: string;
+  role: ProjectRole;
+  token: string;
+  invited_by: string | null;
+  created_at: string;
+  expires_at: string;
+  accepted_at: string | null;
+}
