@@ -30,19 +30,24 @@ export async function GET(
 
     const isOwner = project.user_id === user.id;
 
-    // Check if user is a member
-    const { data: membership } = await supabase
+    // Check if user is a member (use maybeSingle to handle empty results)
+    const { data: membership, error: membershipError } = await supabase
       .from("project_members")
       .select("id")
       .eq("project_id", projectId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
+
+    // Log for debugging
+    if (membershipError) {
+      console.error("Membership check error:", membershipError);
+    }
 
     if (!isOwner && !membership) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // Get all members
+    // Get all members (empty array is OK)
     const { data: members, error } = await supabase
       .from("project_members")
       .select("*")
@@ -51,7 +56,7 @@ export async function GET(
 
     if (error) {
       console.error("Error fetching members:", error);
-      return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
+      return NextResponse.json({ error: `Failed to fetch members: ${error.message}` }, { status: 500 });
     }
 
     // Get owner info
