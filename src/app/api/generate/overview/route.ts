@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { createServerClient } from "@/lib/supabase/server";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildOverviewPrompt, OverviewResponse } from "@/lib/prompts";
 import { getFileContent } from "@/lib/upload-files";
 
@@ -18,13 +18,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = await createServerClient();
+
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Get project with onboarding data
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select("*, project_files(*)")
       .eq("id", projectId)
+      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) {
@@ -55,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Build prompt and generate
     const prompt = buildOverviewPrompt(project.onboarding_data, filesContent);
-    const response = await generateWithClaude({ prompt, maxTokens: 4096 });
+    const response = await generateWithAI({ prompt, maxTokens: 4096, userId: user.id });
     const parsed = parseJSONResponse<OverviewResponse>(response);
 
     // Save to database
@@ -87,7 +94,7 @@ export async function POST(request: NextRequest) {
     // Update project status to failed
     if (projectId) {
       try {
-        const supabase = await createClient();
+        const supabase = await createServerClient();
         await supabase
           .from("projects")
           .update({ status: "failed" })

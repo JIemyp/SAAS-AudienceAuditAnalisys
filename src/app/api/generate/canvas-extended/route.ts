@@ -2,7 +2,7 @@
 // V2: Uses pain_id instead of canvas_id, structured JSONB output
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildCanvasExtendedPromptV2, CanvasExtendedV2Response } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import {
@@ -239,10 +239,11 @@ export async function POST(request: NextRequest) {
 
       // Generate with Claude - V2 needs more tokens for detailed output
       const response = await withRetry(async () => {
-        const text = await generateWithClaude({
+        const text = await generateWithAI({
           prompt: userPrompt,
           systemPrompt,
-          maxTokens: 12000  // Increased for V2 detailed output
+          maxTokens: 12000,
+          userId: user.id  // Increased for V2 detailed output
         });
         return parseJSONResponse<CanvasExtendedV2Response>(text);
       });

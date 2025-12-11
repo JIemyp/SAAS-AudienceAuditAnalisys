@@ -1,7 +1,7 @@
 // Generate Segments Review - Prompt 10
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildSegmentsReviewPrompt, SegmentsReviewResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import { Project, SegmentInitial } from "@/types";
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const prompt = buildSegmentsReviewPrompt((project as Project).onboarding_data, segments as SegmentInitial[]);
 
     const response = await withRetry(async () => {
-      const text = await generateWithClaude({ prompt, maxTokens: 4096 });
+      const text = await generateWithAI({ prompt, maxTokens: 4096, userId: user.id });
       return parseJSONResponse<SegmentsReviewResponse>(text);
     });
 

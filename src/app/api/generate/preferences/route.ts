@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildPreferencesPrompt, PreferencesResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import { Project, PortraitFinal, Jobs, Segment } from "@/types";
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     );
 
     const response = await withRetry(async () => {
-      const text = await generateWithClaude({ prompt, maxTokens: 4096 });
+      const text = await generateWithAI({ prompt, maxTokens: 4096, userId: user.id });
       return parseJSONResponse<PreferencesResponse>(text);
     });
 

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import {
   Project,
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
 
     // Generate with Claude
     const response = await withRetry(async () => {
-      const text = await generateWithClaude({ prompt, maxTokens: 6000 });
+      const text = await generateWithAI({ prompt, maxTokens: 6000, userId: user.id });
       return parseJSONResponse<ChannelStrategyResponse>(text);
     });
 

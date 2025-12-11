@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildPortraitPrompt, PortraitResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import { Project, Validation } from "@/types";
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const prompt = buildPortraitPrompt(typedProject.onboarding_data, validation as Validation);
 
     const response = await withRetry(async () => {
-      const text = await generateWithClaude({ prompt, maxTokens: 4096 });
+      const text = await generateWithAI({ prompt, maxTokens: 4096, userId: user.id });
       return parseJSONResponse<PortraitResponse>(text);
     });
 

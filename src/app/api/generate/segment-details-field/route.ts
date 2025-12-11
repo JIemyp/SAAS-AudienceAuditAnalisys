@@ -2,7 +2,7 @@
 // Regenerates ONE field with full context awareness
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildSingleFieldPrompt, SegmentDetailsFieldName } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import { Project, SegmentFinal, PortraitFinal } from "@/types";
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Call Claude to generate the field
     const response = await withRetry(async () => {
-      const text = await generateWithClaude({ prompt, maxTokens: 2048 });
+      const text = await generateWithAI({ prompt, maxTokens: 2048, userId: user.id });
       return parseJSONResponse<Record<string, unknown>>(text);
     });
 

@@ -1,7 +1,7 @@
 // Generate Pains - Prompt 12 (Per Segment)
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildPainsPrompt, PainsResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import { Project, PortraitFinal, Segment, SegmentDetails, Jobs, Preferences, Difficulties, Triggers } from "@/types";
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     );
 
     const response = await withRetry(async () => {
-      const text = await generateWithClaude({ prompt, maxTokens: 6144 });
+      const text = await generateWithAI({ prompt, maxTokens: 6144, userId: user.id });
       return parseJSONResponse<PainsResponse>(text);
     });
 

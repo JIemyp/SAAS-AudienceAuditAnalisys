@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
+import { AISettings } from "@/components/settings/AISettings";
 import {
     Settings,
     User,
@@ -122,6 +122,9 @@ export default function SettingsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* AI Provider Section */}
+            <AISettings />
 
             {/* Language Section */}
             <Card>

@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { generateWithClaude, parseJSONResponse } from "@/lib/anthropic";
+import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildValidationPrompt, ValidationResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import { Project } from "@/types";
@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Onboarding data not found", 400);
     }
 
-    // Build prompt and call Claude
+    // Build prompt and call AI (uses user's provider settings)
     const prompt = buildValidationPrompt(typedProject.onboarding_data);
 
     const response = await withRetry(async () => {
-      const text = await generateWithClaude({ prompt, maxTokens: 2048 });
+      const text = await generateWithAI({ prompt, maxTokens: 2048, userId: user.id });
       return parseJSONResponse<ValidationResponse>(text);
     });
 
