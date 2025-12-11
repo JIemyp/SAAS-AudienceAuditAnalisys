@@ -286,7 +286,7 @@ export function AISettings() {
                 id="provider"
               >
                 <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">
+                  <span className="font-mono text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
                     {PROVIDER_ICONS[selectedProvider]}
                   </span>
                   {currentProvider?.name || "Select Provider"}
@@ -299,10 +299,10 @@ export function AISettings() {
                 <DropdownMenuItem
                   key={provider.id}
                   onClick={() => setSelectedProvider(provider.id)}
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">
+                    <span className="font-mono text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
                       {PROVIDER_ICONS[provider.id]}
                     </span>
                     {provider.name}
