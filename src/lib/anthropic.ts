@@ -4,7 +4,9 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-export const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-5-20250514";
+// Use alias for stability (claude-sonnet-4-0 points to latest claude-sonnet-4)
+// Fallback to Sonnet 4.5 which is the recommended model
+export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 
 export interface GenerateOptions {
   prompt: string;
