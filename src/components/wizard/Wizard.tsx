@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createClient } from "@/lib/supabase";
@@ -11,6 +11,7 @@ import { onboardingSchema, OnboardingFormData } from "@/lib/schemas";
 import { uploadProjectFiles } from "@/lib/upload-files";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
 import { toast } from "sonner";
+import { OnboardingData } from "@/types";
 
 // Import steps
 import { Step1Brand } from "./steps/Step1Brand";
@@ -31,9 +32,12 @@ const STORAGE_KEY = "audience-audit-wizard-data";
 
 export function Wizard() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const cloneFromId = searchParams.get('clone');
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+    const [isLoadingClone, setIsLoadingClone] = useState(false);
     const supabase = createClient();
 
     // Callback for Step5Context to pass files
@@ -62,13 +66,65 @@ export function Wizard() {
         defaultValues: getInitialData(),
     });
 
-    const { handleSubmit, trigger, watch, formState: { isValid } } = methods;
+    const { handleSubmit, trigger, watch, formState: { isValid }, reset } = methods;
     const formData = watch();
 
-    // Save to localStorage on change
+    // Load data from cloned project
+    const loadProjectToClone = useCallback(async (projectId: string) => {
+        setIsLoadingClone(true);
+        try {
+            const { data: project, error } = await supabase
+                .from('projects')
+                .select('onboarding_data, name')
+                .eq('id', projectId)
+                .single();
+
+            if (error || !project?.onboarding_data) {
+                toast.error('Failed to load project for cloning');
+                return;
+            }
+
+            const data = project.onboarding_data as OnboardingData;
+            reset({
+                brandName: data.brandName + ' (Copy)',
+                productService: data.productService || '',
+                productFormat: data.productFormat || '',
+                problems: Array.isArray(data.problems) ? data.problems.join('\n') : (data.problems || ''),
+                benefits: Array.isArray(data.benefits) ? data.benefits.join('\n') : (data.benefits || ''),
+                usp: data.usp || '',
+                geography: data.geography || '',
+                businessModel: data.businessModel || 'B2C',
+                priceSegment: data.priceSegment || 'Mid-Range',
+                idealCustomer: data.idealCustomer || '',
+                competitors: Array.isArray(data.competitors) ? data.competitors.join('\n') : (data.competitors || ''),
+                differentiation: data.differentiation || '',
+                notAudience: data.notAudience || '',
+                additionalContext: data.additionalContext || '',
+            });
+            toast.success(`Loaded settings from "${project.name}"`);
+        } catch (err) {
+            console.error('Error loading project to clone:', err);
+            toast.error('Failed to load project');
+        } finally {
+            setIsLoadingClone(false);
+        }
+    }, [supabase, reset]);
+
+    // Clone project data if clone param is present
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-    }, [formData]);
+        if (cloneFromId) {
+            // Clear localStorage to prevent mixing with saved data
+            localStorage.removeItem(STORAGE_KEY);
+            loadProjectToClone(cloneFromId);
+        }
+    }, [cloneFromId, loadProjectToClone]);
+
+    // Save to localStorage on change (only if not cloning)
+    useEffect(() => {
+        if (!cloneFromId) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        }
+    }, [formData, cloneFromId]);
 
     const nextStep = async () => {
         let stepValid = false;
@@ -185,6 +241,11 @@ export function Wizard() {
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-8">
+            {cloneFromId && (
+                <div className="mb-4 rounded-md bg-accent/10 border border-accent/30 px-4 py-3 text-sm text-accent">
+                    Cloning project settings...
+                </div>
+            )}
             <div className="mb-8">
                 <StepIndicator steps={steps} currentStep={currentStep} />
             </div>
@@ -192,11 +253,22 @@ export function Wizard() {
             <FormProvider {...methods}>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                     <div className="min-h-[400px]">
-                        {currentStep === 0 && <Step1Brand />}
-                        {currentStep === 1 && <Step2Problems />}
-                        {currentStep === 2 && <Step3Audience />}
-                        {currentStep === 3 && <Step4Competition />}
-                        {currentStep === 4 && <Step5Context onFilesChange={handleFilesChange} />}
+                        {isLoadingClone ? (
+                            <div className="flex items-center justify-center h-[400px]">
+                                <div className="text-center">
+                                    <div className="animate-spin h-8 w-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-4" />
+                                    <p className="text-text-secondary">Loading project data...</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {currentStep === 0 && <Step1Brand />}
+                                {currentStep === 1 && <Step2Problems />}
+                                {currentStep === 2 && <Step3Audience />}
+                                {currentStep === 3 && <Step4Competition />}
+                                {currentStep === 4 && <Step5Context onFilesChange={handleFilesChange} />}
+                            </>
+                        )}
                     </div>
 
                     <div className="flex items-center justify-between border-t border-border pt-6">

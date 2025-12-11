@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Plus, Settings, LogOut } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, Plus, Settings, LogOut, ChevronDown, Copy, FilePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
 
 const navigation = [
     { name: "Projects", href: "/projects", icon: LayoutDashboard },
@@ -17,6 +22,11 @@ export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
+
+    // Check if we're inside a project (not "new" or other special pages)
+    const projectMatch = pathname.match(/\/projects\/([a-f0-9-]+)(?:\/|$)/);
+    const currentProjectId = projectMatch ? projectMatch[1] : null;
+    const isInProject = currentProjectId && currentProjectId !== 'new';
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -33,12 +43,36 @@ export function Sidebar() {
             </div>
 
             <div className="flex flex-1 flex-col gap-y-4 p-4">
-                <Button asChild className="w-full justify-start" size="lg">
-                    <Link href="/projects/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Project
-                    </Link>
-                </Button>
+                {isInProject ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button className="w-full justify-between" size="lg">
+                                <span className="flex items-center">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    New Project
+                                </span>
+                                <ChevronDown className="h-4 w-4 opacity-70" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuItem onClick={() => router.push('/projects/new')}>
+                                <FilePlus className="mr-2 h-4 w-4" />
+                                Start Fresh
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/projects/new?clone=${currentProjectId}`)}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                Clone This Project
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : (
+                    <Button asChild className="w-full justify-start" size="lg">
+                        <Link href="/projects/new">
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Project
+                        </Link>
+                    </Button>
+                )}
 
                 <nav className="flex flex-1 flex-col gap-y-1">
                     {navigation.map((item) => {
