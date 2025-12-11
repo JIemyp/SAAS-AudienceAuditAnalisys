@@ -101,8 +101,11 @@ export function buildPortraitPrompt(
   onboarding: OnboardingData,
   validation: Validation
 ): string {
-  return `You are an expert marketing strategist specializing in audience research.
+  return `You are a senior consumer psychologist with 15+ years experience creating actionable audience profiles for premium products.
 Always respond in English, regardless of input language.
+
+## CRITICAL INSTRUCTION
+Create a HIGHLY SPECIFIC portrait tailored to THIS EXACT product. Avoid generic descriptions that could apply to any health-conscious audience. Every detail must connect to why they would buy THIS specific product.
 
 ## Confirmed Product Understanding
 
@@ -114,55 +117,74 @@ Key differentiator: ${validation.key_differentiator}
 
 Brand: ${onboarding.brandName}
 Product: ${onboarding.productService}
+Product Format: ${onboarding.productFormat}
+Business Model: ${onboarding.businessModel}
 Geography: ${onboarding.geography}
 Price Segment: ${onboarding.priceSegment}
+USP: ${onboarding.usp}
+
+Problems Solved:
+${onboarding.problems.map((p) => `- ${p}`).join("\n")}
+
+Benefits:
+${onboarding.benefits.map((b) => `- ${b}`).join("\n")}
+
+Competitors: ${onboarding.competitors.join(", ")}
+Differentiation: ${onboarding.differentiation}
+
 ${onboarding.idealCustomer ? `Known Ideal Customer: ${onboarding.idealCustomer}` : ""}
 ${onboarding.notAudience ? `NOT Target Audience: ${onboarding.notAudience}` : ""}
 
 ## Task
 
-Create a comprehensive portrait of the target audience.
+Create a SPECIFIC portrait of who would buy THIS product. Think: "Who has the problem this product solves AND can afford it AND is open to this type of solution?"
 
-### Socio-demographics
-Describe in detail:
-- Age range and distribution
-- Gender distribution
-- Income level
-- Education level
-- Location (urban/suburban/rural, regions)
-- Occupation types
-- Family status
+### Socio-demographics - Be SPECIFIC
+- What SPECIFIC age brackets are most likely buyers? (not just "25-55" - narrow it down with % distribution)
+- Gender split WITH reasoning based on the product category
+- Income level that matches price point AND willingness to invest in this category
+- Education level and HOW it affects their receptiveness to the product claims
+- SPECIFIC locations/cities/regions where this audience concentrates
+- SPECIFIC occupations that align with product benefits and price
+- Family status and how it affects purchase motivation
 
-### Psychographics
-Describe in detail:
-- Core values and beliefs
-- Lifestyle and daily habits
-- Interests and hobbies
-- Personality traits
+### Psychographics - Connect to PRODUCT
+- What SPECIFIC values make them open to this product type?
+- What daily habits create the NEED for this product?
+- What interests/hobbies indicate they're in this product's target market?
+- What personality traits make them likely buyers vs. skeptics?
+
+### AVOID
+- Generic health-conscious descriptions
+- Overly broad age ranges
+- Vague income levels like "middle to high income"
+- Lists of interests that don't connect to purchase motivation
 
 ## Output Format
 
 Return ONLY valid JSON:
 
 {
-  "sociodemographics": "Comprehensive text description...",
-  "psychographics": "Comprehensive text description...",
+  "sociodemographics": "Comprehensive 4-6 sentence description with SPECIFIC details about who buys this product and WHY. Include concrete numbers, percentages, and geographic specifics.",
+  "psychographics": "Comprehensive 4-6 sentence description of their mindset, beliefs, and behaviors that make them ideal customers for THIS product. Connect every trait to purchase motivation.",
   "demographics_detailed": {
-    "age_range": "32-55 years",
-    "gender_distribution": "65% women, 35% men",
-    "income_level": "$80,000+ annually",
-    "education": "University educated",
-    "location": "Urban areas in USA, UK, Germany...",
-    "occupation": "Professionals, executives, entrepreneurs",
-    "family_status": "Mixed - singles and families with children"
+    "age_range": "Primary: 35-48 (60%), Secondary: 28-34 (25%), Tertiary: 49-58 (15%)",
+    "gender_distribution": "70% women, 30% men - reasoning: [why based on product]",
+    "income_level": "$95,000-180,000 household income - this price point requires discretionary health budget",
+    "education": "85% bachelor's degree or higher - correlates with evidence-based health decisions",
+    "location": "Top metros: San Francisco Bay Area, NYC, LA, Austin, Seattle, Denver, Boston - health-forward urban centers",
+    "occupation": "Tech professionals (35%), Healthcare workers (20%), Entrepreneurs (15%), Corporate executives (15%), Creative professionals (15%)",
+    "family_status": "55% married with children (health-for-family motivation), 30% DINK couples (self-optimization), 15% single professionals"
   },
   "psychographics_detailed": {
-    "values_beliefs": ["Health-conscious", "Science-driven", "Quality over price"],
-    "lifestyle_habits": ["Regular exercise", "Meal planning", "Supplement routines"],
-    "interests_hobbies": ["Biohacking", "Nutrition research", "Wellness podcasts"],
-    "personality_traits": ["Skeptical", "Research-oriented", "Early adopters"]
+    "values_beliefs": ["Evidence over marketing - they research claims", "Prevention over treatment - proactive health investors", "Quality justifies premium - reject cheap alternatives", "Body as performance system - optimize inputs"],
+    "lifestyle_habits": ["Morning routine optimizers - 5-6am risers", "Meal prep Sundays - intentional nutrition", "Quarterly health check-ups - track biomarkers", "10,000+ steps daily - movement non-negotiable", "8+ hours sleep priority - recovery-focused"],
+    "interests_hobbies": ["Podcasts: Huberman Lab, Peter Attia, Found My Fitness", "Apps: Oura, Whoop, Zero fasting", "Activities: yoga, hiking, CrossFit, swimming", "Reading: longevity research, functional medicine"],
+    "personality_traits": ["Skeptical until proven - need multiple data points", "Information gatherers - 3+ weeks research before purchase", "Early majority not early adopter - want proven solutions", "Influence circles - share discoveries with friends", "High agency - believe they can affect health outcomes"]
   }
-}`;
+}
+
+IMPORTANT: Every field must be SPECIFIC to this product. Generic responses will be rejected.`;
 }
 
 // Prompt 3: Portrait Review
@@ -929,6 +951,202 @@ Return ONLY valid JSON:
 }`;
 }
 
+// Prompt 11a: Single Field Regeneration for Segment Details
+// Used when user wants to regenerate just ONE field with AI context
+export type SegmentDetailsFieldName =
+  | "sociodemographics"
+  | "psychographics"
+  | "online_behavior"
+  | "buying_behavior"
+  | "awareness_level"
+  | "needs"
+  | "core_values"
+  | "objections";
+
+interface CurrentDraftContext {
+  sociodemographics?: string;
+  psychographics?: string;
+  online_behavior?: string;
+  buying_behavior?: string;
+  awareness_level?: string;
+  needs?: Array<{ need: string; intensity: string }>;
+  core_values?: Array<{ value: string; manifestation: string }>;
+  objections?: Array<{ objection: string; root_cause: string; how_to_overcome: string }>;
+}
+
+export function buildSingleFieldPrompt(
+  fieldName: SegmentDetailsFieldName,
+  onboarding: OnboardingData,
+  segment: SegmentInitial,
+  portraitFinal: {
+    sociodemographics: string;
+    psychographics: string;
+    values_beliefs: string[];
+    lifestyle_habits: string[];
+    interests_hobbies: string[];
+    personality_traits: string[];
+  },
+  currentDraft: CurrentDraftContext
+): string {
+  // Build context from already filled fields
+  const filledFieldsContext = Object.entries(currentDraft)
+    .filter(([key, value]) => key !== fieldName && value && (typeof value === "string" ? value.trim() : Array.isArray(value) && value.length > 0))
+    .map(([key, value]) => {
+      if (Array.isArray(value)) {
+        return `${key}: ${JSON.stringify(value, null, 2)}`;
+      }
+      return `${key}: ${value}`;
+    })
+    .join("\n\n");
+
+  // Field-specific instructions and output format
+  const fieldInstructions: Record<SegmentDetailsFieldName, { instruction: string; outputFormat: string }> = {
+    sociodemographics: {
+      instruction: `Generate a detailed paragraph (3-5 sentences) describing THIS segment's specific demographic characteristics:
+- Age range, gender distribution, income level
+- Education, occupation, location
+- Family status, lifestyle context
+Make it specific to THIS segment, not a copy of the general portrait.`,
+      outputFormat: `{ "sociodemographics": "Your detailed paragraph here..." }`
+    },
+    psychographics: {
+      instruction: `Generate a detailed paragraph (3-5 sentences) describing THIS segment's psychological profile:
+- Values, beliefs, attitudes specific to this segment
+- Personality traits and decision-making style
+- What motivates them and what they fear`,
+      outputFormat: `{ "psychographics": "Your detailed paragraph here..." }`
+    },
+    online_behavior: {
+      instruction: `Generate a detailed paragraph (3-5 sentences) describing how THIS segment behaves online:
+- Which social platforms they prefer and why
+- How they research products (reviews, forums, influencers, etc.)
+- Content consumption habits (video, articles, podcasts)
+- When and how they engage online`,
+      outputFormat: `{ "online_behavior": "Your detailed paragraph here..." }`
+    },
+    buying_behavior: {
+      instruction: `Generate a detailed paragraph (3-5 sentences) describing THIS segment's purchasing patterns:
+- How they make buying decisions (impulse vs. research)
+- What influences their purchase (price, quality, brand, reviews)
+- Where they prefer to buy (online, retail, direct)
+- Typical purchase frequency and budget allocation`,
+      outputFormat: `{ "buying_behavior": "Your detailed paragraph here..." }`
+    },
+    awareness_level: {
+      instruction: `Determine the MOST LIKELY awareness level for THIS SPECIFIC segment.
+
+CRITICAL: Consider the segment's unique characteristics - profession, knowledge, information-seeking behavior, experience with similar products.
+
+Levels (choose ONE):
+- unaware: Doesn't recognize they have a problem
+- problem_aware: Knows the problem but not solutions
+- solution_aware: Knows solutions exist but not YOUR brand
+- product_aware: Knows YOUR brand but hasn't purchased
+- most_aware: Ready to buy or returning customer
+
+Also provide detailed reasoning for your choice.`,
+      outputFormat: `{
+  "awareness_level": "problem_aware",
+  "awareness_reasoning": "Detailed explanation why this segment is at this level..."
+}`
+    },
+    needs: {
+      instruction: `Generate 3-5 specific needs that THIS segment has that the product addresses.
+Consider their unique lifestyle, pain points, and what they're trying to achieve.
+Each need should have an intensity level: critical, high, or medium.`,
+      outputFormat: `{
+  "needs": [
+    { "need": "Need description", "intensity": "critical" },
+    { "need": "Another need", "intensity": "high" }
+  ]
+}`
+    },
+    core_values: {
+      instruction: `Generate 3-5 core values that are most important to THIS segment.
+What do they prioritize in life and in purchase decisions?
+Each value should include how it manifests in their behavior.`,
+      outputFormat: `{
+  "core_values": [
+    { "value": "Value name", "manifestation": "How this shows in behavior" }
+  ]
+}`
+    },
+    objections: {
+      instruction: `Generate 3-5 objections - reasons why THIS segment might NOT buy.
+Consider: price concerns, skepticism, past experiences, competing priorities, fear of change.
+Each objection should include root cause and how to overcome it.`,
+      outputFormat: `{
+  "objections": [
+    {
+      "objection": "Objection description",
+      "root_cause": "Underlying reason",
+      "how_to_overcome": "Potential response"
+    }
+  ]
+}`
+    }
+  };
+
+  const { instruction, outputFormat } = fieldInstructions[fieldName];
+
+  return `You are an expert consumer psychologist. Generate ONLY the "${fieldName}" field for this segment.
+Always respond in English.
+
+## Segment to Analyze
+
+Name: ${segment.name}
+Description: ${segment.description}
+Sociodemographics: ${segment.sociodemographics}
+
+## General Audience Portrait (for context)
+
+Sociodemographics: ${portraitFinal.sociodemographics}
+Psychographics: ${portraitFinal.psychographics}
+
+Values & Beliefs:
+${portraitFinal.values_beliefs.map((v) => `- ${v}`).join("\n")}
+
+Lifestyle Habits:
+${portraitFinal.lifestyle_habits.map((h) => `- ${h}`).join("\n")}
+
+Interests & Hobbies:
+${portraitFinal.interests_hobbies.map((i) => `- ${i}`).join("\n")}
+
+Personality Traits:
+${portraitFinal.personality_traits.map((t) => `- ${t}`).join("\n")}
+
+## Product Context
+
+Brand: ${onboarding.brandName}
+Product: ${onboarding.productService}
+Format: ${onboarding.productFormat}
+Price Segment: ${onboarding.priceSegment}
+
+Problems Solved:
+${onboarding.problems.map((p) => `- ${p}`).join("\n")}
+
+Benefits:
+${onboarding.benefits.map((b) => `- ${b}`).join("\n")}
+
+USP: ${onboarding.usp}
+Differentiation: ${onboarding.differentiation}
+
+## Already Generated Fields (maintain consistency with these)
+
+${filledFieldsContext || "No other fields filled yet."}
+
+## Your Task
+
+${instruction}
+
+IMPORTANT:
+- Make this field SPECIFIC to this segment
+- Be consistent with already generated fields shown above
+- Return ONLY valid JSON in exactly this format:
+
+${outputFormat}`;
+}
+
 // Prompt 11: Segment Details (v4 - uses portraitFinal for context, NOT triggers)
 export function buildSegmentDetailsPrompt(
   onboarding: OnboardingData,
@@ -1494,6 +1712,9 @@ export interface CanvasExtendedV2PromptInput {
   segmentDetails: SegmentDetails | null;
   jobs: Jobs | null;
   triggers: Triggers | null;
+  preferences: Preferences | null;
+  difficulties: Difficulties | null;
+  portraitFinal: PortraitFinal | null;
   pain: PainInitial;
   canvas: Canvas;
 }
@@ -1502,7 +1723,7 @@ export function buildCanvasExtendedPromptV2(input: CanvasExtendedV2PromptInput):
   systemPrompt: string;
   userPrompt: string;
 } {
-  const { onboarding, segment, segmentDetails, jobs, triggers, pain, canvas } = input;
+  const { onboarding, segment, segmentDetails, jobs, triggers, preferences, difficulties, portraitFinal, pain, canvas } = input;
 
   const systemPrompt = `You are a world-class consumer psychologist and conversion copywriter with 20+ years of experience studying buyer behavior for premium health products.
 
@@ -1553,6 +1774,40 @@ Psychological Basis: ${t.psychological_basis}
 Trigger Moment: ${t.trigger_moment}
 `).join("\n")}` : "";
 
+  // Build preferences section (full cascade context)
+  const preferencesSection = preferences ? `
+## Customer Preferences
+
+${preferences.preferences?.map((p: { name: string; description: string; importance: string; reasoning: string }) =>
+  `- ${p.name} (${p.importance}): ${p.description}
+  Reasoning: ${p.reasoning}`).join("\n") || "N/A"}` : "";
+
+  // Build difficulties section (full cascade context)
+  const difficultiesSection = difficulties ? `
+## Difficulties & Barriers
+
+${difficulties.difficulties?.map((d: { name: string; description: string; frequency: string; emotional_impact: string }) =>
+  `- ${d.name} (${d.frequency}): ${d.description}
+  Emotional Impact: ${d.emotional_impact}`).join("\n") || "N/A"}` : "";
+
+  // Build portrait final section (audience context)
+  const portraitFinalSection = portraitFinal ? `
+## Audience Portrait (Final)
+
+Sociodemographics: ${portraitFinal.sociodemographics || "N/A"}
+Psychographics: ${portraitFinal.psychographics || "N/A"}
+Age Range: ${portraitFinal.age_range || "N/A"}
+Gender Distribution: ${portraitFinal.gender_distribution || "N/A"}
+Income Level: ${portraitFinal.income_level || "N/A"}
+Education: ${portraitFinal.education || "N/A"}
+Location: ${portraitFinal.location || "N/A"}
+Occupation: ${portraitFinal.occupation || "N/A"}
+Family Status: ${portraitFinal.family_status || "N/A"}
+Values & Beliefs: ${portraitFinal.values_beliefs?.join(", ") || "N/A"}
+Lifestyle Habits: ${portraitFinal.lifestyle_habits?.join(", ") || "N/A"}
+Interests & Hobbies: ${portraitFinal.interests_hobbies?.join(", ") || "N/A"}
+Personality Traits: ${portraitFinal.personality_traits?.join(", ") || "N/A"}` : "";
+
   // Build canvas section
   const canvasSection = `
 ## Canvas Analysis (already completed)
@@ -1589,9 +1844,12 @@ Price Segment: ${onboarding.priceSegment}
 Name: ${segment.name}
 Description: ${segment.description}
 Demographics: ${segment.sociodemographics}
+${portraitFinalSection}
 ${segmentDetailsSection}
 ${jobsSection}
 ${triggersSection}
+${preferencesSection}
+${difficultiesSection}
 
 # Pain Point to Analyze
 

@@ -23,6 +23,12 @@ const VALID_TABLES = [
   "pains_ranking_drafts",
   "canvas_drafts",
   "canvas_extended_drafts",
+  // V5 Strategic Modules
+  "channel_strategy_drafts",
+  "competitive_intelligence_drafts",
+  "pricing_psychology_drafts",
+  "trust_framework_drafts",
+  "jtbd_context_drafts",
 ];
 
 // Approved tables corresponding to draft tables
@@ -44,6 +50,12 @@ const APPROVED_TABLES: Record<string, string> = {
   segments_final_drafts: "segments_final",
   segment_details_drafts: "segment_details",
   pains_ranking_drafts: "pains_ranking",
+  // V5 Strategic Modules
+  channel_strategy_drafts: "channel_strategy",
+  competitive_intelligence_drafts: "competitive_intelligence",
+  pricing_psychology_drafts: "pricing_psychology",
+  trust_framework_drafts: "trust_framework",
+  jtbd_context_drafts: "jtbd_context",
 };
 
 // GET - Fetch drafts for a project

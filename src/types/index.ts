@@ -40,7 +40,7 @@ export interface UserPreferences {
 // Project Status (legacy)
 export type ProjectStatus = 'draft' | 'processing' | 'completed' | 'failed';
 
-// Project Step (v4 - Updated flow: Segments before Deep Analysis)
+// Project Step (v5 - 21 steps with Strategic Modules)
 export type ProjectStep =
   | 'onboarding'
   // Block 1: Portrait
@@ -63,6 +63,12 @@ export type ProjectStep =
   | 'pains_ranking_draft' | 'pains_ranking_approved'
   | 'canvas_draft' | 'canvas_approved'
   | 'canvas_extended_draft' | 'canvas_extended_approved'
+  // Block 5: Strategic Modules PER SEGMENT (v5)
+  | 'channel_strategy_draft' | 'channel_strategy_approved'
+  | 'competitive_intelligence_draft' | 'competitive_intelligence_approved'
+  | 'pricing_psychology_draft' | 'pricing_psychology_approved'
+  | 'trust_framework_draft' | 'trust_framework_approved'
+  | 'jtbd_context_draft' | 'jtbd_context_approved'
   | 'completed';
 
 // Step order for navigation
@@ -90,6 +96,12 @@ export const PROJECT_STEPS: ProjectStep[] = [
   'pains_ranking_draft', 'pains_ranking_approved',
   'canvas_draft', 'canvas_approved',
   'canvas_extended_draft', 'canvas_extended_approved',
+  // Strategic modules per segment (v5)
+  'channel_strategy_draft', 'channel_strategy_approved',
+  'competitive_intelligence_draft', 'competitive_intelligence_approved',
+  'pricing_psychology_draft', 'pricing_psychology_approved',
+  'trust_framework_draft', 'trust_framework_approved',
+  'jtbd_context_draft', 'jtbd_context_approved',
   'completed',
 ];
 
@@ -103,6 +115,12 @@ export const SEGMENT_BOUND_STEPS: ProjectStep[] = [
   'pains_ranking_draft', 'pains_ranking_approved',
   'canvas_draft', 'canvas_approved',
   'canvas_extended_draft', 'canvas_extended_approved',
+  // Strategic modules (v5)
+  'channel_strategy_draft', 'channel_strategy_approved',
+  'competitive_intelligence_draft', 'competitive_intelligence_approved',
+  'pricing_psychology_draft', 'pricing_psychology_approved',
+  'trust_framework_draft', 'trust_framework_approved',
+  'jtbd_context_draft', 'jtbd_context_approved',
 ];
 
 // =====================================================
@@ -801,6 +819,490 @@ export interface CanvasExtendedV2Response {
   narrative_angles: NarrativeAngle[];
   messaging_framework: MessagingFramework;
   voice_and_tone: VoiceAndTone;
+}
+
+// =====================================================
+// Channel Strategy Types
+// =====================================================
+
+// Prompt 16: Channel Strategy - Where to find the audience
+
+export interface PlatformUsage {
+  platform: string; // LinkedIn, Instagram, r/biohacking, YouTube
+  usage_frequency: "daily" | "weekly" | "monthly";
+  activity_type: "lurking" | "commenting" | "posting";
+  peak_activity_times: string[]; // ["weekday_mornings", "lunch_break"]
+  why_they_use_it: string;
+}
+
+export interface ContentPreference {
+  format: string; // "long-form articles", "short videos", "podcasts"
+  context: string; // "during commute", "at work", "before bed"
+  attention_span: "skimmers" | "deep_readers" | "binge_watchers";
+  triggering_topics: string[];
+}
+
+export interface TrustedSource {
+  source_type: "industry_blogs" | "podcasts" | "youtube_channels" | "communities";
+  specific_examples: string[]; // ACTUAL NAMES
+  why_trusted: string;
+}
+
+export interface Community {
+  type: "facebook_groups" | "subreddits" | "slack_communities" | "forums";
+  specific_names: string[]; // ACTUAL NAMES
+  participation_level: "observer" | "occasional" | "active" | "influencer";
+  influence_on_purchases: "none" | "low" | "medium" | "high" | "critical";
+}
+
+export interface SearchPatterns {
+  typical_queries: string[];
+  search_depth: "first_page_only" | "deep_research" | "comparison_shopping";
+  decision_timeline: "impulse" | "days" | "weeks" | "months";
+}
+
+export interface AdvertisingResponse {
+  channels_they_notice: string[];
+  ad_formats_that_work: string[];
+  ad_formats_that_annoy: string[];
+  retargeting_tolerance: "low" | "medium" | "high";
+}
+
+// API Response type for Channel Strategy generation
+export interface ChannelStrategyResponse {
+  primary_platforms: PlatformUsage[];
+  content_preferences: ContentPreference[];
+  trusted_sources: TrustedSource[];
+  communities: Community[];
+  search_patterns: SearchPatterns;
+  advertising_response: AdvertisingResponse;
+}
+
+// Database row types (snake_case)
+export interface ChannelStrategyDraft {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  primary_platforms: PlatformUsage[];
+  content_preferences: ContentPreference[];
+  trusted_sources: TrustedSource[] | null;
+  communities: Community[] | null;
+  search_patterns: SearchPatterns | null;
+  advertising_response: AdvertisingResponse | null;
+  version: number;
+  created_at: string;
+}
+
+export interface ChannelStrategy {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  primary_platforms: PlatformUsage[];
+  content_preferences: ContentPreference[];
+  trusted_sources: TrustedSource[] | null;
+  communities: Community[] | null;
+  search_patterns: SearchPatterns | null;
+  advertising_response: AdvertisingResponse | null;
+  approved_at: string;
+}
+
+// =====================================================
+// Competitive Intelligence Types (Phase 2)
+// =====================================================
+
+export interface AlternativeTried {
+  solution_type: string;
+  specific_examples: string[];
+  adoption_rate: string;
+  why_they_tried_it: string;
+  initial_expectations: string;
+  actual_experience: string;
+  why_it_failed: string;
+  emotional_residue: string;
+}
+
+export interface CurrentWorkaround {
+  workaround: string;
+  effectiveness: string;
+  effort_required: string;
+  cost: string;
+  why_they_stick_with_it: string;
+}
+
+export interface CompetitorComparison {
+  competitor_name: string;
+  segment_perception: string;
+  competitor_strengths: string[];
+  competitor_weaknesses: string[];
+  switching_triggers: string[];
+}
+
+export interface SwitchingBarrier {
+  barrier_type: string;
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  how_to_overcome: string;
+}
+
+export interface EvaluationProcess {
+  criteria_for_comparison: string[];
+  dealbreakers: string[];
+  nice_to_haves: string[];
+  how_they_compare: string;
+  decision_authority: string;
+}
+
+export interface CategoryBeliefs {
+  what_they_believe: string[];
+  misconceptions_to_address: Array<{
+    misconception: string;
+    root_cause: string;
+    how_to_reframe: string;
+  }>;
+}
+
+export interface CompetitiveIntelligenceResponse {
+  alternatives_tried: AlternativeTried[];
+  current_workarounds: CurrentWorkaround[];
+  vs_competitors: CompetitorComparison[];
+  switching_barriers: SwitchingBarrier[];
+  evaluation_process: EvaluationProcess;
+  category_beliefs: CategoryBeliefs;
+}
+
+export interface CompetitiveIntelligenceDraft {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  alternatives_tried: AlternativeTried[];
+  current_workarounds: CurrentWorkaround[] | null;
+  vs_competitors: CompetitorComparison[] | null;
+  switching_barriers: SwitchingBarrier[] | null;
+  evaluation_process: EvaluationProcess | null;
+  category_beliefs: CategoryBeliefs | null;
+  version: number;
+  created_at: string;
+}
+
+export interface CompetitiveIntelligence {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  alternatives_tried: AlternativeTried[];
+  current_workarounds: CurrentWorkaround[] | null;
+  vs_competitors: CompetitorComparison[] | null;
+  switching_barriers: SwitchingBarrier[] | null;
+  evaluation_process: EvaluationProcess | null;
+  category_beliefs: CategoryBeliefs | null;
+  approved_at: string;
+}
+
+// =====================================================
+// Pricing Psychology Types (Phase 3)
+// =====================================================
+
+export interface BudgetContext {
+  spending_category: string;
+  budget_allocation: string;
+  decision_cycle: string;
+  who_controls_budget: string;
+}
+
+export interface PricePerception {
+  price_sensitivity_level: 'low' | 'medium' | 'high';
+  current_spending_on_alternatives: string;
+  spending_ceiling: string;
+  spending_sweet_spot: string;
+  free_trial_importance: string;
+}
+
+export interface ValueAnchor {
+  comparison_point: string;
+  why_this_works: string;
+}
+
+export interface WillingnessToPaySignal {
+  signal: string;
+  indicates: string;
+  how_to_respond: string;
+}
+
+export interface PaymentPsychology {
+  preferred_structure: string[];
+  payment_methods: string[];
+  billing_frequency: string;
+  payment_friction_points: string[];
+}
+
+export interface ROICalculation {
+  how_they_measure_value: string;
+  payback_expectation: string;
+  metrics_they_track: string[];
+}
+
+export interface PricingObjection {
+  objection: string;
+  underlying_concern: string;
+  is_price_or_value: 'price' | 'value';
+  reframe_strategy: string;
+}
+
+export interface DiscountSensitivity {
+  responds_to_discounts: boolean;
+  types_that_work: string[];
+  types_that_backfire: string[];
+  optimal_strategy: string;
+}
+
+export interface BudgetTrigger {
+  trigger_event: string;
+  timing: string;
+  how_to_leverage: string;
+}
+
+export interface PricingPsychologyResponse {
+  budget_context: BudgetContext;
+  price_perception: PricePerception;
+  value_anchors: ValueAnchor[];
+  willingness_to_pay_signals: WillingnessToPaySignal[];
+  payment_psychology: PaymentPsychology;
+  roi_calculation: ROICalculation;
+  pricing_objections: PricingObjection[];
+  discount_sensitivity: DiscountSensitivity;
+  budget_triggers: BudgetTrigger[];
+}
+
+export interface PricingPsychologyDraft {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  budget_context: BudgetContext | null;
+  price_perception: PricePerception;
+  value_anchors: ValueAnchor[] | null;
+  willingness_to_pay_signals: WillingnessToPaySignal[] | null;
+  payment_psychology: PaymentPsychology | null;
+  roi_calculation: ROICalculation | null;
+  pricing_objections: PricingObjection[] | null;
+  discount_sensitivity: DiscountSensitivity | null;
+  budget_triggers: BudgetTrigger[] | null;
+  version: number;
+  created_at: string;
+}
+
+export interface PricingPsychology {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  budget_context: BudgetContext | null;
+  price_perception: PricePerception;
+  value_anchors: ValueAnchor[] | null;
+  willingness_to_pay_signals: WillingnessToPaySignal[] | null;
+  payment_psychology: PaymentPsychology | null;
+  roi_calculation: ROICalculation | null;
+  pricing_objections: PricingObjection[] | null;
+  discount_sensitivity: DiscountSensitivity | null;
+  budget_triggers: BudgetTrigger[] | null;
+  approved_at: string;
+}
+
+// =====================================================
+// Trust Framework Types (Phase 4)
+// =====================================================
+
+export interface BaselineTrust {
+  trust_in_category: string;
+  trust_in_brand: string;
+  reasons_for_skepticism: string[];
+  past_betrayals: string[];
+}
+
+export interface ProofType {
+  proof_type: string;
+  effectiveness: 'low' | 'medium' | 'high' | 'very_high';
+  why_it_works: string;
+  how_to_present: string;
+  examples: string[];
+}
+
+export interface TrustedAuthority {
+  authority_type: string;
+  specific_names: string[];
+  why_trusted: string;
+  how_to_leverage: string;
+}
+
+export interface SocialProofRequirements {
+  testimonial_profile: string;
+  before_after_importance: string;
+  numbers_that_matter: string[];
+  case_study_angle: string;
+}
+
+export interface TransparencyNeeds {
+  information_needed: string[];
+  disclosure_expectations: string[];
+  transparency_level: 'minimal' | 'moderate' | 'high' | 'full';
+}
+
+export interface TrustKiller {
+  red_flag: string;
+  why_triggers_skepticism: string;
+  how_to_avoid: string;
+}
+
+export interface CredibilityMarker {
+  signal: string;
+  importance: 'low' | 'medium' | 'high' | 'critical';
+  current_status: string;
+}
+
+export interface RiskReduction {
+  biggest_risks: string[];
+  reversal_mechanisms: Array<{
+    mechanism: string;
+    effectiveness: string;
+    implementation: string;
+  }>;
+}
+
+export interface TrustJourney {
+  first_touchpoint_goal: string;
+  mid_journey_reassurance: string[];
+  pre_purchase_push: string;
+  post_purchase_confirmation: string;
+}
+
+export interface TrustFrameworkResponse {
+  baseline_trust: BaselineTrust;
+  proof_hierarchy: ProofType[];
+  trusted_authorities: TrustedAuthority[];
+  social_proof: SocialProofRequirements;
+  transparency_needs: TransparencyNeeds;
+  trust_killers: TrustKiller[];
+  credibility_markers: CredibilityMarker[];
+  risk_reduction: RiskReduction;
+  trust_journey: TrustJourney;
+}
+
+export interface TrustFrameworkDraft {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  baseline_trust: BaselineTrust | null;
+  proof_hierarchy: ProofType[];
+  trusted_authorities: TrustedAuthority[] | null;
+  social_proof: SocialProofRequirements | null;
+  transparency_needs: TransparencyNeeds | null;
+  trust_killers: TrustKiller[] | null;
+  credibility_markers: CredibilityMarker[] | null;
+  risk_reduction: RiskReduction | null;
+  trust_journey: TrustJourney | null;
+  version: number;
+  created_at: string;
+}
+
+export interface TrustFramework {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  baseline_trust: BaselineTrust | null;
+  proof_hierarchy: ProofType[];
+  trusted_authorities: TrustedAuthority[] | null;
+  social_proof: SocialProofRequirements | null;
+  transparency_needs: TransparencyNeeds | null;
+  trust_killers: TrustKiller[] | null;
+  credibility_markers: CredibilityMarker[] | null;
+  risk_reduction: RiskReduction | null;
+  trust_journey: TrustJourney | null;
+  approved_at: string;
+}
+
+// =====================================================
+// JTBD Context Types (Phase 5)
+// =====================================================
+
+export interface HireTrigger {
+  situation: string;
+  frequency: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  emotional_state: string;
+}
+
+export interface CompetingSolution {
+  alternative: string;
+  why_chosen: string;
+  when_chosen: string;
+  job_completion_rate: string;
+  your_advantage: string;
+}
+
+export interface SuccessMetrics {
+  how_measured: string[];
+  immediate_progress: string[];
+  short_term_success: string;
+  long_term_success: string;
+  acceptable_tradeoffs: string[];
+}
+
+export interface JobObstacle {
+  obstacle: string;
+  blocks_progress: string;
+  how_you_remove_it: string;
+}
+
+export interface HiringAnxiety {
+  anxiety: string;
+  rooted_in: string;
+  how_to_address: string;
+}
+
+export interface JobContext {
+  job_reference_id: string;
+  job_name: string;
+  hire_triggers: HireTrigger[];
+  competing_solutions: CompetingSolution[];
+  success_metrics: SuccessMetrics;
+  obstacles: JobObstacle[];
+  hiring_anxieties: HiringAnxiety[];
+}
+
+export interface JobPriorityRanking {
+  job_name: string;
+  priority: number;
+  reasoning: string;
+}
+
+export interface JobDependency {
+  primary_job: string;
+  enables_job: string;
+  relationship: string;
+}
+
+export interface JTBDContextResponse {
+  job_contexts: JobContext[];
+  job_priority_ranking: JobPriorityRanking[];
+  job_dependencies: JobDependency[];
+}
+
+export interface JTBDContextDraft {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  job_contexts: JobContext[];
+  job_priority_ranking: JobPriorityRanking[] | null;
+  job_dependencies: JobDependency[] | null;
+  version: number;
+  created_at: string;
+}
+
+export interface JTBDContext {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  job_contexts: JobContext[];
+  job_priority_ranking: JobPriorityRanking[] | null;
+  job_dependencies: JobDependency[] | null;
+  approved_at: string;
 }
 
 // =====================================================

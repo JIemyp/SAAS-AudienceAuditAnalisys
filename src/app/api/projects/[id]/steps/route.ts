@@ -25,6 +25,12 @@ const STEP_TABLES: Record<string, { draft: string; approved: string }> = {
   "pains-ranking": { draft: "pains_ranking_drafts", approved: "pains_ranking" },
   canvas: { draft: "canvas_drafts", approved: "canvas" },
   "canvas-extended": { draft: "canvas_extended_drafts", approved: "canvas_extended" },
+  // V5 Strategic Modules
+  "channel-strategy": { draft: "channel_strategy_drafts", approved: "channel_strategy" },
+  "competitive-intelligence": { draft: "competitive_intelligence_drafts", approved: "competitive_intelligence" },
+  "pricing-psychology": { draft: "pricing_psychology_drafts", approved: "pricing_psychology" },
+  "trust-framework": { draft: "trust_framework_drafts", approved: "trust_framework" },
+  "jtbd-context": { draft: "jtbd_context_drafts", approved: "jtbd_context" },
 };
 
 // Step order for determining which steps are locked
@@ -45,6 +51,12 @@ const STEP_ORDER = [
   "pains-ranking",
   "canvas",
   "canvas-extended",
+  // V5 Strategic Modules
+  "channel-strategy",
+  "competitive-intelligence",
+  "pricing-psychology",
+  "trust-framework",
+  "jtbd-context",
 ];
 
 export type StepStatus = "completed" | "in_progress" | "locked";

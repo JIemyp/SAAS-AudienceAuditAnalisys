@@ -134,9 +134,9 @@ async function fetchOverviewData(supabase: any, projectId: string, project: any)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchFullReportData(supabase: any, projectId: string, project: any) {
-  // Get all data for full report
+  // Get all data for full report - following the CASCADE order
 
-  // Portrait
+  // 1. Portrait Final
   const { data: portrait } = await supabase
     .from("portrait_final")
     .select("*")
@@ -145,12 +145,25 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
     .limit(1)
     .single();
 
-  // All segments with details
-  const { data: segments } = await supabase
+  // 2. Segments - use 'segments' table as primary source because pains/canvas reference segments.id
+  // IMPORTANT: pains_initial.segment_id references segments.id, NOT segments_final.id
+  // So we MUST use segments table for Full Report to link data correctly
+  const { data: segmentsTable } = await supabase
     .from("segments")
     .select("*")
     .eq("project_id", projectId)
     .order("order_index");
+
+  // Fallback to segments_final if segments table is empty (shouldn't happen after approve)
+  let segments = segmentsTable;
+  if (!segments || segments.length === 0) {
+    const { data: segmentsFinal } = await supabase
+      .from("segments_final")
+      .select("*, order_index:segment_index")
+      .eq("project_id", projectId)
+      .order("segment_index");
+    segments = segmentsFinal;
+  }
 
   // Get segment details, jobs, preferences, difficulties, triggers for each segment
   const segmentsWithData = [];
@@ -273,16 +286,71 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
         canvasExtendedData = canvasExtended || [];
       }
 
+      // V5 Modules - Channel Strategy, Competitive Intelligence, Pricing Psychology, Trust Framework, JTBD Context
+      const { data: channelStrategy } = await supabase
+        .from("channel_strategy")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("segment_id", segment.id)
+        .limit(1)
+        .single();
+
+      const { data: competitiveIntelligence } = await supabase
+        .from("competitive_intelligence")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("segment_id", segment.id)
+        .limit(1)
+        .single();
+
+      const { data: pricingPsychology } = await supabase
+        .from("pricing_psychology")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("segment_id", segment.id)
+        .limit(1)
+        .single();
+
+      const { data: trustFramework } = await supabase
+        .from("trust_framework")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("segment_id", segment.id)
+        .limit(1)
+        .single();
+
+      const { data: jtbdContext } = await supabase
+        .from("jtbd_context")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("segment_id", segment.id)
+        .limit(1)
+        .single();
+
+      // Separate TOP pains and Other pains
+      const topPains = painsWithRanking.filter((p: { is_top_pain: boolean }) => p.is_top_pain);
+      const otherPains = painsWithRanking.filter((p: { is_top_pain: boolean }) => !p.is_top_pain);
+
       segmentsWithData.push({
         ...segment,
+        // Use segment_index if available (from segments_final), otherwise order_index
+        order_index: segment.segment_index ?? segment.order_index ?? 0,
         details,
         jobs,
         preferences,
         difficulties,
         triggers,
-        pains: painsWithRanking,
+        topPains,      // TOP pains with full analysis
+        otherPains,    // Other discovered pains (not analyzed deeply)
+        pains: painsWithRanking, // Keep for backwards compatibility
         canvas: canvasData,
         canvasExtended: canvasExtendedData,
+        // V5 Modules
+        channelStrategy,
+        competitiveIntelligence,
+        pricingPsychology,
+        trustFramework,
+        jtbdContext,
       });
     }
   }
@@ -303,14 +371,94 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchExplorerData(supabase: any, projectId: string, segmentId: string | null) {
-  // Get all segments
+  // Get all segments from 'segments' table (enriched with details)
   const { data: segments } = await supabase
     .from("segments")
     .select("id, name, description, sociodemographics, order_index")
     .eq("project_id", projectId)
     .order("order_index");
 
-  if (!segments || segments.length === 0) {
+  // DEDUPLICATE segments by normalized name - keep only one per name (preferring lower order_index)
+  // Normalize: lowercase, remove extra spaces, trim
+  const normalizeName = (name: string) => name.toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const uniqueSegments: typeof segments = [];
+  const seenNames = new Set<string>();
+  for (const seg of (segments || [])) {
+    const normalizedName = normalizeName(seg.name);
+    if (!seenNames.has(normalizedName)) {
+      seenNames.add(normalizedName);
+      uniqueSegments.push(seg);
+    }
+  }
+
+  // Get segments_final - these define which segments are "selected"
+  const { data: segmentsFinal } = await supabase
+    .from("segments_final")
+    .select("id, name, segment_index")
+    .eq("project_id", projectId)
+    .order("segment_index");
+
+  // Also get segment_details to catch segments that have been approved
+  const { data: segmentDetails } = await supabase
+    .from("segment_details")
+    .select("segment_id")
+    .eq("project_id", projectId);
+
+  // Build sets for matching
+  const finalIdSet = new Set((segmentsFinal || []).map((s: { id: string }) => s.id));
+  const finalNameSet = new Set((segmentsFinal || []).map((s: { name: string }) => normalizeName(s.name)));
+  const detailsIdSet = new Set((segmentDetails || []).map((d: { segment_id: string }) => d.segment_id));
+
+  // Build index map from segments_final (by ID and normalized name for fallback)
+  const finalIdToIndex = new Map<string, number>(
+    (segmentsFinal || []).map((s: { id: string; segment_index: number }) => [s.id, s.segment_index])
+  );
+  const finalNameToIndex = new Map<string, number>(
+    (segmentsFinal || []).map((s: { name: string; segment_index: number }) => [normalizeName(s.name), s.segment_index])
+  );
+
+  // A segment is "selected" if:
+  // 1. Its ID matches segments_final, OR
+  // 2. Its normalized name matches segments_final, OR
+  // 3. It has segment_details (was approved)
+  const selectedSegmentIds = new Set<string>();
+  const segmentIndexMap = new Map<string, number>();
+
+  uniqueSegments.forEach((seg: { id: string; name: string; order_index?: number }) => {
+    const normalizedName = normalizeName(seg.name);
+    let isSelected = false;
+    let displayIndex = 0;
+
+    // Check ID match with segments_final
+    if (finalIdSet.has(seg.id)) {
+      isSelected = true;
+      const idx = finalIdToIndex.get(seg.id);
+      displayIndex = idx !== undefined ? idx - 1 : 0; // 1-based to 0-based
+    }
+    // Check normalized name match with segments_final
+    else if (finalNameSet.has(normalizedName)) {
+      isSelected = true;
+      const idx = finalNameToIndex.get(normalizedName);
+      displayIndex = idx !== undefined ? idx - 1 : 0;
+    }
+    // Check if has segment_details (approved)
+    else if (detailsIdSet.has(seg.id)) {
+      isSelected = true;
+      // No index from segments_final, use order_index
+      displayIndex = seg.order_index ?? 0;
+    }
+
+    if (isSelected) {
+      selectedSegmentIds.add(seg.id);
+      segmentIndexMap.set(seg.id, displayIndex);
+    }
+  });
+
+  console.log(`[Explorer] segments: ${uniqueSegments.length}, segmentsFinal: ${segmentsFinal?.length || 0}, segmentDetails: ${segmentDetails?.length || 0}`);
+  console.log(`[Explorer] selectedSegmentIds: ${selectedSegmentIds.size}`);
+
+  if (!uniqueSegments || uniqueSegments.length === 0) {
     return NextResponse.json({
       success: true,
       data: {
@@ -320,17 +468,49 @@ async function fetchExplorerData(supabase: any, projectId: string, segmentId: st
     });
   }
 
-  // If no segment selected, use first one
-  const targetSegmentId = segmentId || segments[0].id;
+  // Mark segments as selected and assign proper display_index
+  // Selected segments get their segment_index (0-10 for 11 segments)
+  // Other segments get indices after all selected ones
+  const selectedCount = selectedSegmentIds.size;
+  let otherIndex = selectedCount; // Start other segments after selected ones
+
+  const enrichedSegments = uniqueSegments.map((seg: { id: string; order_index: number }) => {
+    const isSelected = selectedSegmentIds.has(seg.id);
+    let displayIndex: number;
+
+    if (isSelected) {
+      // Use segment_index from map (0-based)
+      displayIndex = (segmentIndexMap.get(seg.id) ?? 0);
+    } else {
+      // Assign sequential index after all selected segments
+      displayIndex = otherIndex++;
+    }
+
+    return {
+      ...seg,
+      is_selected: isSelected,
+      display_index: displayIndex,
+    };
+  });
+
+  // Sort: selected first (by display_index), then others (by display_index)
+  enrichedSegments.sort((a: { is_selected: boolean; display_index: number }, b: { is_selected: boolean; display_index: number }) => {
+    if (a.is_selected && !b.is_selected) return -1;
+    if (!a.is_selected && b.is_selected) return 1;
+    return a.display_index - b.display_index;
+  });
+
+  // If no segment selected, use first one (prefer selected segments)
+  const targetSegmentId = segmentId || enrichedSegments[0]?.id || uniqueSegments[0].id;
 
   // Get detailed data for selected segment
-  const selectedSegment = segments.find((s: { id: string }) => s.id === targetSegmentId);
+  const selectedSegment = enrichedSegments.find((s: { id: string }) => s.id === targetSegmentId);
 
   if (!selectedSegment) {
     return NextResponse.json({
       success: true,
       data: {
-        segments,
+        segments: enrichedSegments,
         selectedSegment: null,
       },
     });
@@ -453,10 +633,51 @@ async function fetchExplorerData(supabase: any, projectId: string, segmentId: st
     canvasExtendedData = canvasExtended || [];
   }
 
+  // V5 Modules - Channel Strategy, Competitive Intelligence, Pricing Psychology, Trust Framework, JTBD Context
+  const { data: channelStrategy } = await supabase
+    .from("channel_strategy")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("segment_id", targetSegmentId)
+    .limit(1)
+    .single();
+
+  const { data: competitiveIntelligence } = await supabase
+    .from("competitive_intelligence")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("segment_id", targetSegmentId)
+    .limit(1)
+    .single();
+
+  const { data: pricingPsychology } = await supabase
+    .from("pricing_psychology")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("segment_id", targetSegmentId)
+    .limit(1)
+    .single();
+
+  const { data: trustFramework } = await supabase
+    .from("trust_framework")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("segment_id", targetSegmentId)
+    .limit(1)
+    .single();
+
+  const { data: jtbdContext } = await supabase
+    .from("jtbd_context")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("segment_id", targetSegmentId)
+    .limit(1)
+    .single();
+
   return NextResponse.json({
     success: true,
     data: {
-      segments,
+      segments: enrichedSegments,
       selectedSegment: {
         ...selectedSegment,
         details,
@@ -467,6 +688,12 @@ async function fetchExplorerData(supabase: any, projectId: string, segmentId: st
         pains: painsWithRanking,
         canvas: canvasData,
         canvasExtended: canvasExtendedData,
+        // V5 Modules
+        channelStrategy,
+        competitiveIntelligence,
+        pricingPsychology,
+        trustFramework,
+        jtbdContext,
       },
     },
   });

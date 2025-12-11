@@ -18,6 +18,13 @@ import {
   Star,
   Activity,
   ShoppingCart,
+  CheckCircle2,
+  // V5 icons
+  Radio,
+  Swords,
+  DollarSign,
+  Shield,
+  Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +33,25 @@ import { Badge } from "@/components/ui/Badge";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useTranslation } from "@/lib/hooks/useTranslation";
+// Canvas Extended V2 components
+import { CustomerJourneySection } from "@/components/canvas-extended/CustomerJourneySection";
+import { EmotionalMapSection } from "@/components/canvas-extended/EmotionalMapSection";
+import { NarrativeAnglesSection } from "@/components/canvas-extended/NarrativeAnglesSection";
+import { MessagingFrameworkSection } from "@/components/canvas-extended/MessagingFrameworkSection";
+import { VoiceAndToneSection } from "@/components/canvas-extended/VoiceAndToneSection";
+import type {
+  CustomerJourney,
+  EmotionalMap,
+  NarrativeAngle,
+  MessagingFramework,
+  VoiceAndTone,
+  // V5 Types
+  ChannelStrategy,
+  CompetitiveIntelligence,
+  PricingPsychology,
+  TrustFramework,
+  JTBDContext,
+} from "@/types";
 
 interface SegmentSummary {
   id: string;
@@ -33,6 +59,8 @@ interface SegmentSummary {
   description: string;
   sociodemographics?: string;
   order_index: number;
+  is_selected?: boolean;
+  display_index: number;
 }
 
 interface ExplorerData {
@@ -52,6 +80,7 @@ interface ExplorerData {
       triggers?: unknown[];
       core_values?: unknown[];
       awareness_level?: string;
+      awareness_reasoning?: string;
       objections?: unknown[];
     };
     jobs?: {
@@ -97,16 +126,22 @@ interface ExplorerData {
       id: string;
       pain_id: string;
       segment_id: string;
-      customer_journey?: unknown;
-      emotional_map?: unknown;
-      narrative_angles?: unknown;
-      messaging_framework?: unknown;
-      voice_and_tone?: unknown;
+      customer_journey?: CustomerJourney;
+      emotional_map?: EmotionalMap;
+      narrative_angles?: NarrativeAngle[];
+      messaging_framework?: MessagingFramework;
+      voice_and_tone?: VoiceAndTone;
     }>;
+    // V5 Strategic Modules
+    channelStrategy?: ChannelStrategy | null;
+    competitiveIntelligence?: CompetitiveIntelligence | null;
+    pricingPsychology?: PricingPsychology | null;
+    trustFramework?: TrustFramework | null;
+    jtbdContext?: JTBDContext | null;
   } | null;
 }
 
-type TabId = "overview" | "jobs" | "preferences" | "difficulties" | "triggers" | "pains" | "canvas";
+type TabId = "overview" | "jobs" | "preferences" | "difficulties" | "triggers" | "pains" | "canvas" | "channels" | "competitive" | "pricing" | "trust" | "jtbd";
 
 const tabs: Array<{ id: TabId; label: string; icon: typeof Users }> = [
   { id: "overview", label: "Overview", icon: Users },
@@ -116,6 +151,12 @@ const tabs: Array<{ id: TabId; label: string; icon: typeof Users }> = [
   { id: "triggers", label: "Triggers", icon: Zap },
   { id: "pains", label: "Pains", icon: Target },
   { id: "canvas", label: "Canvas", icon: Palette },
+  // V5 Strategic Modules
+  { id: "channels", label: "Channels", icon: Radio },
+  { id: "competitive", label: "Competitive", icon: Swords },
+  { id: "pricing", label: "Pricing", icon: DollarSign },
+  { id: "trust", label: "Trust", icon: Shield },
+  { id: "jtbd", label: "JTBD Context", icon: Lightbulb },
 ];
 
 export default function ExplorerPage({
@@ -164,6 +205,17 @@ export default function ExplorerPage({
         return { pains: segment.pains };
       case "canvas":
         return { canvas: segment.canvas, canvasExtended: segment.canvasExtended, pains: segment.pains };
+      // V5 Strategic Modules
+      case "channels":
+        return { channelStrategy: segment.channelStrategy };
+      case "competitive":
+        return { competitiveIntelligence: segment.competitiveIntelligence };
+      case "pricing":
+        return { pricingPsychology: segment.pricingPsychology };
+      case "trust":
+        return { trustFramework: segment.trustFramework };
+      case "jtbd":
+        return { jtbdContext: segment.jtbdContext };
       default:
         return null;
     }
@@ -210,6 +262,17 @@ export default function ExplorerPage({
           canvasExtended: (translated.canvasExtended as typeof original.canvasExtended) || original.canvasExtended,
           pains: (translated.pains as typeof original.pains) || original.pains,
         };
+      // V5 Strategic Modules
+      case "channels":
+        return { ...original, channelStrategy: (translated.channelStrategy as typeof original.channelStrategy) || original.channelStrategy };
+      case "competitive":
+        return { ...original, competitiveIntelligence: (translated.competitiveIntelligence as typeof original.competitiveIntelligence) || original.competitiveIntelligence };
+      case "pricing":
+        return { ...original, pricingPsychology: (translated.pricingPsychology as typeof original.pricingPsychology) || original.pricingPsychology };
+      case "trust":
+        return { ...original, trustFramework: (translated.trustFramework as typeof original.trustFramework) || original.trustFramework };
+      case "jtbd":
+        return { ...original, jtbdContext: (translated.jtbdContext as typeof original.jtbdContext) || original.jtbdContext };
       default:
         return original;
     }
@@ -280,7 +343,7 @@ export default function ExplorerPage({
   return (
     <div className="flex gap-6 -mx-8 -mt-6 min-h-[calc(100vh-200px)]">
       {/* Segment Sidebar */}
-      <aside className="w-72 bg-slate-50 border-r border-slate-200 p-4 shrink-0">
+      <aside className="w-72 bg-slate-50 border-r border-slate-200 p-4 shrink-0 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-slate-900 flex items-center gap-2">
             <Users className="w-4 h-4 text-blue-600" />
@@ -289,49 +352,116 @@ export default function ExplorerPage({
           <Badge variant="secondary">{data.segments.length}</Badge>
         </div>
 
-        <nav className="space-y-1">
-          {data.segments.map((segment) => {
-            const isActive = segment.id === displaySegment?.id;
-            return (
-              <button
-                key={segment.id}
-                onClick={() => handleSegmentChange(segment.id)}
-                className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200",
-                  "flex items-center gap-3 group",
-                  isActive
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "text-slate-700 hover:bg-white hover:shadow-sm"
-                )}
-              >
-                <span
-                  className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0",
-                    isActive
-                      ? "bg-white/20 text-white"
-                      : "bg-blue-100 text-blue-700"
-                  )}
-                >
-                  {segment.order_index + 1}
+        {/* Selected Segments (from segments_final) */}
+        {data.segments.some(s => s.is_selected) && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">
+                Selected Segments
+              </span>
+            </div>
+            <nav className="space-y-1">
+              {data.segments.filter(s => s.is_selected).map((segment) => {
+                const isActive = segment.id === displaySegment?.id;
+                return (
+                  <button
+                    key={segment.id}
+                    onClick={() => handleSegmentChange(segment.id)}
+                    className={cn(
+                      "w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200",
+                      "flex items-center gap-3 group",
+                      isActive
+                        ? "bg-emerald-600 text-white shadow-md"
+                        : "text-slate-700 hover:bg-emerald-50 hover:shadow-sm border border-transparent hover:border-emerald-200"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0",
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : "bg-emerald-100 text-emerald-700"
+                      )}
+                    >
+                      {segment.display_index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-medium truncate text-sm",
+                        isActive ? "text-white" : "text-slate-900"
+                      )}>
+                        {segment.name}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      className={cn(
+                        "w-4 h-4 shrink-0 transition-transform",
+                        isActive ? "text-white/70" : "text-emerald-300 group-hover:text-emerald-500"
+                      )}
+                    />
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        )}
+
+        {/* Other Segments (not in segments_final) */}
+        {data.segments.some(s => !s.is_selected) && (
+          <div>
+            {data.segments.some(s => s.is_selected) && (
+              <div className="flex items-center gap-2 mb-2 px-1 pt-2 border-t border-slate-200">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Other Segments
                 </span>
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    "font-medium truncate text-sm",
-                    isActive ? "text-white" : "text-slate-900"
-                  )}>
-                    {segment.name}
-                  </p>
-                </div>
-                <ChevronRight
-                  className={cn(
-                    "w-4 h-4 shrink-0 transition-transform",
-                    isActive ? "text-white/70" : "text-slate-300 group-hover:text-slate-500"
-                  )}
-                />
-              </button>
-            );
-          })}
-        </nav>
+              </div>
+            )}
+            <nav className="space-y-1">
+              {data.segments.filter(s => !s.is_selected).map((segment) => {
+                const isActive = segment.id === displaySegment?.id;
+                return (
+                  <button
+                    key={segment.id}
+                    onClick={() => handleSegmentChange(segment.id)}
+                    className={cn(
+                      "w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200",
+                      "flex items-center gap-3 group",
+                      isActive
+                        ? "bg-slate-600 text-white shadow-md"
+                        : "text-slate-500 hover:bg-white hover:text-slate-700 hover:shadow-sm"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0",
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-200 text-slate-600"
+                      )}
+                    >
+                      {segment.display_index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-medium truncate text-sm",
+                        isActive ? "text-white" : "text-slate-600"
+                      )}>
+                        {segment.name}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      className={cn(
+                        "w-4 h-4 shrink-0 transition-transform",
+                        isActive ? "text-white/70" : "text-slate-300 group-hover:text-slate-400"
+                      )}
+                    />
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}
@@ -410,6 +540,12 @@ export default function ExplorerPage({
                 {activeTab === "triggers" && <TriggersTab triggers={displaySegment.triggers} />}
                 {activeTab === "pains" && <PainsTab pains={displaySegment.pains} />}
                 {activeTab === "canvas" && <CanvasTab canvas={displaySegment.canvas} canvasExtended={displaySegment.canvasExtended} pains={displaySegment.pains} />}
+                {/* V5 Strategic Modules */}
+                {activeTab === "channels" && <ChannelStrategyTab data={displaySegment.channelStrategy} />}
+                {activeTab === "competitive" && <CompetitiveIntelligenceTab data={displaySegment.competitiveIntelligence} />}
+                {activeTab === "pricing" && <PricingPsychologyTab data={displaySegment.pricingPsychology} />}
+                {activeTab === "trust" && <TrustFrameworkTab data={displaySegment.trustFramework} />}
+                {activeTab === "jtbd" && <JTBDContextTab data={displaySegment.jtbdContext} />}
               </motion.div>
             </AnimatePresence>
           </>
@@ -461,11 +597,9 @@ function OverviewTab({ segment }: { segment: NonNullable<ExplorerData["selectedS
           </div>
           <div className="grid grid-cols-2 gap-6">
             {details?.awareness_level && (
-              <InfoCard
-                title="Awareness Level"
-                content={details.awareness_level.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
-                icon={Target}
-                color="amber"
+              <AwarenessCard
+                level={details.awareness_level}
+                reasoning={details.awareness_reasoning}
               />
             )}
             {details?.needs && details.needs.length > 0 && (
@@ -949,34 +1083,52 @@ function CanvasTab({
                 <p className="text-sm text-slate-600 whitespace-pre-wrap">{renderContent(selectedCanvas.buying_signals)}</p>
               </div>
               {extended && (
-                <>
-                  <div className="col-span-2 border-t border-slate-200 pt-4 mt-2">
-                    <h3 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                      <Palette className="w-5 h-5 text-indigo-600" />
-                      Deep Psychological Analysis
-                    </h3>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-900 mb-2">Customer Journey</h4>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{renderContent(extended.customer_journey)}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-900 mb-2">Emotional Map</h4>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{renderContent(extended.emotional_map)}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-900 mb-2">Narrative Angles</h4>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{renderContent(extended.narrative_angles)}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-900 mb-2">Messaging Framework</h4>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{renderContent(extended.messaging_framework)}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <h4 className="text-sm font-semibold text-slate-900 mb-2">Voice & Tone</h4>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">{renderContent(extended.voice_and_tone)}</p>
-                  </div>
-                </>
+                <div className="col-span-2 border-t border-slate-200 pt-6 mt-4 space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <Palette className="w-5 h-5 text-indigo-600" />
+                    Deep Psychological Analysis (Canvas Extended V2)
+                  </h3>
+
+                  {/* Customer Journey */}
+                  {extended.customer_journey && (
+                    <CustomerJourneySection
+                      journey={extended.customer_journey}
+                      readonly
+                    />
+                  )}
+
+                  {/* Emotional Map */}
+                  {extended.emotional_map && (
+                    <EmotionalMapSection
+                      emotionalMap={extended.emotional_map}
+                      readonly
+                    />
+                  )}
+
+                  {/* Narrative Angles */}
+                  {extended.narrative_angles && extended.narrative_angles.length > 0 && (
+                    <NarrativeAnglesSection
+                      angles={extended.narrative_angles}
+                      readonly
+                    />
+                  )}
+
+                  {/* Messaging Framework */}
+                  {extended.messaging_framework && (
+                    <MessagingFrameworkSection
+                      framework={extended.messaging_framework}
+                      readonly
+                    />
+                  )}
+
+                  {/* Voice & Tone */}
+                  {extended.voice_and_tone && (
+                    <VoiceAndToneSection
+                      voiceAndTone={extended.voice_and_tone}
+                      readonly
+                    />
+                  )}
+                </div>
               )}
             </div>
           </CardContent>
@@ -988,7 +1140,863 @@ function CanvasTab({
   );
 }
 
+// =====================================================
+// V5 Strategic Module Tabs
+// =====================================================
+
+function ChannelStrategyTab({ data }: { data?: ChannelStrategy | null }) {
+  if (!data) {
+    return <EmptyState message="Channel Strategy not generated yet" />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Primary Platforms */}
+      {data.primary_platforms && data.primary_platforms.length > 0 && (
+        <Card>
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Radio className="w-4 h-4 text-blue-600" />
+              Primary Platforms
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            {data.primary_platforms.map((platform, i) => (
+              <div key={i} className="p-4 bg-slate-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-slate-900">{platform.platform}</h4>
+                  <div className="flex gap-2">
+                    <Badge variant="outline">{platform.usage_frequency}</Badge>
+                    <Badge variant="secondary">{platform.activity_type}</Badge>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-600 mb-2">{platform.why_they_use_it}</p>
+                {platform.peak_activity_times && platform.peak_activity_times.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {platform.peak_activity_times.map((time, j) => (
+                      <span key={j} className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">{time}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Content Preferences */}
+      {data.content_preferences && data.content_preferences.length > 0 && (
+        <Card>
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Heart className="w-4 h-4 text-purple-600" />
+              Content Preferences
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {data.content_preferences.map((pref, i) => (
+              <div key={i} className="p-3 bg-purple-50/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-purple-900">{pref.format}</span>
+                  <Badge variant="outline" className="text-xs">{pref.attention_span}</Badge>
+                </div>
+                <p className="text-sm text-slate-600">{pref.context}</p>
+                {pref.triggering_topics && pref.triggering_topics.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {pref.triggering_topics.map((topic, j) => (
+                      <span key={j} className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">{topic}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Trusted Sources & Communities */}
+      <div className="grid grid-cols-2 gap-6">
+        {data.trusted_sources && data.trusted_sources.length > 0 && (
+          <Card>
+            <CardHeader className="bg-emerald-50 border-b">
+              <CardTitle className="text-sm font-semibold text-emerald-700">Trusted Sources</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {data.trusted_sources.map((source, i) => (
+                <div key={i} className="text-sm">
+                  <p className="font-medium text-slate-900 capitalize">{source.source_type.replace(/_/g, ' ')}</p>
+                  <p className="text-slate-600 text-xs">{source.why_trusted}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {source.specific_examples.map((ex, j) => (
+                      <span key={j} className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded">{ex}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {data.communities && data.communities.length > 0 && (
+          <Card>
+            <CardHeader className="bg-amber-50 border-b">
+              <CardTitle className="text-sm font-semibold text-amber-700">Communities</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {data.communities.map((comm, i) => (
+                <div key={i} className="text-sm">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-slate-900 capitalize">{comm.type.replace(/_/g, ' ')}</p>
+                    <Badge variant="outline" className="text-xs">{comm.participation_level}</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {comm.specific_names.map((name, j) => (
+                      <span key={j} className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">{name}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Search Patterns & Advertising */}
+      <div className="grid grid-cols-2 gap-6">
+        {data.search_patterns && (
+          <Card>
+            <CardHeader className="bg-blue-50 border-b">
+              <CardTitle className="text-sm font-semibold text-blue-700">Search Patterns</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2 text-sm">
+              <p><strong>Search Depth:</strong> {data.search_patterns.search_depth?.replace(/_/g, ' ')}</p>
+              <p><strong>Decision Timeline:</strong> {data.search_patterns.decision_timeline}</p>
+              {data.search_patterns.typical_queries && (
+                <div>
+                  <p className="font-medium text-slate-700 mb-1">Typical Queries:</p>
+                  <ul className="space-y-1">
+                    {data.search_patterns.typical_queries.map((q, i) => (
+                      <li key={i} className="text-slate-600">• {q}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {data.advertising_response && (
+          <Card>
+            <CardHeader className="bg-rose-50 border-b">
+              <CardTitle className="text-sm font-semibold text-rose-700">Advertising Response</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2 text-sm">
+              <p><strong>Retargeting Tolerance:</strong> {data.advertising_response.retargeting_tolerance}</p>
+              {data.advertising_response.channels_they_notice && (
+                <div>
+                  <p className="font-medium text-slate-700">Channels They Notice:</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {data.advertising_response.channels_they_notice.map((ch, i) => (
+                      <span key={i} className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded">{ch}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.advertising_response.ad_formats_that_annoy && (
+                <div>
+                  <p className="font-medium text-slate-700">Ad Formats That Annoy:</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {data.advertising_response.ad_formats_that_annoy.map((f, i) => (
+                      <span key={i} className="px-2 py-0.5 text-xs bg-rose-100 text-rose-700 rounded">{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CompetitiveIntelligenceTab({ data }: { data?: CompetitiveIntelligence | null }) {
+  if (!data) {
+    return <EmptyState message="Competitive Intelligence not generated yet" />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Alternatives Tried */}
+      {data.alternatives_tried && data.alternatives_tried.length > 0 && (
+        <Card>
+          <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-orange-600" />
+              Alternatives They've Tried
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            {data.alternatives_tried.map((alt, i) => (
+              <div key={i} className="p-4 bg-orange-50/50 rounded-lg">
+                <h4 className="font-semibold text-orange-900 mb-2">{alt.solution_type}</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase">Why They Tried It</p>
+                    <p className="text-slate-700">{alt.why_they_tried_it}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase">Why It Failed</p>
+                    <p className="text-slate-700">{alt.why_it_failed}</p>
+                  </div>
+                </div>
+                {alt.emotional_residue && (
+                  <div className="mt-2 p-2 bg-red-50 rounded text-sm">
+                    <p className="text-xs font-medium text-red-700">Emotional Residue:</p>
+                    <p className="text-red-900">{alt.emotional_residue}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Competitors */}
+      {data.vs_competitors && data.vs_competitors.length > 0 && (
+        <Card>
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Swords className="w-4 h-4 text-blue-600" />
+              Competitor Perception
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            {data.vs_competitors.map((comp, i) => (
+              <div key={i} className="p-4 bg-blue-50/50 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2">{comp.competitor_name}</h4>
+                <p className="text-sm text-slate-600 mb-3">{comp.segment_perception}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-2 bg-emerald-50 rounded">
+                    <p className="text-xs font-medium text-emerald-700 uppercase mb-1">Strengths</p>
+                    <ul className="text-sm space-y-1">
+                      {comp.competitor_strengths?.map((s, j) => (
+                        <li key={j} className="text-emerald-900">• {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="p-2 bg-red-50 rounded">
+                    <p className="text-xs font-medium text-red-700 uppercase mb-1">Weaknesses</p>
+                    <ul className="text-sm space-y-1">
+                      {comp.competitor_weaknesses?.map((w, j) => (
+                        <li key={j} className="text-red-900">• {w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Switching Barriers */}
+      {data.switching_barriers && data.switching_barriers.length > 0 && (
+        <Card>
+          <CardHeader className="bg-rose-50 border-b">
+            <CardTitle className="text-sm font-semibold text-rose-700">Switching Barriers</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {data.switching_barriers.map((barrier, i) => (
+              <div key={i} className="p-3 bg-rose-50/50 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-rose-900">{barrier.barrier_type}</span>
+                  <Badge variant={barrier.severity === 'critical' ? 'destructive' : 'secondary'}>
+                    {barrier.severity}
+                  </Badge>
+                </div>
+                <p className="text-sm text-slate-600">{barrier.description}</p>
+                <p className="text-sm text-emerald-700 mt-1">
+                  <strong>How to overcome:</strong> {barrier.how_to_overcome}
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Category Beliefs */}
+      {data.category_beliefs && (
+        <Card>
+          <CardHeader className="bg-purple-50 border-b">
+            <CardTitle className="text-sm font-semibold text-purple-700">Category Beliefs</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {data.category_beliefs.what_they_believe && (
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase mb-2">What They Believe</p>
+                <ul className="space-y-1 text-sm">
+                  {data.category_beliefs.what_they_believe.map((b, i) => (
+                    <li key={i} className="text-slate-700">• {b}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {data.category_beliefs.misconceptions_to_address && data.category_beliefs.misconceptions_to_address.length > 0 && (
+              <div className="pt-3 border-t">
+                <p className="text-xs font-medium text-slate-500 uppercase mb-2">Misconceptions to Address</p>
+                {data.category_beliefs.misconceptions_to_address.map((m, i) => (
+                  <div key={i} className="p-2 bg-indigo-50 rounded mb-2">
+                    <p className="text-sm font-medium text-indigo-900">{m.misconception}</p>
+                    <p className="text-xs text-slate-600">Root: {m.root_cause}</p>
+                    <p className="text-xs text-emerald-700">Reframe: {m.how_to_reframe}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function PricingPsychologyTab({ data }: { data?: PricingPsychology | null }) {
+  if (!data) {
+    return <EmptyState message="Pricing Psychology not generated yet" />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Price Perception */}
+      {data.price_perception && (
+        <Card>
+          <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+              Price Perception
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="p-3 bg-slate-50 rounded">
+                <p className="text-xs font-medium text-slate-500 uppercase">Sensitivity Level</p>
+                <p className="text-lg font-semibold text-slate-900 capitalize">{data.price_perception.price_sensitivity_level}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded">
+                <p className="text-xs font-medium text-slate-500 uppercase">Sweet Spot</p>
+                <p className="text-lg font-semibold text-emerald-700">{data.price_perception.spending_sweet_spot}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded">
+                <p className="text-xs font-medium text-slate-500 uppercase">Current Spending</p>
+                <p className="text-slate-700">{data.price_perception.current_spending_on_alternatives}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded">
+                <p className="text-xs font-medium text-slate-500 uppercase">Spending Ceiling</p>
+                <p className="text-slate-700">{data.price_perception.spending_ceiling}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Budget Context */}
+      {data.budget_context && (
+        <Card>
+          <CardHeader className="bg-blue-50 border-b">
+            <CardTitle className="text-sm font-semibold text-blue-700">Budget Context</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase">Spending Category</p>
+              <p className="text-slate-700">{data.budget_context.spending_category}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase">Decision Cycle</p>
+              <p className="text-slate-700">{data.budget_context.decision_cycle}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase">Budget Allocation</p>
+              <p className="text-slate-700">{data.budget_context.budget_allocation}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase">Who Controls Budget</p>
+              <p className="text-slate-700">{data.budget_context.who_controls_budget}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Value Anchors */}
+      {data.value_anchors && data.value_anchors.length > 0 && (
+        <Card>
+          <CardHeader className="bg-amber-50 border-b">
+            <CardTitle className="text-sm font-semibold text-amber-700">Value Anchors</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2">
+            {data.value_anchors.map((anchor, i) => (
+              <div key={i} className="p-3 bg-amber-50/50 rounded">
+                <p className="font-medium text-amber-900">{anchor.comparison_point}</p>
+                <p className="text-sm text-slate-600">{anchor.why_this_works}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pricing Objections */}
+      {data.pricing_objections && data.pricing_objections.length > 0 && (
+        <Card>
+          <CardHeader className="bg-rose-50 border-b">
+            <CardTitle className="text-sm font-semibold text-rose-700">Pricing Objections</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {data.pricing_objections.map((obj, i) => (
+              <div key={i} className="p-3 bg-rose-50/50 rounded">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-rose-900">{obj.objection}</span>
+                  <Badge variant="outline">{obj.is_price_or_value}</Badge>
+                </div>
+                <p className="text-sm text-slate-600">Concern: {obj.underlying_concern}</p>
+                <p className="text-sm text-emerald-700">Reframe: {obj.reframe_strategy}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Discount Sensitivity */}
+      {data.discount_sensitivity && (
+        <Card>
+          <CardHeader className="bg-purple-50 border-b">
+            <CardTitle className="text-sm font-semibold text-purple-700">Discount Sensitivity</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 text-sm">
+            <div className="mb-2 flex items-center gap-2">
+              <strong>Responds to Discounts:</strong>
+              <Badge variant={data.discount_sensitivity.responds_to_discounts ? 'default' : 'secondary'}>
+                {data.discount_sensitivity.responds_to_discounts ? 'Yes' : 'No'}
+              </Badge>
+            </div>
+            {data.discount_sensitivity.types_that_work && (
+              <div className="mb-2">
+                <p className="font-medium text-emerald-700">Types That Work:</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {data.discount_sensitivity.types_that_work.map((t, i) => (
+                    <span key={i} className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {data.discount_sensitivity.types_that_backfire && (
+              <div>
+                <p className="font-medium text-rose-700">Types That Backfire:</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {data.discount_sensitivity.types_that_backfire.map((t, i) => (
+                    <span key={i} className="px-2 py-0.5 text-xs bg-rose-100 text-rose-700 rounded">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function TrustFrameworkTab({ data }: { data?: TrustFramework | null }) {
+  if (!data) {
+    return <EmptyState message="Trust Framework not generated yet" />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Baseline Trust */}
+      {data.baseline_trust && (
+        <Card>
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Shield className="w-4 h-4 text-slate-600" />
+              Baseline Trust
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
+            <div className="p-3 bg-slate-50 rounded">
+              <p className="text-xs font-medium text-slate-500 uppercase">Trust in Category</p>
+              <p className="text-slate-700">{data.baseline_trust.trust_in_category}</p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded">
+              <p className="text-xs font-medium text-slate-500 uppercase">Trust in Brand</p>
+              <p className="text-slate-700">{data.baseline_trust.trust_in_brand}</p>
+            </div>
+            {data.baseline_trust.reasons_for_skepticism && data.baseline_trust.reasons_for_skepticism.length > 0 && (
+              <div className="col-span-2 p-3 bg-rose-50 rounded">
+                <p className="text-xs font-medium text-rose-700 uppercase mb-1">Reasons for Skepticism</p>
+                <ul className="space-y-1">
+                  {data.baseline_trust.reasons_for_skepticism.map((r, i) => (
+                    <li key={i} className="text-rose-900">• {r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Proof Hierarchy */}
+      {data.proof_hierarchy && data.proof_hierarchy.length > 0 && (
+        <Card>
+          <CardHeader className="bg-emerald-50 border-b">
+            <CardTitle className="text-sm font-semibold text-emerald-700">Proof Hierarchy</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {data.proof_hierarchy.map((proof, i) => (
+              <div key={i} className="p-3 bg-emerald-50/50 rounded">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-emerald-900">{proof.proof_type}</span>
+                  <Badge variant={proof.effectiveness === 'very_high' ? 'default' : 'secondary'}>
+                    {proof.effectiveness?.replace(/_/g, ' ')}
+                  </Badge>
+                </div>
+                <p className="text-sm text-slate-600">{proof.why_it_works}</p>
+                <p className="text-sm text-slate-500 mt-1">How to present: {proof.how_to_present}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Trust Killers */}
+      {data.trust_killers && data.trust_killers.length > 0 && (
+        <Card>
+          <CardHeader className="bg-rose-50 border-b">
+            <CardTitle className="text-sm font-semibold text-rose-700">Trust Killers</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3">
+            {data.trust_killers.map((killer, i) => (
+              <div key={i} className="p-3 bg-rose-50/50 rounded">
+                <p className="font-medium text-rose-900">{killer.red_flag}</p>
+                <p className="text-sm text-slate-600">Why it triggers skepticism: {killer.why_triggers_skepticism}</p>
+                <p className="text-sm text-emerald-700">How to avoid: {killer.how_to_avoid}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Credibility Markers */}
+      {data.credibility_markers && data.credibility_markers.length > 0 && (
+        <Card>
+          <CardHeader className="bg-blue-50 border-b">
+            <CardTitle className="text-sm font-semibold text-blue-700">Credibility Markers</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2">
+            {data.credibility_markers.map((marker, i) => (
+              <div key={i} className="flex items-center justify-between p-2 bg-blue-50/50 rounded">
+                <span className="text-sm text-slate-700">{marker.signal}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant={marker.importance === 'critical' ? 'destructive' : 'outline'}>
+                    {marker.importance}
+                  </Badge>
+                  <span className="text-xs text-slate-500">{marker.current_status}</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Trust Journey */}
+      {data.trust_journey && (
+        <Card>
+          <CardHeader className="bg-purple-50 border-b">
+            <CardTitle className="text-sm font-semibold text-purple-700">Trust Journey</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3 text-sm">
+            <div className="p-3 bg-purple-50/50 rounded">
+              <p className="text-xs font-medium text-purple-700 uppercase">First Touchpoint Goal</p>
+              <p className="text-slate-700">{data.trust_journey.first_touchpoint_goal}</p>
+            </div>
+            {data.trust_journey.mid_journey_reassurance && (
+              <div className="p-3 bg-purple-50/50 rounded">
+                <p className="text-xs font-medium text-purple-700 uppercase">Mid-Journey Reassurance</p>
+                <ul className="space-y-1">
+                  {data.trust_journey.mid_journey_reassurance.map((r, i) => (
+                    <li key={i} className="text-slate-700">• {r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="p-3 bg-purple-50/50 rounded">
+              <p className="text-xs font-medium text-purple-700 uppercase">Pre-Purchase Push</p>
+              <p className="text-slate-700">{data.trust_journey.pre_purchase_push}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function JTBDContextTab({ data }: { data?: JTBDContext | null }) {
+  if (!data) {
+    return <EmptyState message="JTBD Context not generated yet" />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Job Contexts */}
+      {data.job_contexts && data.job_contexts.length > 0 && (
+        <div className="space-y-4">
+          {data.job_contexts.map((job, i) => (
+            <Card key={i}>
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-amber-600" />
+                  {job.job_name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                {/* Hire Triggers */}
+                {job.hire_triggers && job.hire_triggers.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase mb-2">Hire Triggers</p>
+                    <div className="space-y-2">
+                      {job.hire_triggers.map((trigger, j) => (
+                        <div key={j} className="p-2 bg-amber-50 rounded text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-amber-900">{trigger.situation}</span>
+                            <Badge variant="outline">{trigger.urgency}</Badge>
+                          </div>
+                          <p className="text-slate-600 text-xs">{trigger.emotional_state} • {trigger.frequency}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Competing Solutions */}
+                {job.competing_solutions && job.competing_solutions.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase mb-2">Competing Solutions</p>
+                    <div className="space-y-2">
+                      {job.competing_solutions.map((sol, j) => (
+                        <div key={j} className="p-2 bg-blue-50 rounded text-sm">
+                          <p className="font-medium text-blue-900">{sol.alternative}</p>
+                          <p className="text-slate-600 text-xs">Why chosen: {sol.why_chosen}</p>
+                          <p className="text-emerald-700 text-xs">Your advantage: {sol.your_advantage}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Metrics */}
+                {job.success_metrics && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase mb-2">Success Metrics</p>
+                    <div className="p-3 bg-emerald-50 rounded text-sm">
+                      {job.success_metrics.how_measured && (
+                        <div className="mb-2">
+                          <p className="text-xs font-medium text-emerald-700">How Measured:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {job.success_metrics.how_measured.map((m, k) => (
+                              <span key={k} className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded">{m}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-slate-700"><strong>Short-term:</strong> {job.success_metrics.short_term_success}</p>
+                      <p className="text-slate-700"><strong>Long-term:</strong> {job.success_metrics.long_term_success}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Hiring Anxieties */}
+                {job.hiring_anxieties && job.hiring_anxieties.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase mb-2">Hiring Anxieties</p>
+                    <div className="space-y-2">
+                      {job.hiring_anxieties.map((anxiety, j) => (
+                        <div key={j} className="p-2 bg-rose-50 rounded text-sm">
+                          <p className="font-medium text-rose-900">{anxiety.anxiety}</p>
+                          <p className="text-slate-600 text-xs">Rooted in: {anxiety.rooted_in}</p>
+                          <p className="text-emerald-700 text-xs">Address by: {anxiety.how_to_address}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Job Priority Ranking */}
+      {data.job_priority_ranking && data.job_priority_ranking.length > 0 && (
+        <Card>
+          <CardHeader className="bg-purple-50 border-b">
+            <CardTitle className="text-sm font-semibold text-purple-700">Job Priority Ranking</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2">
+            {data.job_priority_ranking.map((rank, i) => (
+              <div key={i} className="flex items-center justify-between p-2 bg-purple-50/50 rounded">
+                <span className="text-sm text-slate-700">{rank.job_name}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="default">#{rank.priority}</Badge>
+                  <span className="text-xs text-slate-500">{rank.reasoning}</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Job Dependencies */}
+      {data.job_dependencies && data.job_dependencies.length > 0 && (
+        <Card>
+          <CardHeader className="bg-indigo-50 border-b">
+            <CardTitle className="text-sm font-semibold text-indigo-700">Job Dependencies</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2">
+            {data.job_dependencies.map((dep, i) => (
+              <div key={i} className="p-2 bg-indigo-50/50 rounded text-sm">
+                <p className="text-indigo-900">
+                  <strong>{dep.primary_job}</strong> → {dep.enables_job}
+                </p>
+                <p className="text-slate-600 text-xs">{dep.relationship}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // Helper Components
+
+// Awareness Level Card with explanation
+function AwarenessCard({
+  level,
+  reasoning,
+}: {
+  level: string;
+  reasoning?: string;
+}) {
+  // Define awareness level metadata
+  const levelMeta: Record<string, { label: string; description: string; color: string; progress: number }> = {
+    unaware: {
+      label: "Unaware",
+      description: "Doesn't recognize they have a problem that needs solving",
+      color: "slate",
+      progress: 10,
+    },
+    problem_aware: {
+      label: "Problem Aware",
+      description: "Recognizes the problem but doesn't know solutions exist",
+      color: "rose",
+      progress: 25,
+    },
+    solution_aware: {
+      label: "Solution Aware",
+      description: "Knows solutions exist but doesn't know about your brand",
+      color: "amber",
+      progress: 50,
+    },
+    product_aware: {
+      label: "Product Aware",
+      description: "Knows your brand but hasn't made a purchase decision",
+      color: "blue",
+      progress: 75,
+    },
+    most_aware: {
+      label: "Most Aware",
+      description: "Ready to buy or a returning customer",
+      color: "emerald",
+      progress: 95,
+    },
+  };
+
+  const meta = levelMeta[level] || {
+    label: level.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    description: "",
+    color: "slate",
+    progress: 50,
+  };
+
+  const colorStyles: Record<string, string> = {
+    slate: "border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100/50",
+    rose: "border-rose-200 bg-gradient-to-br from-rose-50 to-rose-100/50",
+    amber: "border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/50",
+    blue: "border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50",
+    emerald: "border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50",
+  };
+
+  const progressColors: Record<string, string> = {
+    slate: "bg-slate-400",
+    rose: "bg-rose-500",
+    amber: "bg-amber-500",
+    blue: "bg-blue-500",
+    emerald: "bg-emerald-500",
+  };
+
+  const badgeColors: Record<string, string> = {
+    slate: "bg-slate-100 text-slate-700",
+    rose: "bg-rose-100 text-rose-700",
+    amber: "bg-amber-100 text-amber-700",
+    blue: "bg-blue-100 text-blue-700",
+    emerald: "bg-emerald-100 text-emerald-700",
+  };
+
+  return (
+    <Card className={cn("border col-span-2", colorStyles[meta.color])}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Target className="w-4 h-4" />
+            Awareness Level
+          </CardTitle>
+          <Badge className={badgeColors[meta.color]}>
+            {meta.label}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Progress bar */}
+        <div className="space-y-1">
+          <div className="h-2 bg-white/60 rounded-full overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all", progressColors[meta.color])}
+              style={{ width: `${meta.progress}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-500 px-0.5">
+            <span>Unaware</span>
+            <span>Problem</span>
+            <span>Solution</span>
+            <span>Product</span>
+            <span>Most</span>
+          </div>
+        </div>
+
+        {/* Generic description */}
+        <p className="text-xs text-slate-600">{meta.description}</p>
+
+        {/* Specific reasoning from AI */}
+        {reasoning && (
+          <div className="pt-2 border-t border-slate-200/50">
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Why This Level?</p>
+            <p className="text-sm text-slate-700">{reasoning}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function InfoCard({
   title,
   content,
