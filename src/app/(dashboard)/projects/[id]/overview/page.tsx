@@ -186,6 +186,14 @@ export default function OverviewPage({
           />
           <Button
             variant="outline"
+            onClick={() => router.push(`/projects/${projectId}/generate/segment-details`)}
+            className="gap-2"
+          >
+            <Pencil className="w-4 h-4" />
+            Edit Research
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => router.push(`/projects/${projectId}/report`)}
             className="gap-2"
           >

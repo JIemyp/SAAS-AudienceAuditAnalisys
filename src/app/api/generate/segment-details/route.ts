@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
         triggers: null, // Triggers will be generated separately
         core_values: response.core_values,
         awareness_level: response.awareness_level,
+        awareness_reasoning: response.awareness_reasoning || null,
         objections: response.objections,
         version: 1,
       }).select().single();

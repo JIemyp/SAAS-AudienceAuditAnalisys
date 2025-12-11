@@ -27,6 +27,9 @@ import {
     DollarSign,
     Target,
     Sparkles,
+    LayoutDashboard,
+    Compass,
+    ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -290,6 +293,127 @@ export default function ProjectPage({
                         )}
                     </div>
                 </div>
+            </Card>
+
+            {/* Results Section - Always visible */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-500/10 rounded-lg">
+                            <Sparkles className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <div>
+                            <CardTitle>Results</CardTitle>
+                            <CardDescription>
+                                {projectHasProgress
+                                    ? "View and explore your analysis results"
+                                    : "Results will appear here after analysis"}
+                            </CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Overview */}
+                        <Link
+                            href={`/projects/${id}/overview`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-blue-100 group-hover:bg-blue-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <LayoutDashboard className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-blue-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>Overview</h4>
+                                <p className="text-sm text-slate-500">Key insights at a glance</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                            )}
+                        </Link>
+
+                        {/* Full Report */}
+                        <Link
+                            href={`/projects/${id}/report`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-indigo-100 group-hover:bg-indigo-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <FileText className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-indigo-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>Full Report</h4>
+                                <p className="text-sm text-slate-500">Complete analysis data</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                            )}
+                        </Link>
+
+                        {/* Explorer */}
+                        <Link
+                            href={`/projects/${id}/explorer`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-purple-100 group-hover:bg-purple-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <Compass className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-purple-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>Explorer</h4>
+                                <p className="text-sm text-slate-500">Explore by segment</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors" />
+                            )}
+                        </Link>
+                    </div>
+                </CardContent>
             </Card>
 
             {/* Your Input Section */}

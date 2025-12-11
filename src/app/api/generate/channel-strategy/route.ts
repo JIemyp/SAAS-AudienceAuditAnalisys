@@ -65,10 +65,9 @@ function buildChannelStrategyPrompt(
   const segmentDetailsSection = segmentDetails ? `
 ## Segment Psychology
 - Awareness Level: ${segmentDetails.awareness_level || "N/A"}
-- Online Behavior: ${segmentDetails.online_behavior || "N/A"}
-- Buying Behavior: ${segmentDetails.buying_behavior || "N/A"}
 - Core Values: ${JSON.stringify(segmentDetails.core_values || [])}
 - Needs: ${JSON.stringify(segmentDetails.needs || [])}
+- Objections: ${JSON.stringify(segmentDetails.objections || [])}
 ` : "";
 
   const portraitSection = portraitFinal ? `

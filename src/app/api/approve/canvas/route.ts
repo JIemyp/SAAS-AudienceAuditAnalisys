@@ -23,22 +23,52 @@ export async function POST(request: NextRequest) {
 
     if (!drafts || drafts.length === 0) throw new ApiError("Drafts not found", 404);
 
+    // Get existing canvas records to prevent duplicates
+    const { data: existingCanvas } = await supabase
+      .from("canvas")
+      .select("id, pain_id")
+      .eq("project_id", projectId)
+      .eq("segment_id", segmentId);
+
+    const existingPainIds = new Set((existingCanvas || []).map(c => c.pain_id));
+
     const approved = [];
     for (const draft of drafts) {
-      const { data: canvas, error } = await supabase
-        .from("canvas")
-        .insert({
-          project_id: projectId,
-          segment_id: segmentId,
-          pain_id: draft.pain_id,
-          emotional_aspects: draft.emotional_aspects,
-          behavioral_patterns: draft.behavioral_patterns,
-          buying_signals: draft.buying_signals,
-        })
-        .select()
-        .single();
+      // Check if canvas for this pain already exists
+      if (existingPainIds.has(draft.pain_id)) {
+        // Update existing canvas
+        const existingId = existingCanvas?.find(c => c.pain_id === draft.pain_id)?.id;
+        if (existingId) {
+          const { data: canvas, error } = await supabase
+            .from("canvas")
+            .update({
+              emotional_aspects: draft.emotional_aspects,
+              behavioral_patterns: draft.behavioral_patterns,
+              buying_signals: draft.buying_signals,
+            })
+            .eq("id", existingId)
+            .select()
+            .single();
 
-      if (!error) approved.push(canvas);
+          if (!error) approved.push(canvas);
+        }
+      } else {
+        // Insert new canvas
+        const { data: canvas, error } = await supabase
+          .from("canvas")
+          .insert({
+            project_id: projectId,
+            segment_id: segmentId,
+            pain_id: draft.pain_id,
+            emotional_aspects: draft.emotional_aspects,
+            behavioral_patterns: draft.behavioral_patterns,
+            buying_signals: draft.buying_signals,
+          })
+          .select()
+          .single();
+
+        if (!error) approved.push(canvas);
+      }
     }
 
     return NextResponse.json({ success: true, approved, segment_id: segmentId });

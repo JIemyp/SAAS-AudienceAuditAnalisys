@@ -45,6 +45,10 @@ export interface GenerationPageProps<T> {
   pendingDecisionsCount?: number;
   // Optional decisions object to pass to approve endpoint
   decisions?: Record<string, unknown>;
+  // Optional: approved data table name (to fetch and show approved data for editing)
+  approvedTable?: string;
+  // Optional: validation function to check for empty fields before approve
+  validateDraft?: (draft: T) => { isValid: boolean; emptyFields: string[] };
 }
 
 // =====================================================
@@ -66,15 +70,20 @@ export function GenerationPage<T extends { id: string }>({
   approveBlockedMessage,
   pendingDecisionsCount,
   decisions,
+  approvedTable,
+  validateDraft,
 }: GenerationPageProps<T>) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<T[]>([]);
+  const [approvedData, setApprovedData] = useState<T[]>([]);
+  const [isEditingApproved, setIsEditingApproved] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editedDraft, setEditedDraft] = useState<Partial<T> | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Language translation
   const { language, setLanguage } = useLanguage();
@@ -89,10 +98,26 @@ export function GenerationPage<T extends { id: string }>({
 
   const selectedDraft = displayDrafts.find(d => d.id === selectedDraftId);
 
-  // Fetch existing drafts
+  // Fetch existing drafts and approved data
   useEffect(() => {
     fetchDrafts();
-  }, [projectId, draftTable]);
+    if (approvedTable) {
+      fetchApprovedData();
+    }
+  }, [projectId, draftTable, approvedTable]);
+
+  const fetchApprovedData = async () => {
+    if (!approvedTable) return;
+    try {
+      const res = await fetch(`/api/drafts?projectId=${projectId}&table=${approvedTable}`);
+      const data = await res.json();
+      if (data.success && data.drafts) {
+        setApprovedData(data.drafts);
+      }
+    } catch (err) {
+      console.error("Failed to fetch approved data:", err);
+    }
+  };
 
   const fetchDrafts = async (forceSelectFirst = false) => {
     try {
@@ -155,6 +180,23 @@ export function GenerationPage<T extends { id: string }>({
 
   const handleApprove = async () => {
     if (!selectedDraftId && drafts.length === 0) return;
+
+    // Validate drafts before approve if validation function provided
+    if (validateDraft) {
+      const allErrors: string[] = [];
+      for (const draft of drafts) {
+        const result = validateDraft(draft);
+        if (!result.isValid) {
+          allErrors.push(...result.emptyFields);
+        }
+      }
+      if (allErrors.length > 0) {
+        setValidationErrors(allErrors);
+        setError(`Cannot approve: ${allErrors.length} empty field(s) found. Please fill them first.`);
+        return;
+      }
+    }
+    setValidationErrors([]);
 
     try {
       setIsApproving(true);
@@ -331,16 +373,56 @@ export function GenerationPage<T extends { id: string }>({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700"
+            className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700"
           >
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="flex-1">{error}</span>
-            <button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="flex-1">{error}</span>
+              <button onClick={() => { setError(null); setValidationErrors([]); }} className="p-1 hover:bg-red-100 rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {validationErrors.length > 0 && (
+              <div className="mt-3 pl-8">
+                <p className="text-sm font-medium mb-2">Empty fields:</p>
+                <ul className="text-sm space-y-1">
+                  {validationErrors.slice(0, 5).map((field, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                      {field}
+                    </li>
+                  ))}
+                  {validationErrors.length > 5 && (
+                    <li className="text-red-500">...and {validationErrors.length - 5} more</li>
+                  )}
+                </ul>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Editing Approved Data Banner */}
+      {isEditingApproved && approvedData.length > 0 && drafts.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700"
+        >
+          <Check className="w-5 h-5 flex-shrink-0" />
+          <span className="flex-1">This step is already completed. You can view and regenerate the data if needed.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRegenerate}
+            disabled={isGenerating}
+            className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+          >
+            <RefreshCw className={cn("w-4 h-4", isGenerating && "animate-spin")} />
+            Regenerate
+          </Button>
+        </motion.div>
+      )}
 
       {/* Draft Version Selector */}
       {drafts.length > 1 && (
@@ -399,6 +481,21 @@ export function GenerationPage<T extends { id: string }>({
             exit={{ opacity: 0, y: -20 }}
           >
             {renderDraft(currentDraft, handleEdit)}
+          </motion.div>
+        ) : isEditingApproved && approvedData.length > 0 ? (
+          /* Show approved data for viewing/editing */
+          <motion.div
+            key="approved"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-4"
+          >
+            {approvedData.map((item, index) => (
+              <div key={item.id || index}>
+                {renderDraft(item, () => {})}
+              </div>
+            ))}
           </motion.div>
         ) : (
           <EmptyState

@@ -12,7 +12,10 @@ import {
   OnboardingData,
   SegmentDetails,
   Jobs,
-  Triggers
+  Triggers,
+  Preferences,
+  Difficulties,
+  PortraitFinal
 } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -66,6 +69,29 @@ export async function POST(request: NextRequest) {
       .from("triggers")
       .select("*")
       .eq("segment_id", segmentId)
+      .single();
+
+    // Get preferences (optional - for full cascade context)
+    const { data: preferences } = await supabase
+      .from("preferences")
+      .select("*")
+      .eq("segment_id", segmentId)
+      .single();
+
+    // Get difficulties (optional - for full cascade context)
+    const { data: difficulties } = await supabase
+      .from("difficulties")
+      .select("*")
+      .eq("segment_id", segmentId)
+      .single();
+
+    // Get portrait_final (for audience context)
+    const { data: portraitFinal } = await supabase
+      .from("portrait_final")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
       .single();
 
     // Determine which pains to process
@@ -197,13 +223,16 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Build V2 prompt with full context
+      // Build V2 prompt with full cascade context
       const { systemPrompt, userPrompt } = buildCanvasExtendedPromptV2({
         onboarding,
         segment: segment as Segment,
         segmentDetails: segmentDetails as SegmentDetails | null,
         jobs: jobs as Jobs | null,
         triggers: triggers as Triggers | null,
+        preferences: preferences as Preferences | null,
+        difficulties: difficulties as Difficulties | null,
+        portraitFinal: portraitFinal as PortraitFinal | null,
         pain,
         canvas,
       });

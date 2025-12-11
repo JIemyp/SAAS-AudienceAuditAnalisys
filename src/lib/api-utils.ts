@@ -178,7 +178,18 @@ export const STEP_TO_PAGE: Record<ProjectStep, string> = {
   canvas_draft: "/generate/canvas",
   canvas_approved: "/generate/canvas-extended",
   canvas_extended_draft: "/generate/canvas-extended",
-  canvas_extended_approved: "/overview",
+  canvas_extended_approved: "/generate/channel-strategy",
+  // Strategic modules (v5)
+  channel_strategy_draft: "/generate/channel-strategy",
+  channel_strategy_approved: "/generate/competitive-intelligence",
+  competitive_intelligence_draft: "/generate/competitive-intelligence",
+  competitive_intelligence_approved: "/generate/pricing-psychology",
+  pricing_psychology_draft: "/generate/pricing-psychology",
+  pricing_psychology_approved: "/generate/trust-framework",
+  trust_framework_draft: "/generate/trust-framework",
+  trust_framework_approved: "/generate/jtbd-context",
+  jtbd_context_draft: "/generate/jtbd-context",
+  jtbd_context_approved: "/overview",
   completed: "/overview",
 };
 

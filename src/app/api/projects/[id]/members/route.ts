@@ -170,8 +170,11 @@ export async function POST(
       return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
     }
 
-    // Generate invite link
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${invite.token}`;
+    // Generate invite link - use request headers to get actual domain
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+    const inviteLink = `${baseUrl}/invite/${invite.token}`;
 
     return NextResponse.json({
       success: true,

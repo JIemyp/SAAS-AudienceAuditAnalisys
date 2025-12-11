@@ -19,6 +19,14 @@ import {
   Heart,
   AlertTriangle,
   Zap,
+  MessageCircle,
+  Eye,
+  Shield,
+  Map,
+  Swords,
+  DollarSign,
+  CheckCircle,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -40,6 +48,11 @@ interface SegmentWithData {
     psychographics?: string;
     online_behavior?: string;
     buying_behavior?: string;
+    needs?: Array<{ need: string; intensity: string }>;
+    core_values?: Array<{ value: string; manifestation: string }>;
+    objections?: Array<{ objection: string; root_cause: string; how_to_overcome: string }>;
+    awareness_level?: string;
+    triggers?: Array<{ trigger: string; context: string }>;
   };
   jobs?: {
     functional_jobs?: JobItem[];
@@ -69,16 +82,130 @@ interface SegmentWithData {
     id: string;
     name: string;
     description: string;
+    deep_triggers?: string[];
+    examples?: string[];
     is_top_pain: boolean;
     impact_score: number;
+    ranking_reasoning?: string;
+  }>;
+  topPains?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    deep_triggers?: string[];
+    examples?: string[];
+    is_top_pain: boolean;
+    impact_score: number;
+    ranking_reasoning?: string;
+  }>;
+  otherPains?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    deep_triggers?: string[];
+    examples?: string[];
+    is_top_pain: boolean;
+    impact_score: number;
+    ranking_reasoning?: string;
   }>;
   canvas: Array<{
     id: string;
     pain_id: string;
-    emotional_aspects?: string;
-    behavioral_patterns?: string;
-    buying_signals?: string;
+    emotional_aspects?: unknown;
+    behavioral_patterns?: unknown;
+    buying_signals?: unknown;
   }>;
+  canvasExtended?: Array<{
+    id: string;
+    pain_id: string;
+    customer_journey?: unknown;
+    emotional_map?: unknown;
+    narrative_angles?: unknown;
+    messaging_framework?: unknown;
+    voice_and_tone?: unknown;
+  }>;
+  // V5 Modules - eslint-disable-next-line @typescript-eslint/no-explicit-any
+  channelStrategy?: {
+    id: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    primary_platforms?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    content_preferences?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    trusted_sources?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    communities?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    search_patterns?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    advertising_response?: any;
+  };
+  competitiveIntelligence?: {
+    id: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    alternatives_tried?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    current_workarounds?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vs_competitors?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    switching_barriers?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    evaluation_process?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    category_beliefs?: any;
+  };
+  pricingPsychology?: {
+    id: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    price_perception?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    budget_context?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    value_anchors?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    willingness_to_pay_signals?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payment_psychology?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    roi_calculation?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    pricing_objections?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    discount_sensitivity?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    budget_triggers?: any;
+  };
+  trustFramework?: {
+    id: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    proof_hierarchy?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    baseline_trust?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    trusted_authorities?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    social_proof?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    transparency_needs?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    trust_killers?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    credibility_markers?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    risk_reduction?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    trust_journey?: any;
+  };
+  jtbdContext?: {
+    id: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    job_contexts?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    job_priority_ranking?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    job_dependencies?: any;
+  };
 }
 
 interface FullReportData {
@@ -97,11 +224,15 @@ interface FullReportData {
     family_status?: string;
     sociodemographics?: string;
     psychographics?: string;
+    values_beliefs?: string[];
+    lifestyle_habits?: string[];
+    interests_hobbies?: string[];
+    personality_traits?: string[];
   } | null;
   segments: SegmentWithData[];
 }
 
-type SectionId = "portrait" | "segments" | "pains" | "canvas";
+type SectionId = "portrait" | "segments" | "pains" | "otherPains" | "canvas" | "canvasExtended" | "channelStrategy" | "competitiveIntelligence" | "pricingPsychology" | "trustFramework" | "jtbdContext";
 
 export default function FullReportPage({
   params,
@@ -217,7 +348,7 @@ export default function FullReportPage({
   };
 
   const expandAll = () => {
-    setExpandedSections(new Set(["portrait", "segments", "pains", "canvas"]));
+    setExpandedSections(new Set(["portrait", "segments", "pains", "otherPains", "canvas", "canvasExtended", "channelStrategy", "competitiveIntelligence", "pricingPsychology", "trustFramework", "jtbdContext"]));
     if (data?.segments) {
       setExpandedSegments(new Set(data.segments.map((s) => s.id)));
     }
@@ -353,19 +484,30 @@ export default function FullReportPage({
           onToggle={() => toggleSection("portrait")}
         >
           {displayData.portrait ? (
-            <div className="grid grid-cols-2 gap-6">
-              <PortraitField label="Age Range" value={displayData.portrait.age_range} />
-              <PortraitField label="Gender Distribution" value={displayData.portrait.gender_distribution} />
-              <PortraitField label="Income Level" value={displayData.portrait.income_level} />
-              <PortraitField label="Location" value={displayData.portrait.location} />
-              <PortraitField label="Occupation" value={displayData.portrait.occupation} />
-              <PortraitField label="Education" value={displayData.portrait.education} />
-              <PortraitField label="Family Status" value={displayData.portrait.family_status} />
-              <div className="col-span-2">
-                <PortraitField label="Sociodemographics" value={displayData.portrait.sociodemographics} />
+            <div className="space-y-6">
+              {/* Demographics Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <PortraitField label="Age Range" value={displayData.portrait.age_range} />
+                <PortraitField label="Gender Distribution" value={displayData.portrait.gender_distribution} />
+                <PortraitField label="Income Level" value={displayData.portrait.income_level} />
+                <PortraitField label="Location" value={displayData.portrait.location} />
+                <PortraitField label="Occupation" value={displayData.portrait.occupation} />
+                <PortraitField label="Education" value={displayData.portrait.education} />
+                <PortraitField label="Family Status" value={displayData.portrait.family_status} />
               </div>
-              <div className="col-span-2">
+
+              {/* Socio & Psychographics */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                <PortraitField label="Sociodemographics" value={displayData.portrait.sociodemographics} />
                 <PortraitField label="Psychographics" value={displayData.portrait.psychographics} />
+              </div>
+
+              {/* Lists: Values, Lifestyle, Interests, Personality */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+                <PortraitListField label="Values & Beliefs" items={displayData.portrait.values_beliefs} color="emerald" />
+                <PortraitListField label="Lifestyle Habits" items={displayData.portrait.lifestyle_habits} color="blue" />
+                <PortraitListField label="Interests & Hobbies" items={displayData.portrait.interests_hobbies} color="purple" />
+                <PortraitListField label="Personality Traits" items={displayData.portrait.personality_traits} color="amber" />
               </div>
             </div>
           ) : (
@@ -399,19 +541,22 @@ export default function FullReportPage({
           )}
         </CollapsibleSection>
 
-        {/* Pains Overview */}
+        {/* TOP Pains Overview */}
         <CollapsibleSection
           id="pains"
-          title="Pain Points Overview"
+          title="TOP Pain Points (Deep Analysis)"
           icon={Target}
           color="rose"
           isExpanded={expandedSections.has("pains")}
           onToggle={() => toggleSection("pains")}
         >
-          {displayData.segments?.some((s) => s.pains?.length > 0) ? (
+          {displayData.segments?.some((s) => (s.topPains?.length || 0) > 0 || s.pains?.some(p => p.is_top_pain)) ? (
             <div className="space-y-6">
               {displayData.segments.map((segment) => {
-                const topPains = segment.pains?.filter((p) => p.is_top_pain) || [];
+                // Use topPains if available, otherwise filter from pains for backward compatibility
+                const topPains = segment.topPains?.length
+                  ? segment.topPains
+                  : segment.pains?.filter((p) => p.is_top_pain) || [];
                 if (topPains.length === 0) return null;
 
                 return (
@@ -420,22 +565,44 @@ export default function FullReportPage({
                       <Badge variant="secondary">{segment.order_index + 1}</Badge>
                       {segment.name}
                     </h4>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3">
                       {topPains.sort((a, b) => b.impact_score - a.impact_score).map((pain) => (
                         <div
                           key={pain.id}
-                          className="p-3 bg-rose-50 border border-rose-100 rounded-lg"
+                          className="p-4 bg-gradient-to-r from-rose-50 to-amber-50 border border-rose-100 rounded-lg"
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-slate-900 flex items-center gap-1.5">
-                              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold text-slate-900 flex items-center gap-2">
+                              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                               {pain.name}
                             </span>
-                            <Badge variant="secondary" className="text-xs">
-                              {pain.impact_score}/10
+                            <Badge className="bg-rose-100 text-rose-700 border-rose-200">
+                              Impact: {pain.impact_score}/10
                             </Badge>
                           </div>
-                          <p className="text-sm text-slate-600 line-clamp-2">{pain.description}</p>
+                          <p className="text-sm text-slate-700 mb-3">{pain.description}</p>
+
+                          {/* Deep Triggers */}
+                          {pain.deep_triggers && pain.deep_triggers.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-rose-100">
+                              <p className="text-xs font-medium text-slate-500 uppercase mb-2">Deep Triggers</p>
+                              <div className="flex flex-wrap gap-2">
+                                {pain.deep_triggers.map((trigger, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs bg-white">
+                                    {trigger}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Ranking Reasoning */}
+                          {pain.ranking_reasoning && (
+                            <div className="mt-3 pt-3 border-t border-rose-100">
+                              <p className="text-xs font-medium text-slate-500 uppercase mb-1">Why This Pain Matters</p>
+                              <p className="text-sm text-slate-600 italic">{pain.ranking_reasoning}</p>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -444,7 +611,65 @@ export default function FullReportPage({
               })}
             </div>
           ) : (
-            <EmptyState message="No pain points ranked yet" />
+            <EmptyState message="No TOP pain points identified yet" />
+          )}
+        </CollapsibleSection>
+
+        {/* Other Discovered Pains */}
+        <CollapsibleSection
+          id="otherPains"
+          title="Other Discovered Pains"
+          icon={Eye}
+          color="slate"
+          isExpanded={expandedSections.has("otherPains")}
+          onToggle={() => toggleSection("otherPains" as SectionId)}
+        >
+          {displayData.segments?.some((s) => (s.otherPains?.length || 0) > 0 || s.pains?.some(p => !p.is_top_pain)) ? (
+            <div className="space-y-6">
+              <p className="text-sm text-slate-500 mb-4">
+                These pain points were discovered during research but were not selected for deep analysis.
+                They may still be valuable for understanding your audience.
+              </p>
+              {displayData.segments.map((segment) => {
+                // Use otherPains if available, otherwise filter from pains
+                const otherPains = segment.otherPains?.length
+                  ? segment.otherPains
+                  : segment.pains?.filter((p) => !p.is_top_pain) || [];
+                if (otherPains.length === 0) return null;
+
+                return (
+                  <div key={segment.id}>
+                    <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <Badge variant="secondary">{segment.order_index + 1}</Badge>
+                      {segment.name}
+                      <Badge variant="outline" className="text-xs">
+                        {otherPains.length} pains
+                      </Badge>
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {otherPains.map((pain) => (
+                        <div
+                          key={pain.id}
+                          className="p-3 bg-slate-50 border border-slate-200 rounded-lg"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-slate-800 text-sm">
+                              {pain.name}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {pain.impact_score}/10
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 line-clamp-2">{pain.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState message="No other pain points discovered" />
           )}
         </CollapsibleSection>
 
@@ -503,6 +728,475 @@ export default function FullReportPage({
             <EmptyState message="No canvas data generated yet" />
           )}
         </CollapsibleSection>
+
+        {/* Canvas Extended V2 Section */}
+        <CollapsibleSection
+          id="canvasExtended"
+          title="Extended Analysis (Messaging & Journey)"
+          icon={MessageCircle}
+          color="indigo"
+          isExpanded={expandedSections.has("canvasExtended")}
+          onToggle={() => toggleSection("canvasExtended")}
+        >
+          {displayData.segments?.some((s) => s.canvasExtended?.length) ? (
+            <div className="space-y-8">
+              {displayData.segments.map((segment) => {
+                if (!segment.canvasExtended?.length) return null;
+
+                return (
+                  <div key={segment.id} className="space-y-4">
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Badge variant="secondary">{segment.order_index + 1}</Badge>
+                      {segment.name}
+                    </h4>
+                    {segment.canvasExtended.map((ext) => {
+                      const pain = segment.pains.find((p) => p.id === ext.pain_id);
+                      return (
+                        <Card key={ext.id} className="border-l-4 border-l-indigo-400">
+                          <CardHeader className="py-3 bg-gradient-to-r from-indigo-50 to-purple-50 border-b">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Target className="w-4 h-4 text-indigo-600" />
+                              {pain?.name || "Pain Analysis"}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-4 space-y-4">
+                            {/* Customer Journey */}
+                            {ext.customer_journey ? (
+                              <CanvasExtendedSection
+                                title="Customer Journey"
+                                iconType="users"
+                                data={ext.customer_journey}
+                                color="blue"
+                              />
+                            ) : null}
+
+                            {/* Emotional Map */}
+                            {ext.emotional_map ? (
+                              <CanvasExtendedSection
+                                title="Emotional Map"
+                                iconType="heart"
+                                data={ext.emotional_map}
+                                color="rose"
+                              />
+                            ) : null}
+
+                            {/* Narrative Angles */}
+                            {ext.narrative_angles ? (
+                              <CanvasExtendedSection
+                                title="Narrative Angles"
+                                iconType="message"
+                                data={ext.narrative_angles}
+                                color="purple"
+                              />
+                            ) : null}
+
+                            {/* Messaging Framework */}
+                            {ext.messaging_framework ? (
+                              <CanvasExtendedSection
+                                title="Messaging Framework"
+                                iconType="file"
+                                data={ext.messaging_framework}
+                                color="emerald"
+                              />
+                            ) : null}
+
+                            {/* Voice & Tone */}
+                            {ext.voice_and_tone ? (
+                              <CanvasExtendedSection
+                                title="Voice & Tone Guidelines"
+                                iconType="palette"
+                                data={ext.voice_and_tone}
+                                color="amber"
+                              />
+                            ) : null}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState message="No extended analysis generated yet" />
+          )}
+        </CollapsibleSection>
+
+        {/* V5: Channel Strategy */}
+        <CollapsibleSection
+          id="channelStrategy"
+          title="Channel Strategy"
+          icon={Map}
+          color="cyan"
+          isExpanded={expandedSections.has("channelStrategy")}
+          onToggle={() => toggleSection("channelStrategy")}
+        >
+          {displayData.segments?.some((s) => s.channelStrategy) ? (
+            <div className="space-y-6">
+              {displayData.segments.map((segment) => {
+                if (!segment.channelStrategy) return null;
+                const cs = segment.channelStrategy;
+                return (
+                  <div key={segment.id} className="space-y-4">
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Badge variant="secondary">{segment.order_index + 1}</Badge>
+                      {segment.name}
+                    </h4>
+                    <div className="grid gap-4">
+                      {/* Primary Platforms */}
+                      {cs.primary_platforms && (
+                        <V5Section title="Primary Platforms" icon={<Map className="w-4 h-4" />} color="cyan">
+                          {renderV5Array(cs.primary_platforms as unknown[], ["platform", "usage_frequency", "activity_type", "why_they_use_it"])}
+                        </V5Section>
+                      )}
+                      {/* Content Preferences */}
+                      {cs.content_preferences && (
+                        <V5Section title="Content Preferences" icon={<FileText className="w-4 h-4" />} color="cyan">
+                          {renderV5Array(cs.content_preferences as unknown[], ["format", "context", "attention_span", "triggering_topics"])}
+                        </V5Section>
+                      )}
+                      {/* Trusted Sources */}
+                      {cs.trusted_sources && (
+                        <V5Section title="Trusted Sources" icon={<Users className="w-4 h-4" />} color="cyan">
+                          {renderV5Array(cs.trusted_sources as unknown[], ["source_type", "specific_examples", "why_trusted"])}
+                        </V5Section>
+                      )}
+                      {/* Communities */}
+                      {cs.communities && (
+                        <V5Section title="Communities" icon={<Users className="w-4 h-4" />} color="cyan">
+                          {renderV5Array(cs.communities as unknown[], ["type", "specific_names", "participation_level", "influence_on_purchases"])}
+                        </V5Section>
+                      )}
+                      {/* Search Patterns */}
+                      {cs.search_patterns && (
+                        <V5Section title="Search Patterns" icon={<Target className="w-4 h-4" />} color="cyan">
+                          {renderV5Object(cs.search_patterns as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Advertising Response */}
+                      {cs.advertising_response && (
+                        <V5Section title="Advertising Response" icon={<Eye className="w-4 h-4" />} color="cyan">
+                          {renderV5Object(cs.advertising_response as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState message="No channel strategy data generated yet" />
+          )}
+        </CollapsibleSection>
+
+        {/* V5: Competitive Intelligence */}
+        <CollapsibleSection
+          id="competitiveIntelligence"
+          title="Competitive Intelligence"
+          icon={Swords}
+          color="orange"
+          isExpanded={expandedSections.has("competitiveIntelligence")}
+          onToggle={() => toggleSection("competitiveIntelligence")}
+        >
+          {displayData.segments?.some((s) => s.competitiveIntelligence) ? (
+            <div className="space-y-6">
+              {displayData.segments.map((segment) => {
+                if (!segment.competitiveIntelligence) return null;
+                const ci = segment.competitiveIntelligence;
+                return (
+                  <div key={segment.id} className="space-y-4">
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Badge variant="secondary">{segment.order_index + 1}</Badge>
+                      {segment.name}
+                    </h4>
+                    <div className="grid gap-4">
+                      {/* Alternatives Tried */}
+                      {ci.alternatives_tried && (
+                        <V5Section title="Alternatives Tried" icon={<AlertTriangle className="w-4 h-4" />} color="orange">
+                          {renderV5Array(ci.alternatives_tried as unknown[], ["solution_type", "specific_examples", "why_it_failed", "emotional_residue"])}
+                        </V5Section>
+                      )}
+                      {/* Current Workarounds */}
+                      {ci.current_workarounds && (
+                        <V5Section title="Current Workarounds" icon={<Zap className="w-4 h-4" />} color="orange">
+                          {renderV5Array(ci.current_workarounds as unknown[], ["workaround", "effectiveness", "why_they_stick_with_it"])}
+                        </V5Section>
+                      )}
+                      {/* vs Competitors */}
+                      {ci.vs_competitors && (
+                        <V5Section title="vs Competitors" icon={<Swords className="w-4 h-4" />} color="orange">
+                          {renderV5Array(ci.vs_competitors as unknown[], ["competitor_name", "segment_perception", "strengths", "weaknesses"])}
+                        </V5Section>
+                      )}
+                      {/* Switching Barriers */}
+                      {ci.switching_barriers && (
+                        <V5Section title="Switching Barriers" icon={<Shield className="w-4 h-4" />} color="orange">
+                          {renderV5Array(ci.switching_barriers as unknown[], ["barrier_type", "description", "severity", "how_to_overcome"])}
+                        </V5Section>
+                      )}
+                      {/* Evaluation Process */}
+                      {ci.evaluation_process && (
+                        <V5Section title="Evaluation Process" icon={<Target className="w-4 h-4" />} color="orange">
+                          {renderV5Object(ci.evaluation_process as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Category Beliefs */}
+                      {ci.category_beliefs && (
+                        <V5Section title="Category Beliefs" icon={<MessageCircle className="w-4 h-4" />} color="orange">
+                          {renderV5Object(ci.category_beliefs as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState message="No competitive intelligence data generated yet" />
+          )}
+        </CollapsibleSection>
+
+        {/* V5: Pricing Psychology */}
+        <CollapsibleSection
+          id="pricingPsychology"
+          title="Pricing Psychology"
+          icon={DollarSign}
+          color="green"
+          isExpanded={expandedSections.has("pricingPsychology")}
+          onToggle={() => toggleSection("pricingPsychology")}
+        >
+          {displayData.segments?.some((s) => s.pricingPsychology) ? (
+            <div className="space-y-6">
+              {displayData.segments.map((segment) => {
+                if (!segment.pricingPsychology) return null;
+                const pp = segment.pricingPsychology;
+                return (
+                  <div key={segment.id} className="space-y-4">
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Badge variant="secondary">{segment.order_index + 1}</Badge>
+                      {segment.name}
+                    </h4>
+                    <div className="grid gap-4">
+                      {/* Price Perception */}
+                      {pp.price_perception && (
+                        <V5Section title="Price Perception" icon={<DollarSign className="w-4 h-4" />} color="green">
+                          {renderV5Object(pp.price_perception as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Budget Context */}
+                      {pp.budget_context && (
+                        <V5Section title="Budget Context" icon={<Briefcase className="w-4 h-4" />} color="green">
+                          {renderV5Object(pp.budget_context as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Value Anchors */}
+                      {pp.value_anchors && (
+                        <V5Section title="Value Anchors" icon={<Target className="w-4 h-4" />} color="green">
+                          {renderV5Array(pp.value_anchors as unknown[], ["anchor_type", "comparison", "resonance_level"])}
+                        </V5Section>
+                      )}
+                      {/* Willingness to Pay Signals */}
+                      {pp.willingness_to_pay_signals && (
+                        <V5Section title="Willingness to Pay Signals" icon={<Zap className="w-4 h-4" />} color="green">
+                          {renderV5Array(pp.willingness_to_pay_signals as unknown[], ["signal", "indicates", "pricing_implication"])}
+                        </V5Section>
+                      )}
+                      {/* Payment Psychology */}
+                      {pp.payment_psychology && (
+                        <V5Section title="Payment Psychology" icon={<Heart className="w-4 h-4" />} color="green">
+                          {renderV5Object(pp.payment_psychology as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Pricing Objections */}
+                      {pp.pricing_objections && (
+                        <V5Section title="Pricing Objections" icon={<AlertTriangle className="w-4 h-4" />} color="green">
+                          {renderV5Array(pp.pricing_objections as unknown[], ["objection", "underlying_concern", "reframe"])}
+                        </V5Section>
+                      )}
+                      {/* Budget Triggers */}
+                      {pp.budget_triggers && (
+                        <V5Section title="Budget Triggers" icon={<Zap className="w-4 h-4" />} color="green">
+                          {renderV5Array(pp.budget_triggers as unknown[], ["trigger", "timing", "opportunity"])}
+                        </V5Section>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState message="No pricing psychology data generated yet" />
+          )}
+        </CollapsibleSection>
+
+        {/* V5: Trust Framework */}
+        <CollapsibleSection
+          id="trustFramework"
+          title="Trust Framework"
+          icon={Shield}
+          color="teal"
+          isExpanded={expandedSections.has("trustFramework")}
+          onToggle={() => toggleSection("trustFramework")}
+        >
+          {displayData.segments?.some((s) => s.trustFramework) ? (
+            <div className="space-y-6">
+              {displayData.segments.map((segment) => {
+                if (!segment.trustFramework) return null;
+                const tf = segment.trustFramework;
+                return (
+                  <div key={segment.id} className="space-y-4">
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Badge variant="secondary">{segment.order_index + 1}</Badge>
+                      {segment.name}
+                    </h4>
+                    <div className="grid gap-4">
+                      {/* Baseline Trust */}
+                      {tf.baseline_trust && (
+                        <V5Section title="Baseline Trust" icon={<Heart className="w-4 h-4" />} color="teal">
+                          {renderV5Object(tf.baseline_trust as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Proof Hierarchy */}
+                      {tf.proof_hierarchy && (
+                        <V5Section title="Proof Hierarchy" icon={<CheckCircle className="w-4 h-4" />} color="teal">
+                          {renderV5Array(tf.proof_hierarchy as unknown[], ["proof_type", "effectiveness", "why_it_works", "how_to_present"])}
+                        </V5Section>
+                      )}
+                      {/* Trusted Authorities */}
+                      {tf.trusted_authorities && (
+                        <V5Section title="Trusted Authorities" icon={<Users className="w-4 h-4" />} color="teal">
+                          {renderV5Array(tf.trusted_authorities as unknown[], ["authority_type", "specific_names", "why_trusted", "how_to_leverage"])}
+                        </V5Section>
+                      )}
+                      {/* Social Proof */}
+                      {tf.social_proof && (
+                        <V5Section title="Social Proof" icon={<Users className="w-4 h-4" />} color="teal">
+                          {renderV5Object(tf.social_proof as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Trust Killers */}
+                      {tf.trust_killers && (
+                        <V5Section title="Trust Killers" icon={<AlertTriangle className="w-4 h-4" />} color="teal">
+                          {renderV5Array(tf.trust_killers as unknown[], ["red_flag", "why_triggers_skepticism", "how_to_avoid"])}
+                        </V5Section>
+                      )}
+                      {/* Credibility Markers */}
+                      {tf.credibility_markers && (
+                        <V5Section title="Credibility Markers" icon={<Star className="w-4 h-4" />} color="teal">
+                          {renderV5Array(tf.credibility_markers as unknown[], ["signal", "importance", "current_status"])}
+                        </V5Section>
+                      )}
+                      {/* Risk Reduction */}
+                      {tf.risk_reduction && (
+                        <V5Section title="Risk Reduction" icon={<Shield className="w-4 h-4" />} color="teal">
+                          {renderV5Object(tf.risk_reduction as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                      {/* Trust Journey */}
+                      {tf.trust_journey && (
+                        <V5Section title="Trust Journey" icon={<Map className="w-4 h-4" />} color="teal">
+                          {renderV5Object(tf.trust_journey as Record<string, unknown>)}
+                        </V5Section>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState message="No trust framework data generated yet" />
+          )}
+        </CollapsibleSection>
+
+        {/* V5: JTBD Context */}
+        <CollapsibleSection
+          id="jtbdContext"
+          title="Jobs To Be Done Context"
+          icon={Crosshair}
+          color="violet"
+          isExpanded={expandedSections.has("jtbdContext")}
+          onToggle={() => toggleSection("jtbdContext")}
+        >
+          {displayData.segments?.some((s) => s.jtbdContext) ? (
+            <div className="space-y-6">
+              {displayData.segments.map((segment) => {
+                if (!segment.jtbdContext) return null;
+                const jc = segment.jtbdContext;
+                return (
+                  <div key={segment.id} className="space-y-4">
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Badge variant="secondary">{segment.order_index + 1}</Badge>
+                      {segment.name}
+                    </h4>
+                    <div className="grid gap-4">
+                      {/* Job Contexts */}
+                      {jc.job_contexts && Array.isArray(jc.job_contexts) && (
+                        <div className="space-y-4">
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          {(jc.job_contexts as Array<Record<string, any>>).map((job, idx) => (
+                            <V5Section key={idx} title={String(job.job_name || `Job ${idx + 1}`)} icon={<Crosshair className="w-4 h-4" />} color="violet">
+                              <div className="space-y-3">
+                                {/* Hire Triggers */}
+                                {job.hire_triggers && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-violet-600 uppercase mb-2">Hire Triggers</p>
+                                    {renderV5Array(job.hire_triggers as unknown[], ["situation", "frequency", "urgency", "emotional_state"])}
+                                  </div>
+                                )}
+                                {/* Competing Solutions */}
+                                {job.competing_solutions && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-violet-600 uppercase mb-2">Competing Solutions</p>
+                                    {renderV5Array(job.competing_solutions as unknown[], ["alternative", "why_chosen", "your_advantage"])}
+                                  </div>
+                                )}
+                                {/* Success Metrics */}
+                                {job.success_metrics && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-violet-600 uppercase mb-2">Success Metrics</p>
+                                    {renderV5Object(job.success_metrics as Record<string, unknown>)}
+                                  </div>
+                                )}
+                                {/* Obstacles */}
+                                {job.obstacles && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-violet-600 uppercase mb-2">Obstacles</p>
+                                    {renderV5Array(job.obstacles as unknown[], ["obstacle", "blocks_progress", "how_you_remove_it"])}
+                                  </div>
+                                )}
+                                {/* Hiring Anxieties */}
+                                {job.hiring_anxieties && (
+                                  <div>
+                                    <p className="text-xs font-semibold text-violet-600 uppercase mb-2">Hiring Anxieties</p>
+                                    {renderV5Array(job.hiring_anxieties as unknown[], ["anxiety", "rooted_in", "how_to_address"])}
+                                  </div>
+                                )}
+                              </div>
+                            </V5Section>
+                          ))}
+                        </div>
+                      )}
+                      {/* Job Priority Ranking */}
+                      {jc.job_priority_ranking && (
+                        <V5Section title="Job Priority Ranking" icon={<Star className="w-4 h-4" />} color="violet">
+                          {renderV5Array(jc.job_priority_ranking as unknown[], ["job_name", "priority", "reasoning"])}
+                        </V5Section>
+                      )}
+                      {/* Job Dependencies */}
+                      {jc.job_dependencies && (
+                        <V5Section title="Job Dependencies" icon={<Target className="w-4 h-4" />} color="violet">
+                          {renderV5Array(jc.job_dependencies as unknown[], ["primary_job", "enables_job", "relationship"])}
+                        </V5Section>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState message="No JTBD context data generated yet" />
+          )}
+        </CollapsibleSection>
       </div>
 
       {/* Print Styles */}
@@ -539,7 +1233,7 @@ function CollapsibleSection({
   id?: string;
   title: string;
   icon: typeof Users;
-  color: "blue" | "emerald" | "rose" | "purple";
+  color: "blue" | "emerald" | "rose" | "purple" | "indigo" | "slate" | "cyan" | "orange" | "green" | "teal" | "violet";
   badge?: number;
   isExpanded: boolean;
   onToggle: () => void;
@@ -550,6 +1244,13 @@ function CollapsibleSection({
     emerald: "border-l-emerald-500 text-emerald-600",
     rose: "border-l-rose-500 text-rose-600",
     purple: "border-l-purple-500 text-purple-600",
+    indigo: "border-l-indigo-500 text-indigo-600",
+    slate: "border-l-slate-400 text-slate-600",
+    cyan: "border-l-cyan-500 text-cyan-600",
+    orange: "border-l-orange-500 text-orange-600",
+    green: "border-l-green-500 text-green-600",
+    teal: "border-l-teal-500 text-teal-600",
+    violet: "border-l-violet-500 text-violet-600",
   };
 
   return (
@@ -844,6 +1545,642 @@ function EmptyState({ message }: { message: string }) {
     <div className="py-8 text-center text-slate-400">
       <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
       <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+// Portrait List Field for arrays (values, lifestyle, etc.)
+function PortraitListField({
+  label,
+  items,
+  color,
+}: {
+  label: string;
+  items?: string[];
+  color: "emerald" | "blue" | "purple" | "amber";
+}) {
+  const dotColors = {
+    emerald: "bg-emerald-500",
+    blue: "bg-blue-500",
+    purple: "bg-purple-500",
+    amber: "bg-amber-500",
+  };
+
+  if (!items || items.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">{label}</p>
+      <ul className="space-y-1">
+        {items.slice(0, 6).map((item, i) => (
+          <li key={i} className="flex items-start gap-1.5 text-sm text-slate-700">
+            <span className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", dotColors[color])} />
+            <span>{item}</span>
+          </li>
+        ))}
+        {items.length > 6 && (
+          <li className="text-xs text-slate-400 ml-3">+{items.length - 6} more</li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+// Canvas Extended Section - renders structured JSONB data for V2 format
+function CanvasExtendedSection({
+  title,
+  iconType,
+  data,
+  color,
+}: {
+  title: string;
+  iconType: "users" | "heart" | "message" | "file" | "palette";
+  data: unknown;
+  color: "blue" | "rose" | "purple" | "emerald" | "amber";
+}) {
+  const bgColors = {
+    blue: "bg-blue-50 border-blue-200",
+    rose: "bg-rose-50 border-rose-200",
+    purple: "bg-purple-50 border-purple-200",
+    emerald: "bg-emerald-50 border-emerald-200",
+    amber: "bg-amber-50 border-amber-200",
+  };
+
+  const textColors = {
+    blue: "text-blue-700",
+    rose: "text-rose-700",
+    purple: "text-purple-700",
+    emerald: "text-emerald-700",
+    amber: "text-amber-700",
+  };
+
+  const icons = {
+    users: <Users className="w-4 h-4" />,
+    heart: <Heart className="w-4 h-4" />,
+    message: <MessageCircle className="w-4 h-4" />,
+    file: <FileText className="w-4 h-4" />,
+    palette: <Palette className="w-4 h-4" />,
+  };
+
+  // Specialized renderers for Canvas Extended V2 sections
+  const renderCustomerJourney = (journey: Record<string, unknown>) => {
+    const stages = [
+      { key: "unaware_stage", label: "Unaware Stage", icon: "🔍" },
+      { key: "problem_aware", label: "Problem Aware", icon: "💡" },
+      { key: "solution_seeking", label: "Solution Seeking", icon: "🔎" },
+      { key: "evaluation", label: "Evaluation", icon: "⚖️" },
+      { key: "decision_trigger", label: "Decision Trigger", icon: "⚡" },
+      { key: "post_purchase", label: "Post-Purchase", icon: "✅" },
+    ];
+
+    return (
+      <div className="space-y-4">
+        {stages.map(({ key, label, icon }) => {
+          const stage = journey[key] as Record<string, unknown> | undefined;
+          if (!stage) return null;
+          return (
+            <div key={key} className="p-3 bg-white/60 rounded-lg border border-blue-100">
+              <h5 className="font-semibold text-sm text-blue-800 mb-2 flex items-center gap-2">
+                <span>{icon}</span> {label}
+              </h5>
+              <div className="space-y-2 text-sm">
+                {stage.life_context ? <p className="text-slate-700"><span className="font-medium">Context:</span> {String(stage.life_context)}</p> : null}
+                {stage.trigger_moment ? <p className="text-slate-700"><span className="font-medium">Trigger:</span> {String(stage.trigger_moment)}</p> : null}
+                {stage.internal_dialogue ? <p className="text-slate-600 italic">&quot;{String(stage.internal_dialogue)}&quot;</p> : null}
+                {stage.emotional_state ? <p className="text-slate-700"><span className="font-medium">Emotional State:</span> {String(stage.emotional_state)}</p> : null}
+                {stage.what_they_need_to_hear ? <p className="text-emerald-700"><span className="font-medium">Need to Hear:</span> {String(stage.what_they_need_to_hear)}</p> : null}
+                {Array.isArray(stage.actions) && stage.actions.length > 0 ? (
+                  <div><span className="font-medium">Actions:</span> {(stage.actions as string[]).join(", ")}</div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderEmotionalMap = (map: Record<string, unknown>) => {
+    return (
+      <div className="space-y-4">
+        {/* Peaks */}
+        {Array.isArray(map.peaks) && map.peaks.length > 0 && (
+          <div>
+            <h5 className="font-semibold text-sm text-emerald-700 mb-2 flex items-center gap-2">
+              <span>📈</span> Emotional Peaks
+            </h5>
+            <div className="space-y-2">
+              {(map.peaks as Array<Record<string, unknown>>).map((peak, i) => (
+                <div key={i} className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                  <p className="font-medium text-emerald-800">{String(peak.moment)}</p>
+                  {peak.trigger ? <p className="text-sm text-slate-600">Trigger: {String(peak.trigger)}</p> : null}
+                  {peak.internal_dialogue ? <p className="text-sm text-slate-600 italic">&quot;{String(peak.internal_dialogue)}&quot;</p> : null}
+                  {peak.intensity ? <Badge className="bg-emerald-100 text-emerald-700 text-xs mt-1">Intensity: {String(peak.intensity)}/10</Badge> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Valleys */}
+        {Array.isArray(map.valleys) && map.valleys.length > 0 && (
+          <div>
+            <h5 className="font-semibold text-sm text-rose-700 mb-2 flex items-center gap-2">
+              <span>📉</span> Emotional Valleys
+            </h5>
+            <div className="space-y-2">
+              {(map.valleys as Array<Record<string, unknown>>).map((valley, i) => (
+                <div key={i} className="p-3 bg-rose-50 rounded-lg border border-rose-100">
+                  <p className="font-medium text-rose-800">{String(valley.moment)}</p>
+                  {valley.trigger ? <p className="text-sm text-slate-600">Trigger: {String(valley.trigger)}</p> : null}
+                  {valley.internal_dialogue ? <p className="text-sm text-slate-600 italic">&quot;{String(valley.internal_dialogue)}&quot;</p> : null}
+                  {valley.intensity ? <Badge className="bg-rose-100 text-rose-700 text-xs mt-1">Intensity: {String(valley.intensity)}/10</Badge> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Turning Points */}
+        {Array.isArray(map.turning_points) && map.turning_points.length > 0 && (
+          <div>
+            <h5 className="font-semibold text-sm text-amber-700 mb-2 flex items-center gap-2">
+              <span>🔄</span> Turning Points
+            </h5>
+            <div className="space-y-2">
+              {(map.turning_points as Array<Record<string, unknown>>).map((tp, i) => (
+                <div key={i} className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <p className="text-sm"><span className="text-rose-600">{String(tp.from_state)}</span> → <span className="text-emerald-600">{String(tp.to_state)}</span></p>
+                  {tp.catalyst ? <p className="text-sm text-slate-600"><span className="font-medium">Catalyst:</span> {String(tp.catalyst)}</p> : null}
+                  {tp.internal_shift ? <p className="text-sm text-slate-600 italic">&quot;{String(tp.internal_shift)}&quot;</p> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderNarrativeAngles = (angles: Array<Record<string, unknown>>) => {
+    return (
+      <div className="space-y-4">
+        {angles.map((angle, i) => (
+          <div key={i} className="p-4 bg-white/60 rounded-lg border border-purple-100">
+            <h5 className="font-bold text-purple-800 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm">{i + 1}</span>
+              {String(angle.angle_name)}
+            </h5>
+            <div className="space-y-3 text-sm">
+              {angle.who_this_is ? (
+                <div>
+                  <p className="font-medium text-slate-500 uppercase text-xs mb-1">Who This Is</p>
+                  <p className="text-slate-700">{String(angle.who_this_is)}</p>
+                </div>
+              ) : null}
+              {angle.their_story ? (
+                <div>
+                  <p className="font-medium text-slate-500 uppercase text-xs mb-1">Their Story</p>
+                  <p className="text-slate-600 italic">&quot;{String(angle.their_story)}&quot;</p>
+                </div>
+              ) : null}
+              {angle.core_belief ? (
+                <div className="p-2 bg-rose-50 rounded border border-rose-100">
+                  <p className="font-medium text-rose-700 text-xs mb-1">Core Limiting Belief</p>
+                  <p className="text-slate-700">&quot;{String(angle.core_belief)}&quot;</p>
+                </div>
+              ) : null}
+              {angle.key_message ? (
+                <div className="p-2 bg-emerald-50 rounded border border-emerald-100">
+                  <p className="font-medium text-emerald-700 text-xs mb-1">Key Message</p>
+                  <p className="text-slate-800 font-medium">{String(angle.key_message)}</p>
+                </div>
+              ) : null}
+              {angle.proof_they_need ? (
+                <div>
+                  <p className="font-medium text-slate-500 uppercase text-xs mb-1">Proof They Need</p>
+                  <p className="text-slate-700">{String(angle.proof_they_need)}</p>
+                </div>
+              ) : null}
+              {angle.objection_to_address ? (
+                <div>
+                  <p className="font-medium text-slate-500 uppercase text-xs mb-1">Objection to Address</p>
+                  <p className="text-slate-700">{String(angle.objection_to_address)}</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderMessagingFramework = (framework: Record<string, unknown>) => {
+    return (
+      <div className="space-y-4">
+        {/* Headlines */}
+        {Array.isArray(framework.headlines) && framework.headlines.length > 0 ? (
+          <div>
+            <h5 className="font-semibold text-sm text-emerald-700 mb-2 flex items-center gap-2">
+              <span>📰</span> Headlines
+            </h5>
+            <ul className="space-y-2">
+              {(framework.headlines as string[]).map((headline, i) => (
+                <li key={i} className="p-2 bg-white/60 rounded border border-emerald-100 text-sm font-medium text-slate-800">
+                  {String(headline)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {/* Opening Hooks */}
+        {Array.isArray(framework.opening_hooks) && framework.opening_hooks.length > 0 ? (
+          <div>
+            <h5 className="font-semibold text-sm text-blue-700 mb-2 flex items-center gap-2">
+              <span>🎣</span> Opening Hooks
+            </h5>
+            <ul className="space-y-2">
+              {(framework.opening_hooks as string[]).map((hook, i) => (
+                <li key={i} className="p-3 bg-blue-50/50 rounded border border-blue-100 text-sm text-slate-700 italic">
+                  &quot;{String(hook)}&quot;
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {/* Bridge Statements */}
+        {Array.isArray(framework.bridge_statements) && framework.bridge_statements.length > 0 ? (
+          <div>
+            <h5 className="font-semibold text-sm text-purple-700 mb-2 flex items-center gap-2">
+              <span>🌉</span> Bridge Statements
+            </h5>
+            <ul className="space-y-2">
+              {(framework.bridge_statements as string[]).map((bridge, i) => (
+                <li key={i} className="p-2 bg-purple-50/50 rounded border border-purple-100 text-sm text-slate-700">
+                  {String(bridge)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {/* Proof Framing */}
+        {framework.proof_framing && typeof framework.proof_framing === "object" ? (
+          <div>
+            <h5 className="font-semibold text-sm text-amber-700 mb-2 flex items-center gap-2">
+              <span>📊</span> Proof Framing
+            </h5>
+            <div className="p-3 bg-amber-50/50 rounded border border-amber-100 text-sm space-y-1">
+              {Object.entries(framework.proof_framing as Record<string, unknown>).map(([k, v]) => (
+                <p key={k}><span className="font-medium capitalize">{k.replace(/_/g, " ")}:</span> {String(v)}</p>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Objection Handlers */}
+        {Array.isArray(framework.objection_handlers) && framework.objection_handlers.length > 0 ? (
+          <div>
+            <h5 className="font-semibold text-sm text-rose-700 mb-2 flex items-center gap-2">
+              <span>🛡️</span> Objection Handlers
+            </h5>
+            <div className="space-y-2">
+              {(framework.objection_handlers as Array<Record<string, unknown>>).map((oh, i) => (
+                <div key={i} className="p-3 bg-white/60 rounded border border-rose-100">
+                  <p className="text-sm text-rose-700 font-medium mb-1">&quot;{String(oh.objection)}&quot;</p>
+                  <p className="text-sm text-slate-700">→ {String(oh.handler)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* CTA Options */}
+        {Array.isArray(framework.cta_options) && framework.cta_options.length > 0 ? (
+          <div>
+            <h5 className="font-semibold text-sm text-indigo-700 mb-2 flex items-center gap-2">
+              <span>🎯</span> Call to Action Options
+            </h5>
+            <div className="flex flex-wrap gap-2">
+              {(framework.cta_options as string[]).map((cta, i) => (
+                <Badge key={i} className="bg-indigo-100 text-indigo-700 border-indigo-200">
+                  {String(cta)}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderVoiceAndTone = (vt: Record<string, unknown>) => {
+    return (
+      <div className="grid grid-cols-2 gap-4">
+        {/* Do */}
+        {Array.isArray(vt.do) && vt.do.length > 0 ? (
+          <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
+            <h5 className="font-semibold text-sm text-emerald-700 mb-2 flex items-center gap-2">
+              <span>✅</span> Do
+            </h5>
+            <ul className="space-y-1">
+              {(vt.do as string[]).map((item, i) => (
+                <li key={i} className="text-sm text-slate-700 flex items-start gap-2">
+                  <span className="text-emerald-500 mt-0.5">•</span>
+                  {String(item)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {/* Don't */}
+        {Array.isArray(vt.dont) && vt.dont.length > 0 ? (
+          <div className="p-3 bg-rose-50/50 rounded-lg border border-rose-100">
+            <h5 className="font-semibold text-sm text-rose-700 mb-2 flex items-center gap-2">
+              <span>❌</span> Don&apos;t
+            </h5>
+            <ul className="space-y-1">
+              {(vt.dont as string[]).map((item, i) => (
+                <li key={i} className="text-sm text-slate-700 flex items-start gap-2">
+                  <span className="text-rose-500 mt-0.5">•</span>
+                  {String(item)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {/* Words That Resonate */}
+        {Array.isArray(vt.words_that_resonate) && vt.words_that_resonate.length > 0 ? (
+          <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+            <h5 className="font-semibold text-sm text-blue-700 mb-2 flex items-center gap-2">
+              <span>💬</span> Words That Resonate
+            </h5>
+            <div className="flex flex-wrap gap-1.5">
+              {(vt.words_that_resonate as string[]).map((word, i) => (
+                <Badge key={i} variant="outline" className="text-xs bg-white text-blue-700 border-blue-200">
+                  {String(word)}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Words to Avoid */}
+        {Array.isArray(vt.words_to_avoid) && vt.words_to_avoid.length > 0 ? (
+          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <h5 className="font-semibold text-sm text-slate-700 mb-2 flex items-center gap-2">
+              <span>🚫</span> Words to Avoid
+            </h5>
+            <div className="flex flex-wrap gap-1.5">
+              {(vt.words_to_avoid as string[]).map((word, i) => (
+                <Badge key={i} variant="outline" className="text-xs bg-white text-slate-500 border-slate-300 line-through">
+                  {String(word)}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  // Generic renderer for unknown structures
+  const renderGenericData = (value: unknown, depth: number = 0): React.ReactNode => {
+    if (!value) return <span className="text-slate-400">—</span>;
+
+    if (typeof value === "string") {
+      return <p className="text-sm text-slate-700">{value}</p>;
+    }
+
+    if (Array.isArray(value)) {
+      return (
+        <ul className="space-y-2">
+          {value.slice(0, 5).map((item, i) => (
+            <li key={i} className="text-sm">
+              {typeof item === "string" ? (
+                <span className="text-slate-700">{item}</span>
+              ) : typeof item === "object" && item !== null ? (
+                <div className="p-2 bg-white/50 rounded-lg border border-slate-100">
+                  {Object.entries(item as Record<string, unknown>).map(([k, v]) => (
+                    <div key={k} className="mb-1 last:mb-0">
+                      <span className="text-xs font-medium text-slate-500 uppercase">{k.replace(/_/g, " ")}: </span>
+                      <span className="text-sm text-slate-700">{typeof v === "string" ? v : JSON.stringify(v)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-slate-700">{String(item)}</span>
+              )}
+            </li>
+          ))}
+          {value.length > 5 && (
+            <li className="text-xs text-slate-400">+{value.length - 5} more items</li>
+          )}
+        </ul>
+      );
+    }
+
+    if (typeof value === "object" && value !== null) {
+      const obj = value as Record<string, unknown>;
+      return (
+        <div className={cn("space-y-2", depth > 0 && "pl-3 border-l-2 border-slate-200")}>
+          {Object.entries(obj).map(([key, val]) => (
+            <div key={key}>
+              <p className="text-xs font-medium text-slate-500 uppercase mb-1">{key.replace(/_/g, " ")}</p>
+              {renderGenericData(val, depth + 1)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <span className="text-slate-700">{String(value)}</span>;
+  };
+
+  // Choose the right renderer based on title/iconType
+  const renderContent = () => {
+    if (!data || typeof data !== "object") {
+      return renderGenericData(data);
+    }
+
+    const dataObj = data as Record<string, unknown>;
+
+    // Customer Journey detection
+    if (title.toLowerCase().includes("journey") || iconType === "users") {
+      if (dataObj.unaware_stage || dataObj.problem_aware || dataObj.solution_seeking) {
+        return renderCustomerJourney(dataObj);
+      }
+    }
+
+    // Emotional Map detection
+    if (title.toLowerCase().includes("emotional") || iconType === "heart") {
+      if (dataObj.peaks || dataObj.valleys || dataObj.turning_points) {
+        return renderEmotionalMap(dataObj);
+      }
+    }
+
+    // Narrative Angles detection
+    if (title.toLowerCase().includes("narrative") || iconType === "message") {
+      if (Array.isArray(data) && data.length > 0 && (data[0] as Record<string, unknown>).angle_name) {
+        return renderNarrativeAngles(data as Array<Record<string, unknown>>);
+      }
+    }
+
+    // Messaging Framework detection
+    if (title.toLowerCase().includes("messaging") || iconType === "file") {
+      if (dataObj.headlines || dataObj.opening_hooks || dataObj.cta_options) {
+        return renderMessagingFramework(dataObj);
+      }
+    }
+
+    // Voice & Tone detection
+    if (title.toLowerCase().includes("voice") || iconType === "palette") {
+      if (dataObj.do || dataObj.dont || dataObj.words_that_resonate) {
+        return renderVoiceAndTone(dataObj);
+      }
+    }
+
+    // Fallback to generic renderer
+    return renderGenericData(data);
+  };
+
+  return (
+    <div className={cn("p-4 rounded-lg border", bgColors[color])}>
+      <div className={cn("flex items-center gap-2 mb-3", textColors[color])}>
+        {icons[iconType]}
+        <h4 className="font-semibold text-sm">{title}</h4>
+      </div>
+      <div className="text-sm">
+        {renderContent()}
+      </div>
+    </div>
+  );
+}
+
+// V5 Section Component - for displaying V5 module data
+function V5Section({
+  title,
+  icon,
+  color,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  color: "cyan" | "orange" | "green" | "teal" | "violet";
+  children: React.ReactNode;
+}) {
+  const bgColors = {
+    cyan: "bg-cyan-50/70 border-cyan-200",
+    orange: "bg-orange-50/70 border-orange-200",
+    green: "bg-green-50/70 border-green-200",
+    teal: "bg-teal-50/70 border-teal-200",
+    violet: "bg-violet-50/70 border-violet-200",
+  };
+
+  const textColors = {
+    cyan: "text-cyan-700",
+    orange: "text-orange-700",
+    green: "text-green-700",
+    teal: "text-teal-700",
+    violet: "text-violet-700",
+  };
+
+  return (
+    <div className={cn("p-4 rounded-xl border", bgColors[color])}>
+      <div className={cn("flex items-center gap-2 mb-3 font-semibold text-sm", textColors[color])}>
+        {icon}
+        {title}
+      </div>
+      <div className="text-sm text-slate-700">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Helper to render V5 array data
+function renderV5Array(items: unknown[] | undefined | null, fields: string[]): React.ReactElement {
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return <span className="text-slate-400">No data</span>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item, idx) => {
+        if (typeof item !== "object" || item === null) {
+          return <div key={idx} className="text-sm">{String(item)}</div>;
+        }
+        const obj = item as Record<string, unknown>;
+        return (
+          <div key={idx} className="p-3 bg-white/60 rounded-lg border border-slate-100">
+            {fields.map((field) => {
+              const value = obj[field];
+              if (value === undefined || value === null) return null;
+              return (
+                <div key={field} className="mb-1.5 last:mb-0">
+                  <span className="text-xs font-medium text-slate-500 uppercase">
+                    {field.replace(/_/g, " ")}:
+                  </span>{" "}
+                  <span className="text-slate-700">
+                    {Array.isArray(value)
+                      ? value.join(", ")
+                      : typeof value === "object"
+                      ? JSON.stringify(value)
+                      : String(value)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Helper to render V5 object data
+function renderV5Object(obj: Record<string, unknown> | undefined | null): React.ReactElement {
+  if (!obj || typeof obj !== "object") {
+    return <span className="text-slate-400">No data</span>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {Object.entries(obj).map(([key, value]) => {
+        if (value === undefined || value === null) return null;
+        return (
+          <div key={key} className="flex flex-col">
+            <span className="text-xs font-medium text-slate-500 uppercase mb-0.5">
+              {key.replace(/_/g, " ")}
+            </span>
+            <span className="text-slate-700">
+              {Array.isArray(value)
+                ? value.map((v, i) => (
+                    typeof v === "object" ? (
+                      <div key={i} className="ml-2 p-2 bg-white/60 rounded border border-slate-100 mt-1 text-xs">
+                        {Object.entries(v as Record<string, unknown>).map(([k, val]) => (
+                          <div key={k}>
+                            <span className="font-medium">{k.replace(/_/g, " ")}:</span> {String(val)}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Badge key={i} variant="outline" className="mr-1 mb-1 text-xs">
+                        {String(v)}
+                      </Badge>
+                    )
+                  ))
+                : typeof value === "object"
+                ? JSON.stringify(value, null, 2)
+                : String(value)}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

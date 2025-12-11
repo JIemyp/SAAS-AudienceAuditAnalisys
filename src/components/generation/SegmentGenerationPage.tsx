@@ -208,12 +208,26 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
       const data = await res.json();
       console.log(`[SegmentGenerationPage] Drafts response:`, data);
 
-      if (data.success && data.drafts) {
+      if (data.success && data.drafts && data.drafts.length > 0) {
         console.log(`[SegmentGenerationPage] Found ${data.drafts.length} drafts`);
         setDrafts(data.drafts);
-        if (data.drafts.length > 0) {
-          setSelectedDraftId(data.drafts[0].id);
+        setSelectedDraftId(data.drafts[0].id);
+      } else {
+        // No drafts found - try to load approved data
+        console.log(`[SegmentGenerationPage] No drafts, checking approved table: ${approvedTable}`);
+        const approvedRes = await fetch(
+          `/api/approved?projectId=${projectId}&table=${approvedTable}&segmentId=${segmentId}`
+        );
+        const approvedData = await approvedRes.json();
+        console.log(`[SegmentGenerationPage] Approved data response:`, approvedData);
+
+        if (approvedData.success && approvedData.data && approvedData.data.length > 0) {
+          console.log(`[SegmentGenerationPage] Found ${approvedData.data.length} approved records`);
+          // Use approved data as "drafts" for display (read-only)
+          setDrafts(approvedData.data);
+          setSelectedDraftId(approvedData.data[0].id);
         } else {
+          setDrafts([]);
           setSelectedDraftId(null);
         }
       }

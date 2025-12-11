@@ -34,7 +34,10 @@ export async function POST(request: NextRequest) {
         throw new ApiError(`Segment not found for draft`, 404);
       }
 
-      const { data: combinedSegment, error: segError } = await supabase.from("segments").insert({
+      // IMPORTANT: Use UPSERT to prevent duplicates when approve is run multiple times!
+      // Use the SAME ID as segments_final to maintain consistency across tables
+      const { data: combinedSegment, error: segError } = await supabase.from("segments").upsert({
+        id: segment.id, // Use the same ID from segments_final!
         project_id: projectId,
         order_index: segment.segment_index,
         name: segment.name,
@@ -43,20 +46,20 @@ export async function POST(request: NextRequest) {
         needs: draft.needs,
         triggers: draft.triggers,
         core_values: draft.core_values,
-      }).select().single();
+      }, { onConflict: 'id' }).select().single();
 
       if (segError || !combinedSegment) {
-        console.error(`[approve/segment-details] Failed to create combined segment:`, segError);
+        console.error(`[approve/segment-details] Failed to upsert segment:`, segError);
         throw new ApiError(`Failed to create segment: ${segError?.message}`, 500);
       }
 
       segments.push(combinedSegment);
-      console.log(`[approve/segment-details] Created combined segment: ${combinedSegment.id}`);
+      console.log(`[approve/segment-details] Upserted segment: ${combinedSegment.id}`);
 
-      // 2. Save to segment_details with the NEW segment ID from 'segments' table
-      const { data: detail, error } = await supabase.from("segment_details").insert({
+      // 2. Save to segment_details - use UPSERT to prevent duplicates
+      const { data: detail, error } = await supabase.from("segment_details").upsert({
         project_id: projectId,
-        segment_id: combinedSegment.id, // Use the new segment ID!
+        segment_id: combinedSegment.id,
         // New behavior fields
         sociodemographics: draft.sociodemographics,
         psychographics: draft.psychographics,
@@ -67,11 +70,12 @@ export async function POST(request: NextRequest) {
         triggers: draft.triggers,
         core_values: draft.core_values,
         awareness_level: draft.awareness_level,
+        awareness_reasoning: draft.awareness_reasoning,
         objections: draft.objections,
-      }).select().single();
+      }, { onConflict: 'segment_id' }).select().single();
 
       if (error) {
-        console.error(`[approve/segment-details] Failed to insert detail:`, error);
+        console.error(`[approve/segment-details] Failed to upsert detail:`, error);
         throw new ApiError(`Failed to approve segment details: ${error.message}`, 500);
       }
 

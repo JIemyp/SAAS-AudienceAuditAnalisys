@@ -24,8 +24,8 @@ const dataTabs = [
 // Pages that should not show the tab navigation
 const pagesWithoutTabs = ["/edit", "/processing", "/generate"];
 
-// Generation step configuration
-// Correct order: Portrait → Segments → Deep Analysis (per segment) → Pains/Canvas
+// Generation step configuration (21 steps - v5 with strategic modules)
+// Correct order: Portrait → Segments → Deep Analysis (per segment) → Pains/Canvas → Strategic
 const GENERATION_STEPS = [
     // Block 1: Portrait
     { step: "validation", label: "Validation", block: 1 },
@@ -47,6 +47,12 @@ const GENERATION_STEPS = [
     { step: "pains-ranking", label: "Pains Ranking", block: 4 },
     { step: "canvas", label: "Canvas", block: 4 },
     { step: "canvas-extended", label: "Canvas Extended", block: 4 },
+    // Block 5: Strategic Modules (v5)
+    { step: "channel-strategy", label: "Channel Strategy", block: 5 },
+    { step: "competitive-intelligence", label: "Competitive Intel", block: 5 },
+    { step: "pricing-psychology", label: "Pricing Psychology", block: 5 },
+    { step: "trust-framework", label: "Trust Framework", block: 5 },
+    { step: "jtbd-context", label: "JTBD Context", block: 5 },
 ];
 
 type StepStatus = "completed" | "in_progress" | "locked";
@@ -201,6 +207,32 @@ export default function ProjectLayout({
                             })
                         )}
                     </nav>
+
+                    {/* Results Links */}
+                    <div className="pt-4 mt-4 border-t border-white/10 shrink-0 space-y-2">
+                        <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-3">Results</p>
+                        <Link
+                            href={`${baseHref}/overview`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors"
+                        >
+                            <LayoutDashboard className="w-4 h-4" />
+                            Overview
+                        </Link>
+                        <Link
+                            href={`${baseHref}/report`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Full Report
+                        </Link>
+                        <Link
+                            href={`${baseHref}/explorer`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-colors"
+                        >
+                            <Compass className="w-4 h-4" />
+                            Explorer
+                        </Link>
+                    </div>
 
                     <div className="pt-4 mt-4 border-t border-white/10 shrink-0">
                         <Link
