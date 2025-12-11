@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Plus, Settings, LogOut, ChevronDown, Copy, FilePlus } from "lucide-react";
@@ -37,7 +38,13 @@ export function Sidebar() {
         <div className="flex h-full w-64 flex-col border-r border-border bg-white">
             <div className="flex h-16 items-center border-b border-border px-6">
                 <Link href="/projects" className="flex items-center gap-2 font-bold text-xl text-text-primary">
-                    <div className="h-8 w-8 rounded-lg bg-accent" />
+                    <Image
+                        src="/images/logo.png"
+                        alt="AAA Logo"
+                        width={32}
+                        height={32}
+                        className="h-8 w-8"
+                    />
                     AudienceAudit
                 </Link>
             </div>

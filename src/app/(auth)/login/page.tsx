@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
@@ -121,6 +122,15 @@ export default function LoginPage() {
         <div className="flex min-h-screen items-center justify-center bg-bg-secondary p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
+                    <div className="flex justify-center mb-4">
+                        <Image
+                            src="/images/logo.png"
+                            alt="Audience Audit Analysis"
+                            width={64}
+                            height={64}
+                            className="h-16 w-16"
+                        />
+                    </div>
                     <CardTitle className="text-2xl">{getTitle()}</CardTitle>
                     <CardDescription>{getDescription()}</CardDescription>
                 </CardHeader>
