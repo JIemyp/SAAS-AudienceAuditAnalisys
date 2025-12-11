@@ -84,23 +84,31 @@ export const AI_MODELS: AIModel[] = [
     outputPrice: '$2',
   },
 
-  // Google (Gemini)
+  // Google (Gemini 3) - Released November 2025
   {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
+    id: 'gemini-3-pro-preview',
+    name: 'Gemini 3 Pro',
     provider: 'google',
     recommended: true,
-    description: 'Fast and capable',
-    inputPrice: 'Free tier available',
-    outputPrice: 'Free tier available',
+    description: 'Most powerful, best for reasoning',
+    inputPrice: '$2',
+    outputPrice: '$12',
   },
   {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
+    id: 'gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
     provider: 'google',
-    description: 'Advanced capabilities',
+    description: 'Best for coding tasks',
     inputPrice: '$1.25',
-    outputPrice: '$5',
+    outputPrice: '$10',
+  },
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'google',
+    description: 'Fast hybrid reasoning',
+    inputPrice: '$0.15',
+    outputPrice: '$0.60',
   },
 ];
 
