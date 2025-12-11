@@ -30,7 +30,15 @@ import {
     LayoutDashboard,
     Compass,
     ExternalLink,
+    Copy,
+    ChevronDown,
 } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ProjectStep } from "@/types";
@@ -271,15 +279,29 @@ export default function ProjectPage({
                                         </>
                                     )}
                                 </Button>
-                                <Button
-                                    onClick={handleStartNew}
-                                    variant="ghost"
-                                    size="lg"
-                                    className="border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white gap-2"
-                                >
-                                    <RotateCcw className="w-4 h-4" />
-                                    Start New Analysis
-                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="lg"
+                                            className="border border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white gap-2"
+                                        >
+                                            <RotateCcw className="w-4 h-4" />
+                                            Start New Analysis
+                                            <ChevronDown className="w-4 h-4 opacity-70" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-56">
+                                        <DropdownMenuItem onClick={handleStartNew}>
+                                            <RotateCcw className="mr-2 h-4 w-4" />
+                                            Reset This Project
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/projects/new?clone=${id}`)}>
+                                            <Copy className="mr-2 h-4 w-4" />
+                                            Clone to New Project
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </>
                         ) : (
                             <Button
