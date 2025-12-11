@@ -57,31 +57,31 @@ export const AI_MODELS: AIModel[] = [
     outputPrice: '$5',
   },
 
-  // OpenAI (GPT)
+  // OpenAI (GPT-5.2) - Released December 11, 2025
   {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
+    id: 'gpt-5.2',
+    name: 'GPT-5.2',
     provider: 'openai',
     recommended: true,
-    description: 'Most capable GPT model',
-    inputPrice: '$2.50',
-    outputPrice: '$10',
+    description: 'Best for coding and agentic tasks',
+    inputPrice: '$1.75',
+    outputPrice: '$14',
   },
   {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini',
+    id: 'gpt-5.2-pro',
+    name: 'GPT-5.2 Pro',
     provider: 'openai',
-    description: 'Fast and affordable',
-    inputPrice: '$0.15',
-    outputPrice: '$0.60',
+    description: 'Smartest, most precise model',
+    inputPrice: '$21',
+    outputPrice: '$168',
   },
   {
-    id: 'o1',
-    name: 'O1 (Reasoning)',
+    id: 'gpt-5-mini',
+    name: 'GPT-5 Mini',
     provider: 'openai',
-    description: 'Advanced reasoning model',
-    inputPrice: '$15',
-    outputPrice: '$60',
+    description: 'Faster, more affordable',
+    inputPrice: '$0.25',
+    outputPrice: '$2',
   },
 
   // Google (Gemini)

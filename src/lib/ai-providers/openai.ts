@@ -8,7 +8,7 @@ export const openaiAdapter: AIProviderAdapter = {
     const client = new OpenAI({ apiKey });
 
     const response = await client.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-5.2',
       max_tokens: options.maxTokens || 4096,
       messages: [
         ...(options.systemPrompt
@@ -32,7 +32,7 @@ export const openaiAdapter: AIProviderAdapter = {
 
       // Make a minimal request to verify the key
       await client.chat.completions.create({
-        model: 'gpt-4o-mini', // Use cheapest model for testing
+        model: 'gpt-5-mini', // Use cheapest model for testing
         max_tokens: 10,
         messages: [{ role: 'user', content: 'Hi' }],
       });
