@@ -56,8 +56,14 @@ export async function POST(request: NextRequest) {
       segments.push(combinedSegment);
       console.log(`[approve/segment-details] Upserted segment: ${combinedSegment.id}`);
 
-      // 2. Save to segment_details - use UPSERT to prevent duplicates
-      const { data: detail, error } = await supabase.from("segment_details").upsert({
+      // 2. Save to segment_details - delete existing first, then insert
+      // (No unique constraint on segment_id, so can't use upsert with onConflict)
+      await supabase
+        .from("segment_details")
+        .delete()
+        .eq("segment_id", combinedSegment.id);
+
+      const { data: detail, error } = await supabase.from("segment_details").insert({
         project_id: projectId,
         segment_id: combinedSegment.id,
         // New behavior fields
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
         awareness_level: draft.awareness_level,
         awareness_reasoning: draft.awareness_reasoning,
         objections: draft.objections,
-      }, { onConflict: 'segment_id' }).select().single();
+      }).select().single();
 
       if (error) {
         console.error(`[approve/segment-details] Failed to upsert detail:`, error);
