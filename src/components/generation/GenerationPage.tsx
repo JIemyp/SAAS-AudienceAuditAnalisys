@@ -311,11 +311,11 @@ export function GenerationPage<T extends { id: string }>({
               {icon}
             </div>
           )}
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
               {title}
             </h1>
-            <p className="mt-1 text-slate-500 max-w-xl">
+            <p className="mt-1 text-slate-500 max-w-2xl">
               {description}
             </p>
           </div>
@@ -334,7 +334,7 @@ export function GenerationPage<T extends { id: string }>({
               variant="outline"
               onClick={handleRegenerate}
               disabled={isGenerating}
-              className="gap-2"
+              className="gap-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-400"
             >
               <RefreshCw className={cn("w-4 h-4", isGenerating && "animate-spin")} />
               Regenerate
