@@ -196,7 +196,7 @@ export default function ProjectSettingsPage({
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("ru-RU", {
+    return new Date(dateStr).toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -215,12 +215,12 @@ export default function ProjectSettingsPage({
     return role === "owner" ? (
       <Badge className="bg-amber-100 text-amber-700 border-amber-200">
         <Crown className="w-3 h-3 mr-1" />
-        Владелец
+        Owner
       </Badge>
     ) : (
       <Badge variant="secondary" className="bg-slate-100 text-slate-600">
         <Eye className="w-3 h-3 mr-1" />
-        Просмотр
+        Viewer
       </Badge>
     );
   };
@@ -238,7 +238,7 @@ export default function ProjectSettingsPage({
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <AlertCircle className="w-12 h-12 text-red-400" />
         <p className="text-slate-600">{error}</p>
-        <Button onClick={fetchData}>Повторить</Button>
+        <Button onClick={fetchData}>Retry</Button>
       </div>
     );
   }
@@ -259,17 +259,17 @@ export default function ProjectSettingsPage({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Настройки проекта
+              Project Settings
             </h1>
             <p className="mt-1 text-slate-500">
-              {projectName || "Управление доступом и участниками"}
+              {projectName || "Manage access and members"}
             </p>
           </div>
         </div>
         <Link href={`/projects/${projectId}/overview`}>
           <Button variant="outline" className="gap-2">
             <ArrowLeft className="w-4 h-4" />
-            Назад
+            Back
           </Button>
         </Link>
       </motion.div>
@@ -288,9 +288,9 @@ export default function ProjectSettingsPage({
                   <UserPlus className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Пригласить участника</CardTitle>
+                  <CardTitle className="text-lg">Invite Member</CardTitle>
                   <CardDescription>
-                    Отправьте приглашение по email для совместной работы
+                    Send an email invitation for collaboration
                   </CardDescription>
                 </div>
               </div>
@@ -314,7 +314,7 @@ export default function ProjectSettingsPage({
                   ) : (
                     <Send className="w-4 h-4" />
                   )}
-                  Пригласить
+                  Invite
                 </Button>
               </form>
 
@@ -340,7 +340,7 @@ export default function ProjectSettingsPage({
                   >
                     <div className="flex items-center gap-2 text-sm text-emerald-700 font-medium mb-2">
                       <Check className="w-4 h-4" />
-                      Приглашение создано!
+                      Invite created!
                     </div>
                     <div className="flex gap-2">
                       <Input
@@ -358,18 +358,18 @@ export default function ProjectSettingsPage({
                         {copiedLink === inviteSuccess ? (
                           <>
                             <Check className="w-3 h-3" />
-                            Скопировано
+                            Copied
                           </>
                         ) : (
                           <>
                             <Copy className="w-3 h-3" />
-                            Копировать
+                            Copy
                           </>
                         )}
                       </Button>
                     </div>
                     <p className="text-xs text-emerald-600 mt-2">
-                      Отправьте эту ссылку пользователю. Приглашение действует 7 дней.
+                      Share this link with the user. The invite is valid for 7 days.
                     </p>
                   </motion.div>
                 )}
@@ -392,9 +392,9 @@ export default function ProjectSettingsPage({
                 <Users className="w-5 h-5 text-slate-600" />
               </div>
               <div>
-                <CardTitle className="text-lg">Участники проекта</CardTitle>
+                <CardTitle className="text-lg">Project Members</CardTitle>
                 <CardDescription>
-                  {membersData?.members.length || 0} участник(ов)
+                  {membersData?.members.length || 0} member(s)
                 </CardDescription>
               </div>
             </div>
@@ -415,13 +415,13 @@ export default function ProjectSettingsPage({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-slate-900">
-                        {member.email || `Пользователь ${member.user_id.slice(0, 8)}...`}
+                        {member.email || `User ${member.user_id.slice(0, 8)}...`}
                       </span>
                       {getRoleBadge(member.role)}
                     </div>
                     {member.joined_at && (
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Присоединился {formatDate(member.joined_at)}
+                        Joined {formatDate(member.joined_at)}
                       </p>
                     )}
                   </div>
@@ -448,7 +448,7 @@ export default function ProjectSettingsPage({
             {(!membersData?.members || membersData.members.length === 0) && (
               <div className="text-center py-8 text-slate-500">
                 <Users className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                <p>Нет участников</p>
+                <p>No members</p>
               </div>
             )}
           </CardContent>
@@ -469,9 +469,9 @@ export default function ProjectSettingsPage({
                   <Clock className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Ожидающие приглашения</CardTitle>
+                  <CardTitle className="text-lg">Pending Invites</CardTitle>
                   <CardDescription>
-                    {invites.length} приглашение(й) ожидает ответа
+                    {invites.length} invite(s) awaiting response
                   </CardDescription>
                 </div>
               </div>
@@ -493,11 +493,11 @@ export default function ProjectSettingsPage({
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-slate-900">{invite.email}</span>
                         <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs">
-                          Ожидает
+                          Pending
                         </Badge>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Истекает {formatDate(invite.expires_at)}
+                        Expires {formatDate(invite.expires_at)}
                       </p>
                     </div>
                   </div>
@@ -551,8 +551,8 @@ export default function ProjectSettingsPage({
               <div className="flex items-center gap-3 text-slate-600">
                 <Eye className="w-5 h-5" />
                 <p className="text-sm">
-                  Вы имеете доступ только для просмотра этого проекта.
-                  Только владелец может приглашать новых участников.
+                  You have view-only access to this project.
+                  Only the owner can invite new members.
                 </p>
               </div>
             </CardContent>

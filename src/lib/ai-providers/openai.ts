@@ -7,8 +7,8 @@ export const openaiAdapter: AIProviderAdapter = {
   async generate(options: GenerateOptions, apiKey: string): Promise<string> {
     const client = new OpenAI({ apiKey });
 
-    // Use model from options, or default to gpt-5.2
-    const modelId = options.model || 'gpt-5.2';
+    // Use model from options, or default to gpt-4o
+    const modelId = options.model || 'gpt-4o';
 
     const response = await client.chat.completions.create({
       model: modelId,
@@ -35,7 +35,7 @@ export const openaiAdapter: AIProviderAdapter = {
 
       // Make a minimal request to verify the key
       await client.chat.completions.create({
-        model: 'gpt-5-mini', // Use cheapest model for testing
+        model: 'gpt-4o-mini', // Use cheapest model for testing
         max_tokens: 10,
         messages: [{ role: 'user', content: 'Hi' }],
       });

@@ -7,8 +7,8 @@ export const googleAdapter: AIProviderAdapter = {
   async generate(options: GenerateOptions, apiKey: string): Promise<string> {
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // Use model from options, or default to gemini-3-pro-preview
-    const modelId = options.model || 'gemini-3-pro-preview';
+    // Use model from options, or default to gemini-1.5-pro
+    const modelId = options.model || 'gemini-1.5-pro';
     const model = genAI.getGenerativeModel({ model: modelId });
 
     // Combine system prompt with user prompt if provided
@@ -36,7 +36,7 @@ export const googleAdapter: AIProviderAdapter = {
   async testConnection(apiKey: string): Promise<{ valid: boolean; error?: string }> {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); // Use cheaper model for testing
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Use cheaper model for testing
 
       // Make a minimal request to verify the key
       await model.generateContent({

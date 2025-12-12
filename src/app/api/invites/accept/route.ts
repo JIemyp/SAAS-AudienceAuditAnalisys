@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// POST - Принять приглашение по токену
+// POST - Accept invite by token
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Проверка авторизации
+    // Check authorization
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return NextResponse.json({ error: "Необходимо войти в систему" }, { status: 401 });
+      return NextResponse.json({ error: "You must be logged in" }, { status: 401 });
     }
 
     const body = await request.json();
     const { token } = body;
 
     if (!token) {
-      return NextResponse.json({ error: "Токен приглашения обязателен" }, { status: 400 });
+      return NextResponse.json({ error: "Invite token is required" }, { status: 400 });
     }
 
-    // Найти приглашение по токену
+    // Find invite by token
     const { data: invite, error: inviteError } = await supabase
       .from("project_invites")
       .select("*, projects(id, name)")
@@ -27,27 +27,27 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (inviteError || !invite) {
-      return NextResponse.json({ error: "Приглашение не найдено" }, { status: 404 });
+      return NextResponse.json({ error: "Invite not found" }, { status: 404 });
     }
 
-    // Проверить не истекло ли приглашение
+    // Check if invite has expired
     if (new Date(invite.expires_at) < new Date()) {
-      return NextResponse.json({ error: "Приглашение истекло" }, { status: 400 });
+      return NextResponse.json({ error: "Invite has expired" }, { status: 400 });
     }
 
-    // Проверить не было ли уже принято
+    // Check if already accepted
     if (invite.accepted_at) {
-      return NextResponse.json({ error: "Приглашение уже принято" }, { status: 400 });
+      return NextResponse.json({ error: "Invite has already been accepted" }, { status: 400 });
     }
 
-    // Проверить email (если совпадает)
+    // Check email match
     if (user.email?.toLowerCase() !== invite.email.toLowerCase()) {
       return NextResponse.json({
-        error: `Это приглашение для ${invite.email}. Войдите с правильным аккаунтом.`
+        error: `This invite is for ${invite.email}. Please sign in with the correct account.`
       }, { status: 403 });
     }
 
-    // Проверить не является ли пользователь уже участником
+    // Check if user is already a member
     const { data: existingMember } = await supabase
       .from("project_members")
       .select("id")
@@ -56,10 +56,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existingMember) {
-      return NextResponse.json({ error: "Вы уже участник этого проекта" }, { status: 400 });
+      return NextResponse.json({ error: "You are already a member of this project" }, { status: 400 });
     }
 
-    // Проверить не является ли пользователь владельцем
+    // Check if user is the owner
     const { data: project } = await supabase
       .from("projects")
       .select("user_id")
@@ -67,10 +67,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (project?.user_id === user.id) {
-      return NextResponse.json({ error: "Вы являетесь владельцем этого проекта" }, { status: 400 });
+      return NextResponse.json({ error: "You are the owner of this project" }, { status: 400 });
     }
 
-    // Создать запись участника
+    // Create member record
     const { error: memberError } = await supabase
       .from("project_members")
       .insert({
@@ -81,18 +81,18 @@ export async function POST(request: NextRequest) {
       });
 
     if (memberError) {
-      console.error("Ошибка создания участника:", memberError);
-      return NextResponse.json({ error: "Не удалось принять приглашение" }, { status: 500 });
+      console.error("Error creating member:", memberError);
+      return NextResponse.json({ error: "Failed to accept invite" }, { status: 500 });
     }
 
-    // Отметить приглашение как принятое
+    // Mark invite as accepted
     const { error: updateError } = await supabase
       .from("project_invites")
       .update({ accepted_at: new Date().toISOString() })
       .eq("id", invite.id);
 
     if (updateError) {
-      console.error("Ошибка обновления приглашения:", updateError);
+      console.error("Error updating invite:", updateError);
     }
 
     // projects can be an array or single object depending on Supabase config
@@ -102,29 +102,29 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Приглашение принято",
+      message: "Invite accepted",
       projectId: invite.project_id,
-      projectName: projectInfo?.name || "Проект",
+      projectName: projectInfo?.name || "Project",
     });
   } catch (error) {
     console.error("Accept invite error:", error);
-    return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// GET - Получить информацию о приглашении по токену (для страницы принятия)
+// GET - Get invite info by token (for accept page)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
 
     if (!token) {
-      return NextResponse.json({ error: "Токен обязателен" }, { status: 400 });
+      return NextResponse.json({ error: "Token is required" }, { status: 400 });
     }
 
     const supabase = await createClient();
 
-    // Найти приглашение
+    // Find invite
     const { data: invite, error } = await supabase
       .from("project_invites")
       .select("id, email, role, expires_at, accepted_at, projects(id, name)")
@@ -132,10 +132,10 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (error || !invite) {
-      return NextResponse.json({ error: "Приглашение не найдено" }, { status: 404 });
+      return NextResponse.json({ error: "Invite not found" }, { status: 404 });
     }
 
-    // Проверить статус
+    // Check status
     const isExpired = new Date(invite.expires_at) < new Date();
     const isAccepted = !!invite.accepted_at;
 
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
       invite: {
         email: invite.email,
         role: invite.role,
-        projectName: projectInfo?.name || "Проект",
+        projectName: projectInfo?.name || "Project",
         projectId: projectInfo?.id,
         isExpired,
         isAccepted,
@@ -157,6 +157,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Get invite error:", error);
-    return NextResponse.json({ error: "Внутренняя ошибка сервера" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

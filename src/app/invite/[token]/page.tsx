@@ -54,23 +54,23 @@ export default function InviteAcceptPage({
       setIsLoading(true);
       setError(null);
 
-      // Проверить авторизацию
+      // Check auth
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
         setUser({ email: authUser.email || "" });
       }
 
-      // Получить информацию о приглашении
+      // Get invite info
       const res = await fetch(`/api/invites/accept?token=${token}`);
       const result = await res.json();
 
       if (!res.ok) {
-        throw new Error(result.error || "Приглашение не найдено");
+        throw new Error(result.error || "Invite not found");
       }
 
       setInvite(result.invite);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки");
+      setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +90,7 @@ export default function InviteAcceptPage({
       const result = await res.json();
 
       if (!res.ok) {
-        throw new Error(result.error || "Не удалось принять приглашение");
+        throw new Error(result.error || "Failed to accept invite");
       }
 
       setSuccess(true);
@@ -100,7 +100,7 @@ export default function InviteAcceptPage({
         router.push(`/projects/${result.projectId}/overview`);
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка");
+      setError(err instanceof Error ? err.message : "Error");
     } finally {
       setIsAccepting(false);
     }
@@ -115,7 +115,7 @@ export default function InviteAcceptPage({
           className="text-center"
         >
           <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600">Загрузка приглашения...</p>
+          <p className="text-slate-600">Loading invite...</p>
         </motion.div>
       </div>
     );
@@ -135,11 +135,11 @@ export default function InviteAcceptPage({
                 <AlertCircle className="w-8 h-8 text-red-500" />
               </div>
               <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                Ошибка
+                Error
               </h2>
               <p className="text-slate-600 mb-6">{error}</p>
               <Link href="/projects">
-                <Button variant="outline">Перейти к проектам</Button>
+                <Button variant="outline">Go to Projects</Button>
               </Link>
             </CardContent>
           </Card>
@@ -162,13 +162,13 @@ export default function InviteAcceptPage({
                 <Clock className="w-8 h-8 text-amber-500" />
               </div>
               <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                Приглашение истекло
+                Invite Expired
               </h2>
               <p className="text-slate-600 mb-6">
-                Срок действия этого приглашения истек. Попросите владельца проекта отправить новое приглашение.
+                This invite has expired. Please ask the project owner to send a new one.
               </p>
               <Link href="/projects">
-                <Button variant="outline">Перейти к проектам</Button>
+                <Button variant="outline">Go to Projects</Button>
               </Link>
             </CardContent>
           </Card>
@@ -191,15 +191,15 @@ export default function InviteAcceptPage({
                 <Check className="w-8 h-8 text-emerald-500" />
               </div>
               <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                Приглашение уже принято
+                Already Accepted
               </h2>
               <p className="text-slate-600 mb-6">
-                Это приглашение уже было использовано.
+                This invite has already been used.
               </p>
               <Link href={`/projects/${invite.projectId}/overview`}>
                 <Button className="gap-2">
                   <FolderOpen className="w-4 h-4" />
-                  Открыть проект
+                  Open Project
                 </Button>
               </Link>
             </CardContent>
@@ -229,17 +229,17 @@ export default function InviteAcceptPage({
                 <Check className="w-10 h-10 text-white" />
               </motion.div>
               <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                Добро пожаловать!
+                Welcome!
               </h2>
               <p className="text-slate-600 mb-2">
-                Вы присоединились к проекту
+                You have joined the project
               </p>
               <p className="text-lg font-semibold text-emerald-700 mb-6">
                 {invite?.projectName}
               </p>
               <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Перенаправление...
+                Redirecting...
               </div>
             </CardContent>
           </Card>
@@ -261,15 +261,15 @@ export default function InviteAcceptPage({
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
                 <UserPlus className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-2xl">Приглашение в проект</CardTitle>
+              <CardTitle className="text-2xl">Project Invite</CardTitle>
               <CardDescription className="text-base">
-                Вас пригласили в проект
+                You have been invited to collaborate
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="p-4 bg-slate-50 rounded-xl space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500">Проект</span>
+                  <span className="text-sm text-slate-500">Project</span>
                   <span className="font-semibold text-slate-900">
                     {invite?.projectName}
                   </span>
@@ -281,24 +281,24 @@ export default function InviteAcceptPage({
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-500">Роль</span>
+                  <span className="text-sm text-slate-500">Role</span>
                   <Badge variant="secondary" className="gap-1">
                     <Eye className="w-3 h-3" />
-                    Просмотр
+                    Viewer
                   </Badge>
                 </div>
               </div>
 
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                 <p className="text-sm text-amber-800">
-                  <strong>Для принятия приглашения</strong> войдите или зарегистрируйтесь с email: <strong>{invite?.email}</strong>
+                  <strong>To accept this invite</strong>, sign in or register with email: <strong>{invite?.email}</strong>
                 </p>
               </div>
 
               <Link href={`/login?redirect=/invite/${token}`} className="block">
                 <Button className="w-full gap-2" size="lg">
                   <LogIn className="w-4 h-4" />
-                  Войти для продолжения
+                  Sign In to Continue
                 </Button>
               </Link>
             </CardContent>
@@ -325,9 +325,9 @@ export default function InviteAcceptPage({
             >
               <UserPlus className="w-8 h-8 text-white" />
             </motion.div>
-            <CardTitle className="text-2xl">Приглашение в проект</CardTitle>
+            <CardTitle className="text-2xl">Project Invite</CardTitle>
             <CardDescription className="text-base">
-              Вас пригласили для совместной работы
+              You have been invited to collaborate
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -338,22 +338,22 @@ export default function InviteAcceptPage({
               className="p-4 bg-slate-50 rounded-xl space-y-3"
             >
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">Проект</span>
+                <span className="text-sm text-slate-500">Project</span>
                 <span className="font-semibold text-slate-900">
                   {invite?.projectName}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">Ваш email</span>
+                <span className="text-sm text-slate-500">Your email</span>
                 <span className="font-medium text-slate-700">
                   {user.email}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">Роль</span>
+                <span className="text-sm text-slate-500">Role</span>
                 <Badge variant="secondary" className="gap-1">
                   <Eye className="w-3 h-3" />
-                  Просмотр
+                  Viewer
                 </Badge>
               </div>
             </motion.div>
@@ -364,7 +364,7 @@ export default function InviteAcceptPage({
                 animate={{ opacity: 1, height: "auto" }}
                 className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-sm text-red-700"
               >
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 {error}
               </motion.div>
             )}
@@ -372,9 +372,9 @@ export default function InviteAcceptPage({
             {user.email?.toLowerCase() !== invite?.email.toLowerCase() && (
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                 <p className="text-sm text-amber-800">
-                  <strong>Внимание:</strong> Это приглашение было отправлено на{" "}
-                  <strong>{invite?.email}</strong>, но вы вошли как{" "}
-                  <strong>{user.email}</strong>. Войдите с правильным аккаунтом.
+                  <strong>Note:</strong> This invite was sent to{" "}
+                  <strong>{invite?.email}</strong>, but you are signed in as{" "}
+                  <strong>{user.email}</strong>. Please sign in with the correct account.
                 </p>
               </div>
             )}
@@ -383,7 +383,7 @@ export default function InviteAcceptPage({
               <Link href="/projects" className="flex-1">
                 <Button variant="outline" className="w-full gap-2">
                   <X className="w-4 h-4" />
-                  Отклонить
+                  Decline
                 </Button>
               </Link>
               <Button
@@ -396,7 +396,7 @@ export default function InviteAcceptPage({
                 ) : (
                   <Check className="w-4 h-4" />
                 )}
-                Принять
+                Accept
               </Button>
             </div>
           </CardContent>

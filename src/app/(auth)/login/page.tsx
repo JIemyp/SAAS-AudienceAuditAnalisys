@@ -58,14 +58,33 @@ export default function LoginPage() {
                 if (error) throw error;
                 setMessage("Check your email for the password reset link!");
             } else if (viewMode === "signup") {
-                const { error } = await supabase.auth.signUp({
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
                         emailRedirectTo: `${window.location.origin}/auth/callback`,
                     },
                 });
+
+                console.log("=== SIGNUP DEBUG ===");
+                console.log("Email:", email);
+                console.log("Redirect URL:", `${window.location.origin}/auth/callback`);
+                console.log("Response data:", JSON.stringify(data, null, 2));
+                console.log("Response error:", error);
+                console.log("User:", data?.user);
+                console.log("Session:", data?.session);
+                console.log("User identities:", data?.user?.identities);
+                console.log("====================");
+
                 if (error) throw error;
+
+                // ВАЖНО: Если user существует но identities пустой - значит юзер уже зарегистрирован
+                // и Supabase НЕ отправляет повторный email (это фича безопасности)
+                if (data?.user && data.user.identities && data.user.identities.length === 0) {
+                    setError("This email is already registered. Please sign in or use password reset.");
+                    return;
+                }
+
                 setMessage("Check your email for the confirmation link!");
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
