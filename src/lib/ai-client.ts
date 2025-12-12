@@ -113,8 +113,21 @@ export async function generateWithAI(options: GenerateWithAIOptions): Promise<st
     );
   }
 
+  // Log which provider and model is being used
+  const modelName = settings.model || getRecommendedModel(settings.provider);
+  const keySource = settings.apiKey ? 'user' : 'system';
+  console.log(`\n╔════════════════════════════════════════════════════════════╗`);
+  console.log(`║  🤖 AI GENERATION REQUEST                                  ║`);
+  console.log(`╠════════════════════════════════════════════════════════════╣`);
+  console.log(`║  Provider: ${settings.provider.toUpperCase().padEnd(47)}║`);
+  console.log(`║  Model:    ${modelName.padEnd(47)}║`);
+  console.log(`║  API Key:  ${(keySource + ' key').padEnd(47)}║`);
+  console.log(`╚════════════════════════════════════════════════════════════╝`);
+
+  const startTime = Date.now();
+
   // Generate using the selected provider
-  return adapter.generate(
+  const result = await adapter.generate(
     {
       prompt: options.prompt,
       systemPrompt: options.systemPrompt,
@@ -122,6 +135,11 @@ export async function generateWithAI(options: GenerateWithAIOptions): Promise<st
     },
     apiKey
   );
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`[AI] ✅ ${settings.provider.toUpperCase()} response received in ${elapsed}s (${result.length} chars)`);
+
+  return result;
 }
 
 /**
