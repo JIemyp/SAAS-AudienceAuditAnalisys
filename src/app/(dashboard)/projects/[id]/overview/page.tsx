@@ -22,6 +22,8 @@ import {
   Sparkles,
   Globe,
   DollarSign,
+  Settings,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -184,6 +186,15 @@ export default function OverviewPage({
             onLanguageChange={setLanguage}
             isLoading={isTranslating}
           />
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/projects/${projectId}/settings`)}
+            className="gap-2"
+            title="Settings & Share"
+          >
+            <UserPlus className="w-4 h-4" />
+            Share
+          </Button>
           <Button
             variant="outline"
             onClick={() => router.push(`/projects/${projectId}/generate/segment-details`)}
