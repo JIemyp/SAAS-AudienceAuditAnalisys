@@ -10,9 +10,15 @@ export const openaiAdapter: AIProviderAdapter = {
     // Use model from options, or default to gpt-5.2
     const modelId = options.model || 'gpt-5.2';
 
+    // GPT-5.x models use max_completion_tokens, older models use max_tokens
+    const isGpt5 = modelId.startsWith('gpt-5') || modelId.startsWith('o3') || modelId.startsWith('o4');
+    const tokenParam = isGpt5
+      ? { max_completion_tokens: options.maxTokens || 4096 }
+      : { max_tokens: options.maxTokens || 4096 };
+
     const response = await client.chat.completions.create({
       model: modelId,
-      max_tokens: options.maxTokens || 4096,
+      ...tokenParam,
       messages: [
         ...(options.systemPrompt
           ? [{ role: 'system' as const, content: options.systemPrompt }]
@@ -36,7 +42,7 @@ export const openaiAdapter: AIProviderAdapter = {
       // Make a minimal request to verify the key
       await client.chat.completions.create({
         model: 'gpt-5-mini', // Use cheapest model for testing
-        max_tokens: 10,
+        max_completion_tokens: 10,
         messages: [{ role: 'user', content: 'Hi' }],
       });
 
