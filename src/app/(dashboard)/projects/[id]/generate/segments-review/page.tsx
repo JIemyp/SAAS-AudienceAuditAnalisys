@@ -185,6 +185,13 @@ function SegmentsReviewDraftView({
   approvalStatus,
   statusCounts,
 }: SegmentsReviewDraftViewProps) {
+  // Debug: check if draft is translated
+  console.log('[SegmentsReviewDraftView] Draft received:', {
+    id: draft.id,
+    firstOverlap: draft.segment_overlaps?.[0]?.overlap_description?.substring(0, 50),
+    firstRecommendation: draft.recommendations?.[0]?.substring(0, 50),
+  });
+
   const hasOverlaps = draft.segment_overlaps && draft.segment_overlaps.length > 0;
   const hasTooBroad = draft.too_broad && draft.too_broad.length > 0;
   const hasTooNarrow = draft.too_narrow && draft.too_narrow.length > 0;
