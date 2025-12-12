@@ -81,11 +81,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[segment-details] Generating details for ${segments.length} segments using portraitFinal`);
+    console.log(`[segment-details] Generating details for ${segments.length} segments using portraitFinal (parallel processing)`);
 
-    const drafts = [];
-    for (const segment of segments) {
-      // v4: buildSegmentDetailsPrompt uses portraitFinal for context (NOT triggers)
+    // Process segments in parallel (max 3 concurrent to avoid rate limits)
+    const CONCURRENCY = 3;
+    const drafts: Array<{ id: string; awareness_level: string; [key: string]: unknown }> = [];
+
+    // Helper to process a single segment
+    const processSegment = async (segment: SegmentFinal, index: number) => {
       const prompt = buildSegmentDetailsPrompt(
         (project as Project).onboarding_data,
         segment,
@@ -99,40 +102,24 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      console.log(`\n========================================`);
-      console.log(`[segment-details] Processing segment ${drafts.length + 1}/${segments.length}: "${segment.name}"`);
-      console.log(`[segment-details] Segment description: ${segment.description?.substring(0, 100)}...`);
-      console.log(`[segment-details] Segment sociodemographics: ${segment.sociodemographics?.substring(0, 100)}...`);
+      console.log(`[segment-details] Starting segment ${index + 1}/${segments.length}: "${segment.name}"`);
 
       const response = await withRetry(async () => {
         const text = await generateWithAI({ prompt, maxTokens: 4096, userId: user.id });
         return parseJSONResponse<SegmentDetailsResponse>(text);
       });
 
-      // Log detailed response for awareness level debugging
-      console.log(`[segment-details] ✅ Response for "${segment.name}":`);
-      console.log(`[segment-details]   → Awareness Level: ${response.awareness_level}`);
-      console.log(`[segment-details]   → Needs count: ${response.needs?.length || 0}`);
-      console.log(`[segment-details]   → Core values count: ${response.core_values?.length || 0}`);
-      console.log(`[segment-details]   → Objections count: ${response.objections?.length || 0}`);
-      console.log(`[segment-details]   → Has sociodemographics: ${!!response.sociodemographics}`);
-      console.log(`[segment-details]   → Has psychographics: ${!!response.psychographics}`);
-      console.log(`[segment-details]   → Has online_behavior: ${!!response.online_behavior}`);
-      console.log(`[segment-details]   → Has buying_behavior: ${!!response.buying_behavior}`);
-      console.log(`========================================\n`);
+      console.log(`[segment-details] ✅ Completed "${segment.name}" (awareness: ${response.awareness_level})`);
 
-      // Note: triggers field will be null/empty - triggers generated in separate step
       const { data: draft, error } = await supabase.from("segment_details_drafts").insert({
         project_id: projectId,
         segment_id: segment.id,
-        // New behavior fields
         sociodemographics: response.sociodemographics || null,
         psychographics: response.psychographics || null,
         online_behavior: response.online_behavior || null,
         buying_behavior: response.buying_behavior || null,
-        // Original fields
         needs: response.needs,
-        triggers: null, // Triggers will be generated separately
+        triggers: null,
         core_values: response.core_values,
         awareness_level: response.awareness_level,
         awareness_reasoning: response.awareness_reasoning || null,
@@ -145,8 +132,28 @@ export async function POST(request: NextRequest) {
         throw new ApiError(`Failed to save draft for segment "${segment.name}": ${error.message}`, 500);
       }
 
-      drafts.push(draft);
+      return { draft, index };
+    };
+
+    // Process in batches with concurrency limit
+    for (let i = 0; i < segments.length; i += CONCURRENCY) {
+      const batch = segments.slice(i, i + CONCURRENCY);
+      const batchPromises = batch.map((segment, batchIndex) =>
+        processSegment(segment, i + batchIndex)
+      );
+
+      const results = await Promise.all(batchPromises);
+      results.forEach(({ draft }) => drafts.push(draft));
+
+      console.log(`[segment-details] Batch ${Math.floor(i / CONCURRENCY) + 1} complete (${drafts.length}/${segments.length} done)`);
     }
+
+    // Sort drafts by original order
+    drafts.sort((a, b) => {
+      const indexA = segments.findIndex(s => s.id === a.segment_id);
+      const indexB = segments.findIndex(s => s.id === b.segment_id);
+      return indexA - indexB;
+    });
 
     // Log summary of all awareness levels
     console.log(`\n╔════════════════════════════════════════════════════════════╗`);
