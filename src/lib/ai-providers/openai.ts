@@ -7,8 +7,11 @@ export const openaiAdapter: AIProviderAdapter = {
   async generate(options: GenerateOptions, apiKey: string): Promise<string> {
     const client = new OpenAI({ apiKey });
 
+    // Use model from options, or default to gpt-5.2
+    const modelId = options.model || 'gpt-5.2';
+
     const response = await client.chat.completions.create({
-      model: 'gpt-5.2',
+      model: modelId,
       max_tokens: options.maxTokens || 4096,
       messages: [
         ...(options.systemPrompt

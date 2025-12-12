@@ -7,10 +7,11 @@ export const anthropicAdapter: AIProviderAdapter = {
   async generate(options: GenerateOptions, apiKey: string): Promise<string> {
     const client = new Anthropic({ apiKey });
 
+    // Use model from options, or default to claude-sonnet-4-5
+    const modelId = options.model || 'claude-sonnet-4-5-20250929';
+
     const response = await client.messages.create({
-      model: options.maxTokens && options.maxTokens > 8000
-        ? 'claude-sonnet-4-5-20250929' // Use Sonnet for larger outputs
-        : 'claude-sonnet-4-5-20250929',
+      model: modelId,
       max_tokens: options.maxTokens || 4096,
       ...(options.systemPrompt && { system: options.systemPrompt }),
       messages: [

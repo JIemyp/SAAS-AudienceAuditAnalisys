@@ -6,7 +6,10 @@ export const googleAdapter: AIProviderAdapter = {
 
   async generate(options: GenerateOptions, apiKey: string): Promise<string> {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+
+    // Use model from options, or default to gemini-3-pro-preview
+    const modelId = options.model || 'gemini-3-pro-preview';
+    const model = genAI.getGenerativeModel({ model: modelId });
 
     // Combine system prompt with user prompt if provided
     const fullPrompt = options.systemPrompt

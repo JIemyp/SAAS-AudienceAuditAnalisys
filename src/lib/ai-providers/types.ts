@@ -16,6 +16,7 @@ export interface GenerateOptions {
   prompt: string;
   systemPrompt?: string;
   maxTokens?: number;
+  model?: string; // Model ID to use (overrides default)
 }
 
 export interface AIProviderAdapter {
@@ -57,7 +58,8 @@ export const AI_MODELS: AIModel[] = [
     outputPrice: '$5',
   },
 
-  // OpenAI (GPT-5.2) - Released December 11, 2025
+  // OpenAI (GPT-5.2 family) - Released December 11, 2025
+  // Prices are Standard tier per 1M tokens
   {
     id: 'gpt-5.2',
     name: 'GPT-5.2',
@@ -76,12 +78,44 @@ export const AI_MODELS: AIModel[] = [
     outputPrice: '$168',
   },
   {
+    id: 'gpt-5.1',
+    name: 'GPT-5.1',
+    provider: 'openai',
+    description: 'Previous flagship model',
+    inputPrice: '$1.25',
+    outputPrice: '$10',
+  },
+  {
     id: 'gpt-5-mini',
     name: 'GPT-5 Mini',
     provider: 'openai',
     description: 'Faster, more affordable',
     inputPrice: '$0.25',
     outputPrice: '$2',
+  },
+  {
+    id: 'gpt-5-nano',
+    name: 'GPT-5 Nano',
+    provider: 'openai',
+    description: 'Ultra-fast, cheapest option',
+    inputPrice: '$0.05',
+    outputPrice: '$0.40',
+  },
+  {
+    id: 'o3',
+    name: 'o3 (Reasoning)',
+    provider: 'openai',
+    description: 'Advanced reasoning model',
+    inputPrice: '$2',
+    outputPrice: '$8',
+  },
+  {
+    id: 'o4-mini',
+    name: 'o4-mini (Reasoning)',
+    provider: 'openai',
+    description: 'Fast reasoning model',
+    inputPrice: '$1.10',
+    outputPrice: '$4.40',
   },
 
   // Google (Gemini 3) - Released November 2025

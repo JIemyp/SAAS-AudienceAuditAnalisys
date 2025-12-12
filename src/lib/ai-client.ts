@@ -113,25 +113,29 @@ export async function generateWithAI(options: GenerateWithAIOptions): Promise<st
     );
   }
 
-  // Log which provider and model is being used
-  const modelName = settings.model || getRecommendedModel(settings.provider);
+  // Get model to use (from settings or provider's recommended)
+  const recommendedModel = getRecommendedModel(settings.provider);
+  const modelId = settings.model || recommendedModel?.id || '';
   const keySource = settings.apiKey ? 'user' : 'system';
+
+  // Log which provider and model is being used
   console.log(`\n╔════════════════════════════════════════════════════════════╗`);
   console.log(`║  🤖 AI GENERATION REQUEST                                  ║`);
   console.log(`╠════════════════════════════════════════════════════════════╣`);
   console.log(`║  Provider: ${settings.provider.toUpperCase().padEnd(47)}║`);
-  console.log(`║  Model:    ${modelName.padEnd(47)}║`);
+  console.log(`║  Model:    ${modelId.padEnd(47)}║`);
   console.log(`║  API Key:  ${(keySource + ' key').padEnd(47)}║`);
   console.log(`╚════════════════════════════════════════════════════════════╝`);
 
   const startTime = Date.now();
 
-  // Generate using the selected provider
+  // Generate using the selected provider with specified model
   const result = await adapter.generate(
     {
       prompt: options.prompt,
       systemPrompt: options.systemPrompt,
       maxTokens: options.maxTokens,
+      model: modelId, // Pass model to adapter
     },
     apiKey
   );
