@@ -7,7 +7,7 @@ import {
 } from "@/components/generation/GenerationPage";
 import { SegmentGenerationPage } from "@/components/generation/SegmentGenerationPage";
 import { JobsDraft, JobItem } from "@/types";
-import { Target, Wrench, Heart, Users, ChevronRight, Pencil, Check, X, Plus, Trash2 } from "lucide-react";
+import { Target, Wrench, Heart, Users, ChevronRight, Pencil, Check, X, Plus, Trash2, Sparkles, Loader2 } from "lucide-react";
 
 export default function JobsPage({
   params,
@@ -30,7 +30,7 @@ export default function JobsPage({
       icon={<Target className="w-6 h-6" />}
       emptyStateMessage="Discover the tasks your customers are trying to accomplish using the Jobs-to-Be-Done framework."
       renderDraft={(draft, onEdit) => (
-        <JobsDraftView draft={draft} onEdit={onEdit} />
+        <JobsDraftView draft={draft} onEdit={onEdit} projectId={projectId} segmentId={draft.segment_id} />
       )}
     />
   );
@@ -39,9 +39,13 @@ export default function JobsPage({
 function JobsDraftView({
   draft,
   onEdit,
+  projectId,
+  segmentId,
 }: {
   draft: JobsDraft;
   onEdit: (updates: Partial<JobsDraft>) => void;
+  projectId: string;
+  segmentId?: string;
 }) {
   const handleEditJob = (type: 'functional_jobs' | 'emotional_jobs' | 'social_jobs', index: number, updatedJob: JobItem) => {
     const jobs = [...(draft[type] || [])];
@@ -102,6 +106,8 @@ function JobsDraftView({
                 color="blue"
                 onEdit={(updatedJob) => handleEditJob('functional_jobs', index, updatedJob)}
                 onDelete={() => handleDeleteJob('functional_jobs', index)}
+                projectId={projectId}
+                segmentId={segmentId}
               />
             ))}
             <AddJobForm color="blue" onAdd={(job) => handleAddJob('functional_jobs', job)} />
@@ -128,6 +134,8 @@ function JobsDraftView({
                 color="rose"
                 onEdit={(updatedJob) => handleEditJob('emotional_jobs', index, updatedJob)}
                 onDelete={() => handleDeleteJob('emotional_jobs', index)}
+                projectId={projectId}
+                segmentId={segmentId}
               />
             ))}
             <AddJobForm color="rose" onAdd={(job) => handleAddJob('emotional_jobs', job)} />
@@ -154,6 +162,8 @@ function JobsDraftView({
                 color="purple"
                 onEdit={(updatedJob) => handleEditJob('social_jobs', index, updatedJob)}
                 onDelete={() => handleDeleteJob('social_jobs', index)}
+                projectId={projectId}
+                segmentId={segmentId}
               />
             ))}
             <AddJobForm color="purple" onAdd={(job) => handleAddJob('social_jobs', job)} />
@@ -200,17 +210,56 @@ function EditableJobCard({
   color,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   job: JobItem;
   index: number;
   color: "blue" | "rose" | "purple";
   onEdit: (job: JobItem) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [editJob, setEditJob] = useState(job.job);
   const [editWhy, setEditWhy] = useState(job.why_it_matters);
   const [editHow, setEditHow] = useState(job.how_product_helps);
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName: "description",
+          fieldType: "job",
+          currentValue: editJob,
+          context: `Job: ${editJob}. Why it matters: ${editWhy}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setEditWhy(data.value);
+        onEdit({
+          job: editJob,
+          why_it_matters: data.value,
+          how_product_helps: editHow,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   const bgClasses = {
     blue: "bg-blue-50 border-blue-100",
@@ -296,17 +345,31 @@ function EditableJobCard({
     <div className={`group relative p-5 rounded-xl border ${bgClasses[color]} cursor-pointer hover:shadow-md transition-all`}>
       <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${accentClasses[color]}`} />
 
-      {/* Edit/Delete buttons */}
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Always visible action buttons */}
+      <div className="absolute top-3 right-3 flex gap-1">
         <button
           onClick={() => setIsEditing(true)}
-          className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm"
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+          title="Edit"
         >
           <Pencil className="w-4 h-4" />
         </button>
         <button
+          onClick={handleRegenerate}
+          disabled={isRegenerating}
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+          title="Regenerate with AI"
+        >
+          {isRegenerating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+        </button>
+        <button
           onClick={onDelete}
-          className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm"
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+          title="Delete"
         >
           <Trash2 className="w-4 h-4" />
         </button>

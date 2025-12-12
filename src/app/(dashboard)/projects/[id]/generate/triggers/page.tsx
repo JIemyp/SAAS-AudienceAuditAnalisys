@@ -7,7 +7,7 @@ import {
 } from "@/components/generation/GenerationPage";
 import { SegmentGenerationPage } from "@/components/generation/SegmentGenerationPage";
 import { TriggersDraft, TriggerItem } from "@/types";
-import { Zap, Brain, Clock, MessageSquare, Pencil, Trash2, Check, X, Plus } from "lucide-react";
+import { Zap, Brain, Clock, MessageSquare, Pencil, Trash2, Check, X, Plus, Sparkles, Loader2 } from "lucide-react";
 
 export default function TriggersPage({
   params,
@@ -30,7 +30,7 @@ export default function TriggersPage({
       icon={<Zap className="w-6 h-6" />}
       emptyStateMessage="Uncover the psychological triggers and key moments that drive your customers to make purchase decisions."
       renderDraft={(draft, onEdit) => (
-        <TriggersDraftView draft={draft} onEdit={onEdit} />
+        <TriggersDraftView draft={draft} onEdit={onEdit} projectId={projectId} segmentId={draft.segment_id} />
       )}
     />
   );
@@ -39,9 +39,13 @@ export default function TriggersPage({
 function TriggersDraftView({
   draft,
   onEdit,
+  projectId,
+  segmentId,
 }: {
   draft: TriggersDraft;
   onEdit: (updates: Partial<TriggersDraft>) => void;
+  projectId: string;
+  segmentId?: string;
 }) {
   const handleEditTrigger = (index: number, updated: TriggerItem) => {
     const triggers = [...(draft.triggers || [])];
@@ -91,6 +95,8 @@ function TriggersDraftView({
                 index={index}
                 onEdit={(updated) => handleEditTrigger(index, updated)}
                 onDelete={() => handleDeleteTrigger(index)}
+                projectId={projectId}
+                segmentId={segmentId}
               />
             ))}
             <AddTriggerForm onAdd={handleAddTrigger} />
@@ -106,13 +112,18 @@ function EditableTriggerCard({
   index,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   trigger: TriggerItem;
   index: number;
   onEdit: (trigger: TriggerItem) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [name, setName] = useState(trigger.name);
   const [description, setDescription] = useState(trigger.description);
   const [psychologicalBasis, setPsychologicalBasis] = useState(trigger.psychological_basis);
@@ -137,6 +148,42 @@ function EditableTriggerCard({
     setTriggerMoment(trigger.trigger_moment);
     setMessagingAngle(trigger.messaging_angle);
     setIsEditing(false);
+  };
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName: "description",
+          fieldType: "trigger",
+          currentValue: description,
+          context: `Trigger: ${name}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setDescription(data.value);
+        onEdit({
+          name,
+          description: data.value,
+          psychological_basis: psychologicalBasis,
+          trigger_moment: triggerMoment,
+          messaging_angle: messagingAngle,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   if (isEditing) {
@@ -221,17 +268,31 @@ function EditableTriggerCard({
       </div>
 
       <div className="ml-4 p-6 bg-gradient-to-br from-slate-50 to-white border border-slate-200 rounded-2xl hover:shadow-md transition-all">
-        {/* Edit/Delete buttons */}
-        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Always visible action buttons */}
+        <div className="absolute top-3 right-3 flex gap-1">
           <button
             onClick={() => setIsEditing(true)}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+            title="Edit"
           >
             <Pencil className="w-4 h-4" />
           </button>
           <button
+            onClick={handleRegenerate}
+            disabled={isRegenerating}
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+            title="Regenerate with AI"
+          >
+            {isRegenerating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+          </button>
+          <button
             onClick={onDelete}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+            title="Delete"
           >
             <Trash2 className="w-4 h-4" />
           </button>

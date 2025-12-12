@@ -7,7 +7,7 @@ import {
 } from "@/components/generation/GenerationPage";
 import { SegmentGenerationPage } from "@/components/generation/SegmentGenerationPage";
 import { DifficultiesDraft, DifficultyItem, FrequencyLevel } from "@/types";
-import { AlertCircle, Clock, Repeat, Calendar, AlertTriangle, Pencil, Trash2, Check, X, Plus } from "lucide-react";
+import { AlertCircle, Clock, Repeat, Calendar, AlertTriangle, Pencil, Trash2, Check, X, Plus, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function DifficultiesPage({
@@ -31,7 +31,7 @@ export default function DifficultiesPage({
       icon={<AlertCircle className="w-6 h-6" />}
       emptyStateMessage="Discover the challenges your customers face when looking for solutions - information overload, trust issues, and more."
       renderDraft={(draft, onEdit) => (
-        <DifficultiesDraftView draft={draft} onEdit={onEdit} />
+        <DifficultiesDraftView draft={draft} onEdit={onEdit} projectId={projectId} segmentId={draft.segment_id} />
       )}
     />
   );
@@ -40,9 +40,13 @@ export default function DifficultiesPage({
 function DifficultiesDraftView({
   draft,
   onEdit,
+  projectId,
+  segmentId,
 }: {
   draft: DifficultiesDraft;
   onEdit: (updates: Partial<DifficultiesDraft>) => void;
+  projectId: string;
+  segmentId?: string;
 }) {
   const handleEditDifficulty = (index: number, updated: DifficultyItem) => {
     const diffs = [...(draft.difficulties || [])];
@@ -122,6 +126,8 @@ function DifficultiesDraftView({
                   difficulty={diff}
                   onEdit={(updated) => handleEditDifficulty(diff.originalIndex, updated)}
                   onDelete={() => handleDeleteDifficulty(diff.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -147,6 +153,8 @@ function DifficultiesDraftView({
                   difficulty={diff}
                   onEdit={(updated) => handleEditDifficulty(diff.originalIndex, updated)}
                   onDelete={() => handleDeleteDifficulty(diff.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -172,6 +180,8 @@ function DifficultiesDraftView({
                   difficulty={diff}
                   onEdit={(updated) => handleEditDifficulty(diff.originalIndex, updated)}
                   onDelete={() => handleDeleteDifficulty(diff.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -197,6 +207,8 @@ function DifficultiesDraftView({
                   difficulty={diff}
                   onEdit={(updated) => handleEditDifficulty(diff.originalIndex, updated)}
                   onDelete={() => handleDeleteDifficulty(diff.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -259,16 +271,51 @@ function EditableDifficultyCard({
   difficulty,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   difficulty: DifficultyItem & { originalIndex: number };
   onEdit: (diff: DifficultyItem) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [name, setName] = useState(difficulty.name);
   const [description, setDescription] = useState(difficulty.description);
   const [frequency, setFrequency] = useState<FrequencyLevel>(difficulty.frequency);
   const [emotionalImpact, setEmotionalImpact] = useState(difficulty.emotional_impact);
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName: "description",
+          fieldType: "difficulty",
+          currentValue: description,
+          context: `Difficulty: ${name}. Frequency: ${frequency}. Emotional impact: ${emotionalImpact}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setDescription(data.value);
+        onEdit({ name, description: data.value, frequency, emotional_impact: emotionalImpact });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   const frequencyConfig = {
     constant: {
@@ -374,17 +421,31 @@ function EditableDifficultyCard({
 
   return (
     <div className={cn("group relative p-5 rounded-xl border hover:shadow-md transition-all", config.bg)}>
-      {/* Edit/Delete buttons */}
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Always visible action buttons */}
+      <div className="absolute top-3 right-3 flex gap-1">
         <button
           onClick={() => setIsEditing(true)}
-          className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm"
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+          title="Edit"
         >
           <Pencil className="w-4 h-4" />
         </button>
         <button
+          onClick={handleRegenerate}
+          disabled={isRegenerating}
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+          title="Regenerate with AI"
+        >
+          {isRegenerating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+        </button>
+        <button
           onClick={onDelete}
-          className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm"
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+          title="Delete"
         >
           <Trash2 className="w-4 h-4" />
         </button>

@@ -7,7 +7,7 @@ import {
 } from "@/components/generation/GenerationPage";
 import { SegmentGenerationPage } from "@/components/generation/SegmentGenerationPage";
 import { PreferencesDraft, PreferenceItem, ImportanceLevel } from "@/types";
-import { Settings, AlertTriangle, ChevronUp, ChevronDown, Minus, Pencil, Trash2, Check, X, Plus } from "lucide-react";
+import { Settings, AlertTriangle, ChevronUp, ChevronDown, Minus, Pencil, Trash2, Check, X, Plus, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function PreferencesPage({
@@ -31,7 +31,7 @@ export default function PreferencesPage({
       icon={<Settings className="w-6 h-6" />}
       emptyStateMessage="Discover what your customers look for in products - features, quality standards, certifications, and more."
       renderDraft={(draft, onEdit) => (
-        <PreferencesDraftView draft={draft} onEdit={onEdit} />
+        <PreferencesDraftView draft={draft} onEdit={onEdit} projectId={projectId} segmentId={draft.segment_id} />
       )}
     />
   );
@@ -40,9 +40,13 @@ export default function PreferencesPage({
 function PreferencesDraftView({
   draft,
   onEdit,
+  projectId,
+  segmentId,
 }: {
   draft: PreferencesDraft;
   onEdit: (updates: Partial<PreferencesDraft>) => void;
+  projectId: string;
+  segmentId?: string;
 }) {
   const handleEditPreference = (index: number, updated: PreferenceItem) => {
     const prefs = [...(draft.preferences || [])];
@@ -99,6 +103,8 @@ function PreferencesDraftView({
                   preference={pref}
                   onEdit={(updated) => handleEditPreference(pref.originalIndex, updated)}
                   onDelete={() => handleDeletePreference(pref.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -124,6 +130,8 @@ function PreferencesDraftView({
                   preference={pref}
                   onEdit={(updated) => handleEditPreference(pref.originalIndex, updated)}
                   onDelete={() => handleDeletePreference(pref.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -149,6 +157,8 @@ function PreferencesDraftView({
                   preference={pref}
                   onEdit={(updated) => handleEditPreference(pref.originalIndex, updated)}
                   onDelete={() => handleDeletePreference(pref.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -174,6 +184,8 @@ function PreferencesDraftView({
                   preference={pref}
                   onEdit={(updated) => handleEditPreference(pref.originalIndex, updated)}
                   onDelete={() => handleDeletePreference(pref.originalIndex)}
+                  projectId={projectId}
+                  segmentId={segmentId}
                 />
               ))}
             </div>
@@ -237,16 +249,51 @@ function EditablePreferenceCard({
   preference,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   preference: PreferenceItem & { originalIndex: number };
   onEdit: (pref: PreferenceItem) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [name, setName] = useState(preference.name);
   const [description, setDescription] = useState(preference.description);
   const [importance, setImportance] = useState<ImportanceLevel>(preference.importance);
   const [reasoning, setReasoning] = useState(preference.reasoning);
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName: "description",
+          fieldType: "preference",
+          currentValue: description,
+          context: `Preference: ${name}. Importance: ${importance}. Reasoning: ${reasoning}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setDescription(data.value);
+        onEdit({ name, description: data.value, importance, reasoning });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   const importanceColors = {
     critical: "border-l-rose-500 bg-rose-50/50",
@@ -339,17 +386,31 @@ function EditablePreferenceCard({
         importanceColors[preference.importance]
       )}
     >
-      {/* Edit/Delete buttons */}
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Always visible action buttons */}
+      <div className="absolute top-3 right-3 flex gap-1">
         <button
           onClick={() => setIsEditing(true)}
-          className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm"
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+          title="Edit"
         >
           <Pencil className="w-4 h-4" />
         </button>
         <button
+          onClick={handleRegenerate}
+          disabled={isRegenerating}
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+          title="Regenerate with AI"
+        >
+          {isRegenerating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+        </button>
+        <button
           onClick={onDelete}
-          className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm"
+          className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+          title="Delete"
         >
           <Trash2 className="w-4 h-4" />
         </button>

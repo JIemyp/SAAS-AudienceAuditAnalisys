@@ -324,6 +324,7 @@ export interface JobItem {
 export interface JobsDraft {
   id: string;
   project_id: string;
+  segment_id?: string;
   functional_jobs: JobItem[];
   emotional_jobs: JobItem[];
   social_jobs: JobItem[];
@@ -351,6 +352,7 @@ export interface PreferenceItem {
 export interface PreferencesDraft {
   id: string;
   project_id: string;
+  segment_id?: string;
   preferences: PreferenceItem[];
   version: number;
   created_at: string;
@@ -374,6 +376,7 @@ export interface DifficultyItem {
 export interface DifficultiesDraft {
   id: string;
   project_id: string;
+  segment_id?: string;
   difficulties: DifficultyItem[];
   version: number;
   created_at: string;
@@ -398,6 +401,7 @@ export interface TriggerItem {
 export interface TriggersDraft {
   id: string;
   project_id: string;
+  segment_id?: string;
   triggers: TriggerItem[];
   version: number;
   created_at: string;
@@ -606,6 +610,7 @@ export interface BuyingSignal {
 export interface CanvasDraft {
   id: string;
   project_id: string;
+  segment_id?: string;
   pain_id: string;
   emotional_aspects: EmotionalAspect[];
   behavioral_patterns: BehavioralPattern[];

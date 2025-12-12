@@ -510,7 +510,7 @@ export default function CanvasPage({
                 </CardContent>
               </Card>
             ) : displayCanvasDraft ? (
-              <CanvasDraftView draft={displayCanvasDraft} onEdit={handleEditDraft} pains={globalPains} />
+              <CanvasDraftView draft={displayCanvasDraft} onEdit={handleEditDraft} pains={globalPains} projectId={projectId} segmentId={selectedSegmentId || undefined} />
             ) : (
               <div className="flex items-center justify-center py-24">
                 <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
@@ -559,10 +559,14 @@ function CanvasDraftView({
   draft,
   onEdit,
   pains = [],
+  projectId,
+  segmentId,
 }: {
   draft: CanvasDraft;
   onEdit: (updates: Partial<CanvasDraft>) => void;
   pains?: PainInitial[];
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [expandedSections, setExpandedSections] = useState<string[]>(["emotional", "behavioral", "buying"]);
 
@@ -666,6 +670,8 @@ function CanvasDraftView({
               index={index}
               onEdit={(updated) => handleEditEmotional(index, updated)}
               onDelete={() => handleDeleteEmotional(index)}
+              projectId={projectId}
+              segmentId={segmentId}
             />
           ))}
         </div>
@@ -687,6 +693,8 @@ function CanvasDraftView({
               index={index}
               onEdit={(updated) => handleEditBehavioral(index, updated)}
               onDelete={() => handleDeleteBehavioral(index)}
+              projectId={projectId}
+              segmentId={segmentId}
             />
           ))}
         </div>
@@ -708,6 +716,8 @@ function CanvasDraftView({
               index={index}
               onEdit={(updated) => handleEditBuying(index, updated)}
               onDelete={() => handleDeleteBuying(index)}
+              projectId={projectId}
+              segmentId={segmentId}
             />
           ))}
         </div>
@@ -814,17 +824,52 @@ function EditableEmotionalAspectCard({
   index,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   aspect: EmotionalAspect;
   index: number;
   onEdit: (updated: EmotionalAspect) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [emotion, setEmotion] = useState(aspect.emotion);
   const [intensity, setIntensity] = useState(aspect.intensity);
   const [description, setDescription] = useState(aspect.description);
   const [selfImageImpact, setSelfImageImpact] = useState(aspect.self_image_impact);
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName: "description",
+          fieldType: "emotional_aspect",
+          currentValue: description,
+          context: `Emotion: ${emotion}. Intensity: ${intensity}. Self-image impact: ${selfImageImpact}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setDescription(data.value);
+        onEdit({ ...aspect, description: data.value });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   const handleSave = () => {
     onEdit({
@@ -848,16 +893,30 @@ function EditableEmotionalAspectCard({
   return (
     <div className="group relative p-5 bg-linear-to-br from-rose-50 to-pink-50 border border-rose-100 rounded-xl">
       {!isEditing && (
-        <div className="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <div className="absolute -right-2 -top-2 flex gap-1">
           <button
             onClick={() => setIsEditing(true)}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm border"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+            title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
+            onClick={handleRegenerate}
+            disabled={isRegenerating}
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+            title="Regenerate with AI"
+          >
+            {isRegenerating ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
             onClick={onDelete}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+            title="Delete"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -973,18 +1032,53 @@ function EditableBehavioralPatternCard({
   index,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   pattern: BehavioralPattern;
   index: number;
   onEdit: (updated: BehavioralPattern) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [patternName, setPatternName] = useState(pattern.pattern);
   const [frequency, setFrequency] = useState(pattern.frequency);
   const [description, setDescription] = useState(pattern.description);
   const [copingMechanism, setCopingMechanism] = useState(pattern.coping_mechanism);
   const [avoidance, setAvoidance] = useState(pattern.avoidance);
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName: "description",
+          fieldType: "behavioral_pattern",
+          currentValue: description,
+          context: `Pattern: ${patternName}. Frequency: ${frequency}. Coping: ${copingMechanism}. Avoidance: ${avoidance}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setDescription(data.value);
+        onEdit({ ...pattern, description: data.value });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   const handleSave = () => {
     onEdit({
@@ -1010,16 +1104,30 @@ function EditableBehavioralPatternCard({
   return (
     <div className="group relative p-5 bg-linear-to-br from-purple-50 to-violet-50 border border-purple-100 rounded-xl">
       {!isEditing && (
-        <div className="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <div className="absolute -right-2 -top-2 flex gap-1">
           <button
             onClick={() => setIsEditing(true)}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm border"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+            title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
+            onClick={handleRegenerate}
+            disabled={isRegenerating}
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+            title="Regenerate with AI"
+          >
+            {isRegenerating ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
             onClick={onDelete}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+            title="Delete"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -1126,17 +1234,52 @@ function EditableBuyingSignalCard({
   index,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   signal: BuyingSignal;
   index: number;
   onEdit: (updated: BuyingSignal) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [signalName, setSignalName] = useState(signal.signal);
   const [readinessLevel, setReadinessLevel] = useState(signal.readiness_level);
   const [messagingAngle, setMessagingAngle] = useState(signal.messaging_angle);
   const [proofNeeded, setProofNeeded] = useState(signal.proof_needed);
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName: "messaging_angle",
+          fieldType: "buying_signal",
+          currentValue: messagingAngle,
+          context: `Signal: ${signalName}. Readiness: ${readinessLevel}. Proof needed: ${proofNeeded}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setMessagingAngle(data.value);
+        onEdit({ ...signal, messaging_angle: data.value });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   const readinessColors = {
     high: "bg-emerald-100 text-emerald-700",
@@ -1168,16 +1311,30 @@ function EditableBuyingSignalCard({
   return (
     <div className="group relative p-5 bg-linear-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl">
       {!isEditing && (
-        <div className="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <div className="absolute -right-2 -top-2 flex gap-1">
           <button
             onClick={() => setIsEditing(true)}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm border"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+            title="Edit"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
+            onClick={handleRegenerate}
+            disabled={isRegenerating}
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+            title="Regenerate with AI"
+          >
+            {isRegenerating ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
             onClick={onDelete}
-            className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
+            className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+            title="Delete"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>

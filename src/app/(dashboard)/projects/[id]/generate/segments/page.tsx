@@ -58,6 +58,9 @@ export default function SegmentsPage({
     enabled: currentVersionSegments.length > 0,
   });
 
+  // Use translated content if available, otherwise fall back to original
+  const displaySegments = (translatedContent as SegmentDraft[] | null) || currentVersionSegments;
+
   // Fetch segments grouped by version
   useEffect(() => {
     fetchSegments();
@@ -309,6 +312,16 @@ export default function SegmentsPage({
   const segments = currentVersionData?.segments || [];
   const hasUnsavedChanges = Object.keys(editedSegments).length > 0;
 
+  // Create a map from original segment id to translated segment for display
+  const translatedSegmentMap = new Map<string, SegmentDraft>();
+  if (displaySegments && displaySegments !== currentVersionSegments) {
+    displaySegments.forEach((seg, idx) => {
+      if (segments[idx]) {
+        translatedSegmentMap.set(segments[idx].id, seg);
+      }
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -485,18 +498,23 @@ export default function SegmentsPage({
 
             {/* Segments List */}
             <div className="space-y-4">
-              {segments.map((segment, index) => (
-                <SegmentCard
-                  key={segment.id}
-                  segment={segment}
-                  index={index}
-                  isExpanded={expandedSegments.includes(segment.id)}
-                  onToggle={() => toggleSegment(segment.id)}
-                  onEdit={(updates) => handleEditSegment(segment.id, updates)}
-                  onDelete={() => handleDeleteSegment(segment.id)}
-                  canDelete={segments.length > 3}
-                />
-              ))}
+              {segments.map((segment, index) => {
+                const translatedSegment = translatedSegmentMap.get(segment.id);
+                return (
+                  <SegmentCard
+                    key={segment.id}
+                    segment={segment}
+                    translatedSegment={translatedSegment}
+                    index={index}
+                    isExpanded={expandedSegments.includes(segment.id)}
+                    onToggle={() => toggleSegment(segment.id)}
+                    onEdit={(updates) => handleEditSegment(segment.id, updates)}
+                    onDelete={() => handleDeleteSegment(segment.id)}
+                    canDelete={segments.length > 3}
+                    projectId={projectId}
+                  />
+                );
+              })}
               <AddSegmentForm onAdd={handleAddSegment} version={selectedVersion || 1} />
             </div>
           </motion.div>
@@ -538,25 +556,65 @@ export default function SegmentsPage({
 
 function SegmentCard({
   segment,
+  translatedSegment,
   index,
   isExpanded,
   onToggle,
   onEdit,
   onDelete,
   canDelete,
+  projectId,
 }: {
   segment: SegmentDraft;
+  translatedSegment?: SegmentDraft;
   index: number;
   isExpanded: boolean;
   onToggle: () => void;
   onEdit: (updates: Partial<SegmentDraft>) => void;
   onDelete: () => void;
   canDelete: boolean;
+  projectId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [name, setName] = useState(segment.name);
   const [description, setDescription] = useState(segment.description);
   const [sociodemographics, setSociodemographics] = useState(segment.sociodemographics);
+
+  // Use translated values for display, original for editing
+  const displayName = translatedSegment?.name || segment.name;
+  const displayDescription = translatedSegment?.description || segment.description;
+  const displaySociodemographics = translatedSegment?.sociodemographics || segment.sociodemographics;
+
+  const handleRegenerate = async () => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId: segment.id,
+          fieldName: "description",
+          fieldType: "segment",
+          currentValue: description,
+          context: `Segment: ${name}. Sociodemographics: ${sociodemographics}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        setDescription(data.value);
+        onEdit({ description: data.value });
+      }
+    } catch (err) {
+      console.error("Failed to regenerate:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
 
   const colors = [
     "from-blue-500 to-indigo-500",
@@ -608,24 +666,39 @@ function SegmentCard({
             {index + 1}
           </div>
           <div className="text-left">
-            <h3 className="font-semibold text-slate-900">{segment.name}</h3>
+            <h3 className="font-semibold text-slate-900">{displayName}</h3>
             <p className="text-sm text-slate-500 line-clamp-1">
-              {segment.description?.substring(0, 100)}...
+              {displayDescription?.substring(0, 100)}...
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          {/* Always visible action buttons */}
+          <div className="flex gap-1">
             <button
               onClick={() => setIsEditing(true)}
-              className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm border"
+              className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+              title="Edit"
             >
               <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+              title="Regenerate with AI"
+            >
+              {isRegenerating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
             </button>
             {canDelete && (
               <button
                 onClick={onDelete}
-                className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
+                className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+                title="Delete"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -708,7 +781,7 @@ function SegmentCard({
                       Full Description
                     </span>
                     <p className="mt-2 text-slate-700 leading-relaxed">
-                      {segment.description}
+                      {displayDescription}
                     </p>
                   </div>
                   <div className="p-4 bg-slate-50 rounded-xl">
@@ -718,7 +791,7 @@ function SegmentCard({
                         Sociodemographics
                       </span>
                     </div>
-                    <p className="text-sm text-slate-700">{segment.sociodemographics}</p>
+                    <p className="text-sm text-slate-700">{displaySociodemographics}</p>
                   </div>
                 </div>
               )}

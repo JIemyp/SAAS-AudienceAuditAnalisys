@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { PainDraft, Segment } from "@/types";
 import { AlertCircle, ChevronDown, ChevronUp, ChevronRight, Flame, Zap, Quote, Pencil, Trash2, Check, X, Plus, Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -663,6 +664,8 @@ export default function PainsPage({
               pains={painsForView}
               onEditPain={(id, updates) => handleEditPain(id, updates as Partial<PainDraftRow>)}
               onDeletePain={handleDeletePain}
+              projectId={projectId}
+              segmentId={selectedSegmentId}
             />
           </motion.div>
         ) : currentSegmentStatus?.isApproved ? (
@@ -835,10 +838,14 @@ function PainsDraftView({
   pains,
   onEditPain,
   onDeletePain,
+  projectId,
+  segmentId,
 }: {
   pains: PainDraft[];
   onEditPain: (id: string, updates: Partial<PainDraft>) => void;
   onDeletePain: (id: string) => void;
+  projectId: string;
+  segmentId: string | null;
 }) {
   const [expandedPains, setExpandedPains] = useState<string[]>([]);
 
@@ -905,6 +912,8 @@ function PainsDraftView({
             onToggle={() => togglePain(pain.id)}
             onEdit={(updated) => handleEditPain(index, updated)}
             onDelete={() => handleDeletePain(index)}
+            projectId={projectId}
+            segmentId={segmentId || undefined}
           />
         ))}
       </div>
@@ -919,6 +928,8 @@ function EditablePainCard({
   onToggle,
   onEdit,
   onDelete,
+  projectId,
+  segmentId,
 }: {
   pain: PainDraft;
   index: number;
@@ -926,8 +937,11 @@ function EditablePainCard({
   onToggle: () => void;
   onEdit: (pain: PainDraft) => void;
   onDelete: () => void;
+  projectId?: string;
+  segmentId?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [name, setName] = useState(pain.name);
   const [description, setDescription] = useState(pain.description);
   const [deepTriggers, setDeepTriggers] = useState(pain.deep_triggers || []);
@@ -944,6 +958,44 @@ function EditablePainCard({
     setDeepTriggers(pain.deep_triggers || []);
     setExamples(pain.examples || []);
     setIsEditing(false);
+  };
+
+  const handleRegenerateField = async (fieldName: string, fieldType: string) => {
+    if (!projectId) return;
+
+    try {
+      setIsRegenerating(true);
+      const currentValue = fieldName === 'name' ? name :
+                          fieldName === 'description' ? description : '';
+
+      const res = await fetch("/api/generate/field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId,
+          fieldName,
+          fieldType: "pain",
+          currentValue,
+          context: `Pain point: ${name}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.value) {
+        if (fieldName === 'name') {
+          setName(data.value);
+          onEdit({ ...pain, name: data.value, description, deep_triggers: deepTriggers, examples });
+        } else if (fieldName === 'description') {
+          setDescription(data.value);
+          onEdit({ ...pain, name, description: data.value, deep_triggers: deepTriggers, examples });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to regenerate field:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   return (
@@ -967,16 +1019,31 @@ function EditablePainCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          {/* Always visible action buttons */}
+          <div className="flex gap-1">
             <button
-              onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-              className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-slate-100 hover:text-blue-600 shadow-sm border"
+              onClick={(e) => { e.stopPropagation(); setIsEditing(true); onToggle(); }}
+              className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 border border-slate-200 transition-colors"
+              title="Edit"
             >
               <Pencil className="w-4 h-4" />
             </button>
             <button
+              onClick={(e) => { e.stopPropagation(); handleRegenerateField('description', 'pain'); }}
+              disabled={isRegenerating}
+              className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-purple-100 hover:text-purple-600 border border-slate-200 transition-colors disabled:opacity-50"
+              title="Regenerate with AI"
+            >
+              {isRegenerating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+            </button>
+            <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1.5 bg-white text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 shadow-sm border"
+              className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 transition-colors"
+              title="Delete"
             >
               <Trash2 className="w-4 h-4" />
             </button>
