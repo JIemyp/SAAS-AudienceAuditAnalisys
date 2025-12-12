@@ -566,36 +566,37 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Title and Description */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between"
+        className="flex items-start gap-4"
       >
-        <div className="flex items-start gap-4">
-          {icon && (
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
-              {icon}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              {title}
-            </h1>
-            <p className="mt-1 text-slate-500 max-w-2xl">
-              {description}
-            </p>
+        {icon && (
+          <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg shadow-blue-500/20">
+            {icon}
           </div>
+        )}
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {title}
+          </h1>
+          <p className="mt-1 text-slate-500">
+            {description}
+          </p>
         </div>
+      </motion.div>
+
+      {/* Action Buttons Row */}
+      <div className="flex items-center justify-between">
+        {/* Language Toggle */}
+        <LanguageToggle
+          currentLanguage={language}
+          onLanguageChange={setLanguage}
+          isLoading={isTranslating}
+        />
 
         <div className="flex items-center gap-3">
-          {/* Language Toggle */}
-          <LanguageToggle
-            currentLanguage={language}
-            onLanguageChange={setLanguage}
-            isLoading={isTranslating}
-          />
-
           {/* Generate All button - show when there are segments without data */}
           {(() => {
             const segmentsWithoutData = segmentStatuses.filter(s => !s.hasData && !s.isApproved).length;
@@ -606,7 +607,7 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
                   onClick={handleGenerateAll}
                   disabled={isGenerating}
                   isLoading={isGenerating}
-                  className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                  className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                 >
                   <Sparkles className="w-4 h-4" />
                   Generate All ({segmentsWithoutData})
@@ -637,7 +638,7 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
                   onClick={handleApproveAll}
                   disabled={isApproving}
                   isLoading={isApproving}
-                  className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                  className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-400"
                 >
                   <Check className="w-4 h-4" />
                   Approve All ({unapprovedWithData})
@@ -703,7 +704,7 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
             );
           })()}
         </div>
-      </motion.div>
+      </div>
 
       {/* Segment Tabs */}
       <SegmentTabs
