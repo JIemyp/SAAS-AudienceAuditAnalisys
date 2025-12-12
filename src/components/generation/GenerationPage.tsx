@@ -87,10 +87,19 @@ export function GenerationPage<T extends { id: string }>({
 
   // Language translation
   const { language, setLanguage } = useLanguage();
-  const { translatedContent, isTranslating } = useTranslation({
+  const { translatedContent, isTranslating, error: translationError } = useTranslation({
     content: drafts,
     language,
     enabled: drafts.length > 0,
+  });
+
+  // Debug translation
+  console.log('[GenerationPage] Translation debug:', {
+    language,
+    draftsCount: drafts.length,
+    hasTranslatedContent: !!translatedContent,
+    isTranslating,
+    translationError,
   });
 
   // Use translated drafts if available
