@@ -307,7 +307,8 @@ function AwarenessLevelCard({
     },
   };
 
-  const c = config[level];
+  // Fallback to 'unaware' if level is not recognized (e.g. translated value)
+  const c = config[level] || config.unaware;
 
   const handleSelect = (newLevel: AwarenessLevel) => {
     onEdit({ awareness_level: newLevel });
