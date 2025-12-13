@@ -7,18 +7,6 @@ import { ContentLanguage } from '@/types';
 const CACHE_PREFIX = 'translation_cache_';
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-// Generate hash for content
-function hashContent(content: unknown): string {
-  const str = JSON.stringify(content);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
-}
-
 interface UseTranslationOptions {
   content: unknown;
   language: ContentLanguage;
@@ -68,7 +56,12 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
       if (cached) {
         const { translated, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_TTL) {
-          console.log('[useTranslation] Using cached translation');
+          console.log('[useTranslation] Using cached translation:', {
+            cacheAge: Math.round((Date.now() - timestamp) / 1000 / 60) + ' minutes',
+            sample: Array.isArray(translated) && translated[0]
+              ? JSON.stringify(translated[0]).substring(0, 200)
+              : 'not array',
+          });
           setTranslatedContent(translated);
           return;
         }
