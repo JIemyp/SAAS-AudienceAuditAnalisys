@@ -368,7 +368,7 @@ export default function SegmentsFinalPage({
 
             {/* Segments List */}
             <div className="space-y-4">
-              {segments.map((segment, index) => (
+              {displaySegments.map((segment, index) => (
                 <SegmentFinalCard
                   key={segment.id}
                   segment={segment}
