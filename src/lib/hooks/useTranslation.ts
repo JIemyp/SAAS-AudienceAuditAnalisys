@@ -54,11 +54,13 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
 
     // Skip if disabled or English or no content
     if (!enabled || language === 'en' || !currentContent || !contentHash) {
+      console.log('[useTranslation] Skipping translation:', { enabled, language, hasContent: !!currentContent, contentHash });
       setTranslatedContent(null); // null means "use original content"
       return;
     }
 
     const cacheKey = `${CACHE_PREFIX}${contentHash}_${language}`;
+    console.log('[useTranslation] Starting translation:', { language, cacheKey, contentLength: JSON.stringify(currentContent).length });
 
     // Check localStorage cache
     try {
@@ -66,12 +68,14 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
       if (cached) {
         const { translated, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_TTL) {
+          console.log('[useTranslation] Using cached translation');
           setTranslatedContent(translated);
           return;
         }
+        console.log('[useTranslation] Cache expired, fetching new translation');
       }
-    } catch {
-      // localStorage might be unavailable
+    } catch (e) {
+      console.warn('[useTranslation] localStorage error:', e);
     }
 
     // Fetch translation from API
@@ -79,6 +83,7 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
     setError(null);
 
     try {
+      console.log('[useTranslation] Calling /api/translate...');
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,10 +91,13 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
       });
 
       if (!res.ok) {
-        throw new Error('Translation failed');
+        const errorText = await res.text();
+        console.error('[useTranslation] API error:', res.status, errorText);
+        throw new Error(`Translation failed: ${res.status}`);
       }
 
       const data = await res.json();
+      console.log('[useTranslation] Translation successful:', { hasTranslated: !!data.translated });
 
       // Cache the result
       try {
@@ -97,12 +105,13 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
           translated: data.translated,
           timestamp: Date.now(),
         }));
-      } catch {
-        // localStorage might be full or unavailable
+      } catch (e) {
+        console.warn('[useTranslation] Failed to cache:', e);
       }
 
       setTranslatedContent(data.translated);
     } catch (err) {
+      console.error('[useTranslation] Translation error:', err);
       setError(err instanceof Error ? err.message : 'Translation failed');
       setTranslatedContent(null); // null means "use original content" as fallback
     } finally {
