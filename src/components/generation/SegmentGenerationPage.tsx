@@ -98,25 +98,31 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   const displayDrafts = (translatedContent as T[]) || drafts;
   const selectedDraft = displayDrafts.find(d => d.id === selectedDraftId);
 
-  // Debug: log translation state with FULL comparison
-  console.log('[SegmentGenerationPage] Translation state FULL DEBUG:', {
+  // Debug: log translation - show actual keys and first text value
+  const getFirstTextField = (obj: unknown): string => {
+    if (!obj || typeof obj !== 'object') return 'not object';
+    const o = obj as Record<string, unknown>;
+    // Find first array property that has objects with text fields
+    for (const key of Object.keys(o)) {
+      if (Array.isArray(o[key]) && o[key].length > 0) {
+        const firstItem = o[key][0] as Record<string, unknown>;
+        // Return first string field from first item
+        for (const itemKey of Object.keys(firstItem)) {
+          if (typeof firstItem[itemKey] === 'string' && firstItem[itemKey].length > 10) {
+            return `${key}[0].${itemKey}: "${(firstItem[itemKey] as string).substring(0, 50)}..."`;
+          }
+        }
+      }
+    }
+    return 'no text field found';
+  };
+
+  console.log('[SegmentGenerationPage] TRANSLATION DEBUG:', {
     language,
-    hasTranslatedContent: !!translatedContent,
-    isTranslating,
-    draftsCount: drafts.length,
-    // Check if translated content is actually different
-    areIdentical: translatedContent === drafts,
-    // Sample first draft's key field if PreferencesDraft
-    originalSample: drafts[0] && 'preferences' in drafts[0]
-      ? (drafts[0] as { preferences?: Array<{ name?: string }> }).preferences?.[0]?.name
-      : drafts[0] && 'jobs' in drafts[0]
-        ? (drafts[0] as { jobs?: Array<{ title?: string }> }).jobs?.[0]?.title
-        : 'unknown structure',
-    translatedSample: translatedContent && Array.isArray(translatedContent) && translatedContent[0] && 'preferences' in translatedContent[0]
-      ? (translatedContent[0] as { preferences?: Array<{ name?: string }> }).preferences?.[0]?.name
-      : translatedContent && Array.isArray(translatedContent) && translatedContent[0] && 'jobs' in translatedContent[0]
-        ? (translatedContent[0] as { jobs?: Array<{ title?: string }> }).jobs?.[0]?.title
-        : 'no translated or different structure',
+    hasTranslated: !!translatedContent,
+    originalKeys: drafts[0] ? Object.keys(drafts[0]).filter(k => !['id', 'project_id', 'segment_id', 'created_at'].includes(k)) : [],
+    originalText: getFirstTextField(drafts[0]),
+    translatedText: getFirstTextField(translatedContent && Array.isArray(translatedContent) ? translatedContent[0] : null),
   });
 
   // Fetch segments on mount
