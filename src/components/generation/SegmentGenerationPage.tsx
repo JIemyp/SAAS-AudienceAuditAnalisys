@@ -98,6 +98,18 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   const displayDrafts = (translatedContent as T[]) || drafts;
   const selectedDraft = displayDrafts.find(d => d.id === selectedDraftId);
 
+  // DEBUG: Check if selectedDraft is from translated or original
+  console.log('[SegmentGenerationPage] RENDER DEBUG:', {
+    selectedDraftId,
+    displayDraftsIds: displayDrafts.map(d => d.id),
+    foundSelectedDraft: !!selectedDraft,
+    selectedDraftSource: translatedContent ? 'translated' : 'original',
+    // Check if preferences exist and show first name
+    selectedDraftFirstPref: selectedDraft && 'preferences' in selectedDraft
+      ? (selectedDraft as { preferences?: Array<{ name?: string }> }).preferences?.[0]?.name?.substring(0, 40)
+      : 'no preferences',
+  });
+
   // Debug: log translation - show actual keys and first text value
   const getFirstTextField = (obj: unknown): string => {
     if (!obj || typeof obj !== 'object') return 'not object';
