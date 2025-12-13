@@ -97,7 +97,15 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
       }
 
       const data = await res.json();
-      console.log('[useTranslation] Translation successful:', { hasTranslated: !!data.translated });
+      console.log('[useTranslation] Translation API response:', {
+        hasTranslated: !!data.translated,
+        translatedType: data.translated ? typeof data.translated : 'null',
+        isArray: Array.isArray(data.translated),
+        // Show sample of first item if array
+        sample: Array.isArray(data.translated) && data.translated[0]
+          ? JSON.stringify(data.translated[0]).substring(0, 300)
+          : 'not array or empty',
+      });
 
       // Cache the result
       try {

@@ -98,14 +98,25 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   const displayDrafts = (translatedContent as T[]) || drafts;
   const selectedDraft = displayDrafts.find(d => d.id === selectedDraftId);
 
-  // Debug: log translation state
-  console.log('[SegmentGenerationPage] Translation state:', {
+  // Debug: log translation state with FULL comparison
+  console.log('[SegmentGenerationPage] Translation state FULL DEBUG:', {
     language,
     hasTranslatedContent: !!translatedContent,
-    translatedContentType: translatedContent ? typeof translatedContent : 'null',
-    isArray: Array.isArray(translatedContent),
-    displayDraftsLength: displayDrafts.length,
-    usingTranslated: translatedContent !== null,
+    isTranslating,
+    draftsCount: drafts.length,
+    // Check if translated content is actually different
+    areIdentical: translatedContent === drafts,
+    // Sample first draft's key field if PreferencesDraft
+    originalSample: drafts[0] && 'preferences' in drafts[0]
+      ? (drafts[0] as { preferences?: Array<{ name?: string }> }).preferences?.[0]?.name
+      : drafts[0] && 'jobs' in drafts[0]
+        ? (drafts[0] as { jobs?: Array<{ title?: string }> }).jobs?.[0]?.title
+        : 'unknown structure',
+    translatedSample: translatedContent && Array.isArray(translatedContent) && translatedContent[0] && 'preferences' in translatedContent[0]
+      ? (translatedContent[0] as { preferences?: Array<{ name?: string }> }).preferences?.[0]?.name
+      : translatedContent && Array.isArray(translatedContent) && translatedContent[0] && 'jobs' in translatedContent[0]
+        ? (translatedContent[0] as { jobs?: Array<{ title?: string }> }).jobs?.[0]?.title
+        : 'no translated or different structure',
   });
 
   // Fetch segments on mount
