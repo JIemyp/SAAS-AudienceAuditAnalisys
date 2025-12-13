@@ -1,0 +1,39 @@
+{
+  "env": {
+    "CODEX_PLAN_TOOL_REQUIRED": "true",
+    "CODEX_BATCH_OPERATIONS": "true",
+    "CODEX_FS_SAFE_ROOTS": [
+      "/src",
+      "/docs",
+      "/scripts",
+      "/supabase",
+      "/tests",
+      "/coordination",
+      "/memory"
+    ]
+  },
+  "commands": {
+    "preferred": [
+      "rg",
+      "git status",
+      "git diff",
+      "npm run lint",
+      "npm run test",
+      "npm run typecheck",
+      "npx tsc --noEmit"
+    ],
+    "discouraged": [
+      "rm -rf",
+      "git reset --hard",
+      "sed -i ''"
+    ]
+  },
+  "qaChecklist": [
+    "Plan aligns with IMPLEMENTATION-PLAN-V4.md checkpoints",
+    "TypeScript compilation ok (npx tsc --noEmit) or documented skip",
+    "Tests/lint/build run when practical",
+    "Security review: auth & secrets protected",
+    "Docs/comments updated when behavior changes"
+  ],
+  "notes": "Refer to docs/CODEX.md for narrative guidance. This file mirrors .claude/settings.json but tailored for Codex CLI expectations."
+}

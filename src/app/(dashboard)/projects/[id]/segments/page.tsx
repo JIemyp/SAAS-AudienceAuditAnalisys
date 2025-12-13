@@ -25,6 +25,18 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type SegmentRecord = Partial<Segment>;
+
+function normalizeSegments(records?: SegmentRecord[]): Segment[] {
+    return (records || []).map((segment) => ({
+        ...segment,
+        order_index: segment?.order_index ?? segment?.segment_index ?? 0,
+        needs: segment?.needs ?? [],
+        triggers: segment?.triggers ?? [],
+        core_values: segment?.core_values ?? [],
+    })) as Segment[];
+}
+
 interface SegmentWithPains extends Segment {
     pains: Pain[];
 }
@@ -55,19 +67,32 @@ export default function SegmentsPage({ params }: { params: Promise<{ id: string 
     const fetchSegments = async () => {
         try {
             const { data: segmentsData, error: segmentsError } = await supabase
-                .from("audience_segments")
+                .from("segments")
                 .select("*")
                 .eq("project_id", id)
                 .order("order_index", { ascending: true });
 
             if (segmentsError) throw segmentsError;
 
-            const segmentIds = segmentsData?.map((s) => s.id) || [];
+            let normalizedSegments = normalizeSegments(segmentsData);
+
+            if (normalizedSegments.length === 0) {
+                const { data: finalSegments, error: finalError } = await supabase
+                    .from("segments_final")
+                    .select("*")
+                    .eq("project_id", id)
+                    .order("segment_index", { ascending: true });
+
+                if (finalError) throw finalError;
+                normalizedSegments = normalizeSegments(finalSegments || []);
+            }
+
+            const segmentIds = normalizedSegments.map((s) => s.id);
 
             let painsData: Pain[] = [];
             if (segmentIds.length > 0) {
                 const { data, error: painsError } = await supabase
-                    .from("pains")
+                    .from("pains_initial")
                     .select("*")
                     .in("segment_id", segmentIds);
 
@@ -75,7 +100,7 @@ export default function SegmentsPage({ params }: { params: Promise<{ id: string 
                 painsData = data || [];
             }
 
-            const segmentsWithPains: SegmentWithPains[] = (segmentsData || []).map((segment) => ({
+            const segmentsWithPains: SegmentWithPains[] = normalizedSegments.map((segment) => ({
                 ...segment,
                 pains: painsData.filter((pain) => pain.segment_id === segment.id),
             }));

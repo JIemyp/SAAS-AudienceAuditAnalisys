@@ -11,7 +11,7 @@ export async function GET(
         const supabase = await createClient();
 
         const { data, error } = await supabase
-            .from("pains")
+            .from("pains_initial")
             .select("*")
             .eq("id", id)
             .single();
@@ -67,7 +67,7 @@ export async function PATCH(
         }
 
         const { data, error } = await supabase
-            .from("pains")
+            .from("pains_initial")
             .update(updateData)
             .eq("id", id)
             .select()
@@ -100,7 +100,7 @@ export async function DELETE(
         const supabase = await createClient();
 
         const { error } = await supabase
-            .from("pains")
+            .from("pains_initial")
             .delete()
             .eq("id", id);
 

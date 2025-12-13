@@ -106,6 +106,18 @@ export async function POST(request: NextRequest) {
         .eq("id", painId)
         .single();
       if (!pain) throw new ApiError("Pain not found", 404);
+      const { data: rankingCheck } = await supabase
+        .from("pains_ranking")
+        .select("is_top_pain")
+        .eq("project_id", projectId)
+        .eq("segment_id", segmentId)
+        .eq("pain_id", painId)
+        .single();
+
+      if (!rankingCheck || rankingCheck.is_top_pain !== true) {
+        throw new ApiError("This pain is not selected for Canvas. Mark it as a TOP pain first.", 400);
+      }
+
       painsToProcess = [pain as PainInitial];
     } else {
       // Get TOP pain IDs from pains_ranking
@@ -113,7 +125,8 @@ export async function POST(request: NextRequest) {
         .from("pains_ranking")
         .select("pain_id")
         .eq("project_id", projectId)
-        .eq("segment_id", segmentId);
+        .eq("segment_id", segmentId)
+        .eq("is_top_pain", true);
 
       if (!rankings || rankings.length === 0) {
         throw new ApiError("No TOP pains found for this segment. Complete pains ranking first.", 400);

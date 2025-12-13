@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: pains } = await supabase
-      .from("pains")
+      .from("pains_initial")
       .select("*")
       .eq("project_id", projectId)
       .eq("segment_id", segmentId);

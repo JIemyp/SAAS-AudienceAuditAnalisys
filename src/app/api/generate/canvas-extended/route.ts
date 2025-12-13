@@ -50,42 +50,47 @@ export async function POST(request: NextRequest) {
 
     if (segmentError || !segment) throw new ApiError("Segment not found", 404);
 
-    // Get segment details (optional but enriches prompt)
+    // Get segment details (REQUIRED)
     const { data: segmentDetails } = await supabase
       .from("segment_details")
       .select("*")
       .eq("segment_id", segmentId)
       .single();
+    if (!segmentDetails) throw new ApiError("Segment details not found. Complete segment details first.", 400);
 
-    // Get jobs (optional)
+    // Get jobs (REQUIRED)
     const { data: jobs } = await supabase
       .from("jobs")
       .select("*")
       .eq("segment_id", segmentId)
       .single();
+    if (!jobs) throw new ApiError("Jobs not found. Complete jobs analysis first.", 400);
 
-    // Get triggers (optional)
+    // Get triggers (REQUIRED)
     const { data: triggers } = await supabase
       .from("triggers")
       .select("*")
       .eq("segment_id", segmentId)
       .single();
+    if (!triggers) throw new ApiError("Triggers not found. Complete triggers analysis first.", 400);
 
-    // Get preferences (optional - for full cascade context)
+    // Get preferences (REQUIRED)
     const { data: preferences } = await supabase
       .from("preferences")
       .select("*")
       .eq("segment_id", segmentId)
       .single();
+    if (!preferences) throw new ApiError("Preferences not found. Complete preferences analysis first.", 400);
 
-    // Get difficulties (optional - for full cascade context)
+    // Get difficulties (REQUIRED)
     const { data: difficulties } = await supabase
       .from("difficulties")
       .select("*")
       .eq("segment_id", segmentId)
       .single();
+    if (!difficulties) throw new ApiError("Difficulties not found. Complete difficulties analysis first.", 400);
 
-    // Get portrait_final (for audience context)
+    // Get portrait_final (REQUIRED)
     const { data: portraitFinal } = await supabase
       .from("portrait_final")
       .select("*")
@@ -93,6 +98,7 @@ export async function POST(request: NextRequest) {
       .order("approved_at", { ascending: false })
       .limit(1)
       .single();
+    if (!portraitFinal) throw new ApiError("Portrait final not found. Complete portrait analysis first.", 400);
 
     // Determine which pains to process
     let painsToProcess: { pain: PainInitial; canvas: Canvas }[] = [];
@@ -107,6 +113,18 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (painError || !pain) throw new ApiError("Pain not found", 404);
+
+      const { data: rankingCheck } = await supabase
+        .from("pains_ranking")
+        .select("is_top_pain")
+        .eq("project_id", projectId)
+        .eq("segment_id", segmentId)
+        .eq("pain_id", painId)
+        .single();
+
+      if (!rankingCheck || rankingCheck.is_top_pain !== true) {
+        throw new ApiError("This pain is not selected for Canvas. Mark it as a TOP pain first.", 400);
+      }
 
       // Get canvas for this pain (try approved first, fallback to draft)
       let canvas = null;
@@ -227,12 +245,12 @@ export async function POST(request: NextRequest) {
       const { systemPrompt, userPrompt } = buildCanvasExtendedPromptV2({
         onboarding,
         segment: segment as Segment,
-        segmentDetails: segmentDetails as SegmentDetails | null,
-        jobs: jobs as Jobs | null,
-        triggers: triggers as Triggers | null,
-        preferences: preferences as Preferences | null,
-        difficulties: difficulties as Difficulties | null,
-        portraitFinal: portraitFinal as PortraitFinal | null,
+        segmentDetails: segmentDetails as SegmentDetails,
+        jobs: jobs as Jobs,
+        triggers: triggers as Triggers,
+        preferences: preferences as Preferences,
+        difficulties: difficulties as Difficulties,
+        portraitFinal: portraitFinal as PortraitFinal,
         pain,
         canvas,
       });

@@ -176,9 +176,9 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Segment not found", 404);
     }
 
-    // Get pains for context
+    // Get pains for context (from pains_initial - approved pains)
     const { data: pains } = await supabase
-      .from("pains")
+      .from("pains_initial")
       .select("*")
       .eq("project_id", projectId)
       .eq("segment_id", segmentId);

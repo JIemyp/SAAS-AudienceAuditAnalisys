@@ -108,9 +108,9 @@ export async function DELETE(
         const { id } = await params;
         const supabase = await createServerClient();
 
-        // First delete associated pains
+        // First delete associated pains from pains_initial
         const { error: painsError } = await supabase
-            .from("pains")
+            .from("pains_initial")
             .delete()
             .eq("segment_id", id);
 

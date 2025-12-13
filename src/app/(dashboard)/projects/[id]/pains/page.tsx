@@ -23,6 +23,18 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type SegmentRecord = Partial<Segment>;
+
+function normalizeSegments(records?: SegmentRecord[]): Segment[] {
+    return (records || []).map((segment) => ({
+        ...segment,
+        order_index: segment?.order_index ?? segment?.segment_index ?? 0,
+        needs: segment?.needs ?? [],
+        triggers: segment?.triggers ?? [],
+        core_values: segment?.core_values ?? [],
+    })) as Segment[];
+}
+
 interface PainWithSegment extends Pain {
     segment: {
         id: string;
@@ -48,50 +60,70 @@ export default function PainsPage({ params }: { params: Promise<{ id: string }> 
     const [deletingPain, setDeletingPain] = useState<PainWithSegment | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Delete ALL modal state (2-step confirmation)
+    const [deleteAllStep, setDeleteAllStep] = useState<0 | 1 | 2>(0); // 0=closed, 1=first confirm, 2=second confirm
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
+
     const supabase = createClient();
 
     const fetchData = async () => {
         try {
             const { data: segmentsData, error: segmentsError } = await supabase
-                .from("audience_segments")
+                .from("segments")
                 .select("*")
                 .eq("project_id", id)
                 .order("order_index", { ascending: true });
 
             if (segmentsError) throw segmentsError;
-            setSegments(segmentsData || []);
+            let normalizedSegments = normalizeSegments(segmentsData);
 
-            const segmentIds = segmentsData?.map((s) => s.id) || [];
-
-            if (segmentIds.length > 0) {
-                const { data: painsData, error: painsError } = await supabase
-                    .from("pains")
+            if (normalizedSegments.length === 0) {
+                const { data: finalSegments, error: finalError } = await supabase
+                    .from("segments_final")
                     .select("*")
-                    .in("segment_id", segmentIds);
+                    .eq("project_id", id)
+                    .order("segment_index", { ascending: true });
 
-                if (painsError) throw painsError;
-
-                const painsWithSegments: PainWithSegment[] = (painsData || []).map((pain) => {
-                    const segment = segmentsData?.find((s) => s.id === pain.segment_id);
-                    return {
-                        ...pain,
-                        segment: {
-                            id: segment?.id || "",
-                            name: segment?.name || "Unknown Segment",
-                            order_index: segment?.order_index || 0,
-                        },
-                    };
-                });
-
-                painsWithSegments.sort((a, b) => {
-                    if (a.segment.order_index !== b.segment.order_index) {
-                        return a.segment.order_index - b.segment.order_index;
-                    }
-                    return a.name.localeCompare(b.name);
-                });
-
-                setPains(painsWithSegments);
+                if (finalError) throw finalError;
+                normalizedSegments = normalizeSegments(finalSegments || []);
             }
+
+            setSegments(normalizedSegments);
+
+            const segmentIds = normalizedSegments.map((s) => s.id);
+
+            if (segmentIds.length === 0) {
+                setPains([]);
+                return;
+            }
+
+            const { data: painsData, error: painsError } = await supabase
+                .from("pains_initial")
+                .select("*")
+                .in("segment_id", segmentIds);
+
+            if (painsError) throw painsError;
+
+            const painsWithSegments: PainWithSegment[] = (painsData || []).map((pain) => {
+                const segment = normalizedSegments.find((s) => s.id === pain.segment_id);
+                return {
+                    ...pain,
+                    segment: {
+                        id: segment?.id || "",
+                        name: segment?.name || "Unknown Segment",
+                        order_index: segment?.order_index || 0,
+                    },
+                };
+            });
+
+            painsWithSegments.sort((a, b) => {
+                if (a.segment.order_index !== b.segment.order_index) {
+                    return a.segment.order_index - b.segment.order_index;
+                }
+                return a.name.localeCompare(b.name);
+            });
+
+            setPains(painsWithSegments);
         } catch (error) {
             console.error("Error fetching pains:", error);
         } finally {
@@ -163,6 +195,24 @@ export default function PainsPage({ params }: { params: Promise<{ id: string }> 
         }
     };
 
+    // Delete ALL handlers
+    const handleDeleteAll = async () => {
+        setIsDeletingAll(true);
+        try {
+            // Delete all pains one by one (or batch if API supports)
+            const deletePromises = pains.map((pain) =>
+                fetch(`/api/pains/${pain.id}`, { method: "DELETE" })
+            );
+            await Promise.all(deletePromises);
+            await fetchData();
+            setDeleteAllStep(0);
+        } catch (error) {
+            console.error("Error deleting all pains:", error);
+        } finally {
+            setIsDeletingAll(false);
+        }
+    };
+
     const painsBySegment = filteredPains.reduce(
         (acc, pain) => {
             const segmentId = pain.segment.id;
@@ -199,6 +249,15 @@ export default function PainsPage({ params }: { params: Promise<{ id: string }> 
                     <div className="flex gap-2">
                         <Button variant="ghost" size="sm" onClick={expandAll}>Expand All</Button>
                         <Button variant="ghost" size="sm" onClick={collapseAll}>Collapse All</Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteAllStep(1)}
+                            className="text-error border-error/50 hover:bg-error/10 hover:text-error"
+                        >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete All
+                        </Button>
                     </div>
                 )}
             </div>
@@ -340,6 +399,59 @@ export default function PainsPage({ params }: { params: Promise<{ id: string }> 
                         <p className="text-sm text-text-secondary mt-1">From segment: {deletingPain.segment.name}</p>
                     </div>
                 )}
+            </Modal>
+
+            {/* Delete ALL - First Confirmation */}
+            <Modal
+                isOpen={deleteAllStep === 1}
+                onClose={() => setDeleteAllStep(0)}
+                title="Delete All Pain Points"
+                description="Are you sure you want to delete ALL pain points? This will remove all data."
+                footer={
+                    <>
+                        <Button variant="outline" onClick={() => setDeleteAllStep(0)}>Cancel</Button>
+                        <Button variant="destructive" onClick={() => setDeleteAllStep(2)}>
+                            Yes, Continue
+                        </Button>
+                    </>
+                }
+            >
+                <div className="bg-error/10 border border-error/20 rounded-lg p-4">
+                    <p className="font-medium text-error">Warning: This will delete {pains.length} pain points!</p>
+                    <p className="text-sm text-text-secondary mt-2">
+                        All pain points across all segments will be permanently removed.
+                        This action cannot be undone.
+                    </p>
+                </div>
+            </Modal>
+
+            {/* Delete ALL - Second Confirmation */}
+            <Modal
+                isOpen={deleteAllStep === 2}
+                onClose={() => setDeleteAllStep(0)}
+                title="Final Confirmation"
+                description="This is your last chance to cancel. Are you absolutely sure?"
+                footer={
+                    <>
+                        <Button variant="outline" onClick={() => setDeleteAllStep(0)} disabled={isDeletingAll}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={handleDeleteAll} disabled={isDeletingAll}>
+                            {isDeletingAll && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Delete All {pains.length} Pains
+                        </Button>
+                    </>
+                }
+            >
+                <div className="bg-error/20 border-2 border-error rounded-lg p-4">
+                    <p className="font-bold text-error text-lg">FINAL WARNING</p>
+                    <p className="text-text-primary mt-2">
+                        You are about to permanently delete <strong>{pains.length}</strong> pain points.
+                    </p>
+                    <p className="text-sm text-text-secondary mt-2">
+                        This includes all associated data: triggers, examples, and extended analysis.
+                    </p>
+                </div>
             </Modal>
         </div>
     );

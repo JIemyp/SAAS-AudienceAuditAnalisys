@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { handleApiError, ApiError, getNextStep } from "@/lib/api-utils";
+import { approveWithUpsert, APPROVE_CONFIGS } from "@/lib/approve-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,39 +17,47 @@ export async function POST(request: NextRequest) {
     const { data: drafts } = await supabase.from("pains_ranking_drafts").select("*").in("id", ids);
     if (!drafts || drafts.length === 0) throw new ApiError("Drafts not found", 404);
 
-    // Filter only TOP pains (is_top_pain = true)
-    const topPainDrafts = drafts.filter(d => d.is_top_pain === true);
-    if (topPainDrafts.length === 0) throw new ApiError("No TOP pains selected", 400);
-
-    // Clear existing pains_ranking for this project before approving new ones
-    await supabase
-      .from("pains_ranking")
-      .delete()
-      .eq("project_id", projectId);
+    const hasTopPainSelected = drafts.some(d => d.is_top_pain === true);
+    if (!hasTopPainSelected) throw new ApiError("Select at least one TOP pain before approving", 400);
 
     const approved = [];
-    for (const draft of topPainDrafts) {
-      // Get segment_id from pains_initial if not in draft
-      let segmentId = draft.segment_id;
-      if (!segmentId && draft.pain_id) {
+    const config = APPROVE_CONFIGS.painsRanking;
+
+    for (const draft of drafts) {
+      if (!draft.pain_id) {
+        console.warn("[pains-ranking approve] Draft missing pain_id, skipping", draft.id);
+        continue;
+      }
+
+      let segmentId: string | undefined = draft.segment_id || undefined;
+
+      if (!segmentId) {
         const { data: pain } = await supabase
           .from("pains_initial")
           .select("segment_id")
+          .eq("project_id", projectId)
           .eq("id", draft.pain_id)
           .single();
         segmentId = pain?.segment_id;
       }
 
-      const { data: ranking, error } = await supabase.from("pains_ranking").insert({
-        project_id: projectId,
-        segment_id: segmentId,
-        pain_id: draft.pain_id,
-        impact_score: draft.impact_score,
-        is_top_pain: true,
-        ranking_reasoning: draft.ranking_reasoning,
-      }).select().single();
+      if (!segmentId) {
+        console.warn("[pains-ranking approve] Unable to determine segment_id for draft", draft.id);
+        continue;
+      }
 
-      if (!error) approved.push(ranking);
+      const result = await approveWithUpsert(config, {
+        supabase,
+        projectId,
+        draftId: draft.id,
+        segmentId,
+        painId: draft.pain_id,
+        userId: user.id,
+      });
+
+      if (result.success) {
+        approved.push(result.approved);
+      }
     }
 
     const nextStep = getNextStep("pains_ranking_draft");

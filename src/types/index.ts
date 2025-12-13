@@ -564,6 +564,7 @@ export interface PainInitial {
 export interface PainRankingDraft {
   id: string;
   project_id: string;
+  segment_id?: string;
   pain_id: string;
   impact_score: number;
   is_top_pain: boolean;
@@ -575,6 +576,7 @@ export interface PainRankingDraft {
 export interface PainRanking {
   id: string;
   project_id: string;
+  segment_id: string;
   pain_id: string;
   impact_score: number;
   is_top_pain: boolean;

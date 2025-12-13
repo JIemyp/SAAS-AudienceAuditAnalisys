@@ -1,10 +1,12 @@
 // =====================================================
 // Approve Difficulties - Prompt 7 (Per Segment)
+// Uses idempotent approve with history tracking
 // =====================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { handleApiError, ApiError } from "@/lib/api-utils";
+import { approveWithUpsert, APPROVE_CONFIGS } from "@/lib/approve-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,33 +27,20 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    const { data: draft, error: draftError } = await supabase
-      .from("difficulties_drafts")
-      .select("*")
-      .eq("id", draftId)
-      .eq("project_id", projectId)
-      .eq("segment_id", segmentId)
-      .single();
+    const result = await approveWithUpsert(APPROVE_CONFIGS.difficulties, {
+      supabase,
+      projectId,
+      draftId,
+      segmentId,
+      userId: user.id,
+    });
 
-    if (draftError || !draft) {
-      throw new ApiError("Draft not found", 404);
-    }
-
-    const { data: approved, error: insertError } = await supabase
-      .from("difficulties")
-      .insert({
-        project_id: projectId,
-        segment_id: segmentId,
-        difficulties: draft.difficulties,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      throw new ApiError("Failed to approve", 500);
-    }
-
-    return NextResponse.json({ success: true, approved, segment_id: segmentId });
+    return NextResponse.json({
+      success: result.success,
+      approved: result.approved,
+      segment_id: segmentId,
+      updated: result.updated,
+    });
   } catch (error) {
     return handleApiError(error);
   }

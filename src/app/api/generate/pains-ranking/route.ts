@@ -53,54 +53,6 @@ export async function POST(request: NextRequest) {
 
       console.log(`[pains-ranking] Segment ${segment.name} (${segment.id}): found ${pains?.length || 0} approved pains`);
 
-      // If no approved pains or very few, try to auto-approve from drafts
-      if (!pains || pains.length < 3) {
-        console.log(`[pains-ranking] Attempting to auto-approve pains from drafts for segment ${segment.name}`);
-
-        const { data: drafts } = await supabase
-          .from("pains_drafts")
-          .select("*")
-          .eq("project_id", projectId)
-          .eq("segment_id", segment.id)
-          .order("pain_index");
-
-        if (drafts && drafts.length > 0) {
-          console.log(`[pains-ranking] Found ${drafts.length} drafts, auto-approving...`);
-
-          // Delete existing (incomplete) approved pains
-          await supabase
-            .from("pains_initial")
-            .delete()
-            .eq("project_id", projectId)
-            .eq("segment_id", segment.id);
-
-          // Insert all drafts as approved
-          const painsToInsert = drafts.map(draft => ({
-            project_id: projectId,
-            segment_id: segment.id,
-            pain_index: draft.pain_index,
-            name: draft.name,
-            description: draft.description,
-            deep_triggers: draft.deep_triggers,
-            examples: draft.examples,
-          }));
-
-          const { data: insertedPains, error: insertError } = await supabase
-            .from("pains_initial")
-            .insert(painsToInsert)
-            .select();
-
-          if (!insertError && insertedPains) {
-            console.log(`[pains-ranking] Auto-approved ${insertedPains.length} pains for segment ${segment.name}`);
-            pains = insertedPains;
-          } else {
-            console.error(`[pains-ranking] Auto-approve failed:`, insertError?.message);
-          }
-        }
-      }
-
-      console.log(`[pains-ranking] Final pains count for segment ${segment.name}: ${pains?.length || 0}`);
-
       if (!pains || pains.length === 0) {
         console.log(`[pains-ranking] No pains found for segment ${segment.id}, skipping`);
         segmentsWithoutPains.push(segment.name);
@@ -129,6 +81,7 @@ export async function POST(request: NextRequest) {
 
         const { data: draft, error } = await supabase.from("pains_ranking_drafts").insert({
           project_id: projectId,
+          segment_id: segment.id,
           pain_id: pain.id,
           impact_score: ranking.impact_score,
           is_top_pain: ranking.is_top_pain,

@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Get segment details
+        // Get segment details (REQUIRED)
         const { data: segmentDetails } = await supabase
           .from("segment_details")
           .select("*")
@@ -125,8 +125,12 @@ export async function POST(request: NextRequest) {
           .order("approved_at", { ascending: false })
           .limit(1)
           .single();
+        if (!segmentDetails) {
+          errors.push({ painId: pain.id, error: "Segment details not found" });
+          continue;
+        }
 
-        // Get jobs
+        // Get jobs (REQUIRED)
         const { data: jobs } = await supabase
           .from("jobs")
           .select("*")
@@ -135,8 +139,12 @@ export async function POST(request: NextRequest) {
           .order("approved_at", { ascending: false })
           .limit(1)
           .single();
+        if (!jobs) {
+          errors.push({ painId: pain.id, error: "Jobs not found" });
+          continue;
+        }
 
-        // Get preferences
+        // Get preferences (REQUIRED)
         const { data: preferences } = await supabase
           .from("preferences")
           .select("*")
@@ -145,8 +153,12 @@ export async function POST(request: NextRequest) {
           .order("approved_at", { ascending: false })
           .limit(1)
           .single();
+        if (!preferences) {
+          errors.push({ painId: pain.id, error: "Preferences not found" });
+          continue;
+        }
 
-        // Get difficulties
+        // Get difficulties (REQUIRED)
         const { data: difficulties } = await supabase
           .from("difficulties")
           .select("*")
@@ -155,8 +167,12 @@ export async function POST(request: NextRequest) {
           .order("approved_at", { ascending: false })
           .limit(1)
           .single();
+        if (!difficulties) {
+          errors.push({ painId: pain.id, error: "Difficulties not found" });
+          continue;
+        }
 
-        // Get triggers
+        // Get triggers (REQUIRED)
         const { data: triggers } = await supabase
           .from("triggers")
           .select("*")
@@ -165,16 +181,20 @@ export async function POST(request: NextRequest) {
           .order("approved_at", { ascending: false })
           .limit(1)
           .single();
+        if (!triggers) {
+          errors.push({ painId: pain.id, error: "Triggers not found" });
+          continue;
+        }
 
         const prompt = buildCanvasPrompt(
           (project as Project).onboarding_data,
           portraitFinal as PortraitFinal,
           segment as Segment,
-          segmentDetails as SegmentDetails | null,
-          jobs as Jobs | null,
-          preferences as Preferences | null,
-          difficulties as Difficulties | null,
-          triggers as Triggers | null,
+          segmentDetails as SegmentDetails,
+          jobs as Jobs,
+          preferences as Preferences,
+          difficulties as Difficulties,
+          triggers as Triggers,
           pain
         );
 
