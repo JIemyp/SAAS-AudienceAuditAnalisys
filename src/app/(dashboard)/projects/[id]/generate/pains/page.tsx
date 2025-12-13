@@ -53,6 +53,7 @@ export default function PainsPage({
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -360,6 +361,48 @@ export default function PainsPage({
     }
   };
 
+  // Delete all pains (drafts + approved) for all segments
+  const handleDeleteAll = async () => {
+    if (!confirm("Are you sure you want to delete ALL pain points for ALL segments? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      setError(null);
+
+      // Delete from pains_drafts
+      const deleteDraftsRes = await fetch(
+        `/api/drafts?projectId=${projectId}&table=pains_drafts`,
+        { method: "DELETE" }
+      );
+
+      if (!deleteDraftsRes.ok) {
+        const data = await deleteDraftsRes.json();
+        throw new Error(data.error || "Failed to delete drafts");
+      }
+
+      // Delete from pains_initial (approved pains)
+      const deleteApprovedRes = await fetch(
+        `/api/pains?projectId=${projectId}`,
+        { method: "DELETE" }
+      );
+
+      if (!deleteApprovedRes.ok) {
+        const data = await deleteApprovedRes.json();
+        throw new Error(data.error || "Failed to delete approved pains");
+      }
+
+      // Refresh data
+      setPainDrafts([]);
+      await updateSegmentStatuses();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Auto-approve all segments with drafts before continuing to next step
   const handleContinueWithAutoApprove = async () => {
     console.log("[handleContinueWithAutoApprove] Starting auto-approve for", segments.length, "segments");
@@ -502,12 +545,26 @@ export default function PainsPage({
 
       {/* Action Buttons Row */}
       <div className="flex items-center justify-between">
-        {/* Language Toggle */}
-        <LanguageToggle
-          currentLanguage={language}
-          onLanguageChange={setLanguage}
-          isLoading={isTranslating}
-        />
+        {/* Left side: Language Toggle + Delete All */}
+        <div className="flex items-center gap-3">
+          <LanguageToggle
+            currentLanguage={language}
+            onLanguageChange={setLanguage}
+            isLoading={isTranslating}
+          />
+
+          {/* Delete All button - always show */}
+          <Button
+            variant="outline"
+            onClick={handleDeleteAll}
+            disabled={isDeleting || isGenerating || isApproving}
+            isLoading={isDeleting}
+            className="gap-2 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete All
+          </Button>
+        </div>
 
         <div className="flex items-center gap-3">
           {/* Generate All button */}

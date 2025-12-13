@@ -60,3 +60,42 @@ export async function GET(request: NextRequest) {
     return handleApiError(error);
   }
 }
+
+// Delete all approved pains for a project
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get("projectId");
+    const segmentId = searchParams.get("segmentId");
+
+    if (!projectId) {
+      throw new ApiError("Project ID is required", 400);
+    }
+
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new ApiError("Unauthorized", 401);
+    }
+
+    // Build delete query
+    let query = supabase
+      .from("pains_initial")
+      .delete()
+      .eq("project_id", projectId);
+
+    if (segmentId) {
+      query = query.eq("segment_id", segmentId);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+      throw new ApiError(error.message, 500);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
