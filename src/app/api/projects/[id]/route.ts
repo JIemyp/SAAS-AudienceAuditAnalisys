@@ -11,6 +11,12 @@ export async function GET(
         const { id } = await params;
         const supabase = await createServerClient();
 
+        // Check authentication
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            throw new ApiError("Unauthorized", 401);
+        }
+
         const { data: project, error } = await supabase
             .from("projects")
             .select("id, name, description, status, current_step, product_name, product_url, product_description, target_audience, created_at, updated_at")

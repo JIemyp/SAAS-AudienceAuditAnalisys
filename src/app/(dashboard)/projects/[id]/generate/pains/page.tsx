@@ -57,6 +57,11 @@ export default function PainsPage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Delete confirmation modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showFinalConfirmModal, setShowFinalConfirmModal] = useState(false);
+  const [confirmCountdown, setConfirmCountdown] = useState(10);
+
   // Language translation
   const { language, setLanguage } = useLanguage();
   const { translatedContent, isTranslating } = useTranslation({
@@ -361,21 +366,40 @@ export default function PainsPage({
     }
   };
 
-  // Delete all pains (drafts + approved) for all segments
-  const handleDeleteAll = async () => {
-    if (!confirm("Are you sure you want to delete ALL pain points for ALL segments? This action cannot be undone.")) {
-      return;
+  // Delete all pains - open first modal
+  const handleDeleteAllClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  // First modal confirmed - show second modal with countdown
+  const handleFirstConfirm = () => {
+    setShowDeleteModal(false);
+    setShowFinalConfirmModal(true);
+    setConfirmCountdown(10);
+  };
+
+  // Countdown effect for second modal
+  useEffect(() => {
+    if (showFinalConfirmModal && confirmCountdown > 0) {
+      const timer = setTimeout(() => setConfirmCountdown(confirmCountdown - 1), 1000);
+      return () => clearTimeout(timer);
     }
+  }, [showFinalConfirmModal, confirmCountdown]);
+
+  // Final delete action
+  const handleFinalDelete = async () => {
+    setShowFinalConfirmModal(false);
 
     try {
       setIsDeleting(true);
       setError(null);
 
-      // Delete from pains_drafts
-      const deleteDraftsRes = await fetch(
-        `/api/drafts?projectId=${projectId}&table=pains_drafts`,
-        { method: "DELETE" }
-      );
+      // Delete from pains_drafts using batch delete
+      const deleteDraftsRes = await fetch("/api/drafts/batch-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, table: "pains_drafts" }),
+      });
 
       if (!deleteDraftsRes.ok) {
         const data = await deleteDraftsRes.json();
@@ -556,7 +580,7 @@ export default function PainsPage({
           {/* Delete All button - always show */}
           <Button
             variant="outline"
-            onClick={handleDeleteAll}
+            onClick={handleDeleteAllClick}
             disabled={isDeleting || isGenerating || isApproving}
             isLoading={isDeleting}
             className="gap-2 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
@@ -744,6 +768,123 @@ export default function PainsPage({
         segmentProgressData={segmentProgressData}
         currentStepType="pains"
       />
+
+      {/* First Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setShowDeleteModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 border border-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-red-100 rounded-xl">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Delete All Pain Points?</h3>
+                  <p className="text-sm text-slate-500">This action cannot be undone</p>
+                </div>
+              </div>
+
+              <p className="text-slate-600 mb-6">
+                You are about to delete all pain points (drafts and approved) for all segments in this project. This will permanently remove all generated data.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleFirstConfirm}
+                  className="px-4 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Yes, Continue
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Final Confirmation Modal with Countdown */}
+      <AnimatePresence>
+        {showFinalConfirmModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setShowFinalConfirmModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 border border-slate-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 bg-red-100 rounded-xl">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Final Confirmation</h3>
+                  <p className="text-sm text-slate-500">Are you absolutely sure?</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl mb-6">
+                <p className="text-red-800 font-medium text-center">
+                  This will permanently delete ALL pain points data for this project.
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFinalConfirmModal(false)}
+                  className="px-4"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleFinalDelete}
+                  disabled={confirmCountdown > 0}
+                  className={cn(
+                    "px-4 min-w-[140px] text-white transition-all",
+                    confirmCountdown > 0
+                      ? "bg-slate-400 cursor-not-allowed"
+                      : "bg-red-600 hover:bg-red-700"
+                  )}
+                >
+                  {confirmCountdown > 0 ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Wait {confirmCountdown}s
+                    </span>
+                  ) : (
+                    "Delete All"
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

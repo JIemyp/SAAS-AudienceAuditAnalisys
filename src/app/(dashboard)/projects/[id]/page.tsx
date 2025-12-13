@@ -32,6 +32,7 @@ import {
     ExternalLink,
     Copy,
     ChevronDown,
+    MessageCircle,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -432,6 +433,125 @@ export default function ProjectPage({
                             </div>
                             {projectHasProgress && (
                                 <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors" />
+                            )}
+                        </Link>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Strategy Toolkit Section */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg">
+                            <Target className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div>
+                            <CardTitle>Activation Toolkit</CardTitle>
+                            <CardDescription>
+                                Turn research into campaigns, communications, and assets
+                            </CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Insights */}
+                        <Link
+                            href={`/projects/${id}/insights`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-emerald-100 group-hover:bg-emerald-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <Sparkles className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-emerald-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>Insights</h4>
+                                <p className="text-sm text-slate-500">Executive takeaways per segment</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                            )}
+                        </Link>
+
+                        {/* Communications */}
+                        <Link
+                            href={`/projects/${id}/communications`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-sky-300 hover:bg-sky-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-sky-100 group-hover:bg-sky-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <MessageCircle className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-sky-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>Communications</h4>
+                                <p className="text-sm text-slate-500">Organic & chatbot scenarios</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-sky-500 transition-colors" />
+                            )}
+                        </Link>
+
+                        {/* Playbooks */}
+                        <Link
+                            href={`/projects/${id}/playbooks`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-rose-300 hover:bg-rose-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-rose-100 group-hover:bg-rose-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <Target className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-rose-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>Playbooks</h4>
+                                <p className="text-sm text-slate-500">Segment × pain funnels (TOF→BOF)</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-rose-500 transition-colors" />
                             )}
                         </Link>
                     </div>
