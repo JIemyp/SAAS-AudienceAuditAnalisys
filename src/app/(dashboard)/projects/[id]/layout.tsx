@@ -75,25 +75,37 @@ export default function ProjectLayout({
     const { id } = use(params);
     const baseHref = `/projects/${id}`;
     const [stepStatuses, setStepStatuses] = useState<StepStatusData[]>([]);
+    const [projectName, setProjectName] = useState<string>("");
     const [loading, setLoading] = useState(true);
 
-    // Fetch step statuses from API - refetch when pathname changes (after navigation)
+    // Fetch step statuses and project name from API - refetch when pathname changes (after navigation)
     useEffect(() => {
-        const fetchStepStatuses = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch(`/api/projects/${id}/steps`);
-                const data = await res.json();
+                // Fetch step statuses
+                const stepsRes = await fetch(`/api/projects/${id}/steps`);
+                const stepsData = await stepsRes.json();
 
-                if (data.success && data.steps) {
-                    setStepStatuses(data.steps);
+                if (stepsData.success && stepsData.steps) {
+                    setStepStatuses(stepsData.steps);
+                }
+
+                // Fetch project name
+                const projectRes = await fetch(`/api/projects/${id}`);
+                const projectData = await projectRes.json();
+
+                if (projectData.name) {
+                    setProjectName(projectData.name);
+                } else if (projectData.project?.name) {
+                    setProjectName(projectData.project.name);
                 }
             } catch (err) {
-                console.error("Failed to fetch step statuses:", err);
+                console.error("Failed to fetch data:", err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchStepStatuses();
+        fetchData();
     }, [id, pathname]);
 
     // Check if we're on a generation page
@@ -250,30 +262,26 @@ export default function ProjectLayout({
                     <header className="bg-white border-b border-slate-200 px-6 py-3 shrink-0">
                         <nav className="flex items-center gap-2 text-sm">
                             <Link
-                                href="/"
-                                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 transition-colors"
-                            >
-                                <Home className="w-4 h-4" />
-                                <span>Home</span>
-                            </Link>
-                            <ChevronRight className="w-4 h-4 text-slate-300" />
-                            <Link
                                 href="/projects"
                                 className="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 transition-colors"
                             >
-                                <FolderOpen className="w-4 h-4" />
-                                <span>Projects</span>
+                                <Home className="w-4 h-4" />
                             </Link>
                             <ChevronRight className="w-4 h-4 text-slate-300" />
                             <Link
                                 href={baseHref}
-                                className="text-slate-500 hover:text-slate-900 transition-colors"
+                                className="text-slate-500 hover:text-slate-900 transition-colors max-w-[200px] truncate"
+                                title={projectName || "Project"}
                             >
-                                Project
+                                {projectName || "Project"}
                             </Link>
                             <ChevronRight className="w-4 h-4 text-slate-300" />
+                            <span className="text-slate-500">
+                                Generation
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-slate-300" />
                             <span className="text-slate-900 font-medium">
-                                {GENERATION_STEPS.find(s => s.step === currentGenerateStep)?.label || "Generation"}
+                                {GENERATION_STEPS.find(s => s.step === currentGenerateStep)?.label || "Step"}
                             </span>
                         </nav>
                     </header>

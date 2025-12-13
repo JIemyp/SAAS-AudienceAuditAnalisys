@@ -205,35 +205,35 @@ export default function SegmentsFinalPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Title and Description */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between"
+        className="flex items-start gap-4"
       >
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl text-white shadow-lg shadow-amber-500/20">
-            <Crown className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Final Segments
-            </h1>
-            <p className="mt-1 text-slate-500 max-w-xl">
-              The refined segments incorporating approved changes from the
-              self-review process.
-            </p>
-          </div>
+        <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl text-white shadow-lg shadow-amber-500/20">
+          <Crown className="w-6 h-6" />
         </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Final Segments
+          </h1>
+          <p className="mt-1 text-slate-500 max-w-xl">
+            The refined segments incorporating approved changes from the
+            self-review process.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Action Buttons Row */}
+      <div className="flex items-center justify-between">
+        <LanguageToggle
+          currentLanguage={language}
+          onLanguageChange={setLanguage}
+          isLoading={isTranslating}
+        />
 
         <div className="flex items-center gap-3">
-          {/* Language Toggle */}
-          <LanguageToggle
-            currentLanguage={language}
-            onLanguageChange={setLanguage}
-            isLoading={isTranslating}
-          />
-
           {segments.length > 0 && (
             <Button
               variant="outline"
@@ -268,7 +268,7 @@ export default function SegmentsFinalPage({
             )}
           </Button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Error Message */}
       <AnimatePresence>

@@ -358,34 +358,35 @@ export default function CanvasExtendedPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - Title and Description */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between"
+        className="flex items-start gap-4"
       >
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl text-white shadow-lg shadow-purple-500/20">
-            <Sparkles className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Extended Canvas Analysis V2
-            </h1>
-            <p className="mt-1 text-slate-500 max-w-xl">
-              Deep psychological analysis with customer journey, emotional mapping, narrative angles, and messaging framework for each TOP pain.
-            </p>
-          </div>
+        <div className="p-3 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl text-white shadow-lg shadow-purple-500/20">
+          <Sparkles className="w-6 h-6" />
         </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Extended Canvas Analysis V2
+          </h1>
+          <p className="mt-1 text-slate-500">
+            Deep psychological analysis with customer journey, emotional mapping, narrative angles, and messaging framework for each TOP pain.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Action Buttons Row */}
+      <div className="flex items-center justify-between">
+        {/* Language Toggle */}
+        <LanguageToggle
+          currentLanguage={language}
+          onLanguageChange={setLanguage}
+          isLoading={isTranslating}
+        />
 
         <div className="flex items-center gap-3">
-          {/* Language Toggle */}
-          <LanguageToggle
-            currentLanguage={language}
-            onLanguageChange={setLanguage}
-            isLoading={isTranslating}
-          />
-
           {/* Progress Badge */}
           <div className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm">
             <span className="font-medium text-slate-700">{totalApproved}/{totalPains}</span>
@@ -429,7 +430,7 @@ export default function CanvasExtendedPage({
             </>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Error Message */}
       <AnimatePresence>
