@@ -105,7 +105,9 @@ function extractStrings(obj: unknown, path: string[] = []): Array<{ path: string
       if (['id', 'project_id', 'segment_id', 'pain_id', 'canvas_id', 'user_id',
            'created_at', 'updated_at', 'approved_at', 'version', 'order_index',
            'impact_score', 'is_top_pain', 'pain_index', 'segment_index',
-           'awareness_level', 'status', 'type', 'category', 'priority'].includes(key)) {
+           'awareness_level', 'status', 'type', 'category', 'priority',
+           // Enum fields that should NOT be translated
+           'importance', 'frequency', 'severity', 'level', 'stage', 'phase'].includes(key)) {
         continue;
       }
       strings.push(...extractStrings(value, [...path, key]));
