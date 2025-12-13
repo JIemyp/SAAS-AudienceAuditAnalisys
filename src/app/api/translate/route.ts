@@ -107,7 +107,16 @@ function extractStrings(obj: unknown, path: string[] = []): Array<{ path: string
            'impact_score', 'is_top_pain', 'pain_index', 'segment_index',
            'awareness_level', 'status', 'type', 'category', 'priority',
            // Enum fields that should NOT be translated
-           'importance', 'frequency', 'severity', 'level', 'stage', 'phase'].includes(key)) {
+           'importance', 'frequency', 'severity', 'level', 'stage', 'phase', 'intensity',
+           // Role and status fields
+           'role', 'readiness_level',
+           // Channel strategy enum fields
+           'usage_frequency', 'activity_type', 'attention_span', 'source_type',
+           'participation_level', 'influence_on_purchases',
+           'search_depth', 'decision_timeline', 'retargeting_tolerance',
+           // Pricing/trust enum fields
+           'price_sensitivity_level', 'effectiveness', 'is_price_or_value',
+           'transparency_level', 'urgency'].includes(key)) {
         continue;
       }
       strings.push(...extractStrings(value, [...path, key]));

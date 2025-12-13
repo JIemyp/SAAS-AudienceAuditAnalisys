@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { ContentLanguage } from '@/types';
 
 // Cache key prefix - increment version to invalidate old cached translations
-const CACHE_VERSION = 'v2'; // v2: fixed enum field translation (importance, frequency)
+const CACHE_VERSION = 'v3'; // v3: added all enum fields (v5 types, channel strategy, pricing, trust)
 const CACHE_PREFIX = `translation_cache_${CACHE_VERSION}_`;
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
