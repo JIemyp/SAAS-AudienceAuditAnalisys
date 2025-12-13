@@ -98,6 +98,16 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
   const displayDrafts = (translatedContent as T[]) || drafts;
   const selectedDraft = displayDrafts.find(d => d.id === selectedDraftId);
 
+  // Debug: log translation state
+  console.log('[SegmentGenerationPage] Translation state:', {
+    language,
+    hasTranslatedContent: !!translatedContent,
+    translatedContentType: translatedContent ? typeof translatedContent : 'null',
+    isArray: Array.isArray(translatedContent),
+    displayDraftsLength: displayDrafts.length,
+    usingTranslated: translatedContent !== null,
+  });
+
   // Fetch segments on mount
   useEffect(() => {
     fetchSegments();
