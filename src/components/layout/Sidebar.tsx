@@ -3,35 +3,200 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Plus, Settings, LogOut, ChevronDown, Copy, FilePlus } from "lucide-react";
+import {
+    LayoutDashboard,
+    Plus,
+    Settings,
+    LogOut,
+    ChevronDown,
+    Copy,
+    FilePlus,
+    Home,
+    FileText,
+    Compass,
+    Sparkles,
+    MessageCircle,
+    Target,
+    Users,
+    AlertCircle,
+    Download,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
+import { useEffect, useMemo, useState } from "react";
 
-const navigation = [
+const baseNavigation = [
     { name: "Projects", href: "/projects", icon: LayoutDashboard },
     { name: "Settings", href: "/settings", icon: Settings },
+];
+
+const buildProjectSections = (baseHref: string) => [
+    {
+        label: "Project Hub",
+        items: [
+            { name: "Dashboard", href: "", icon: Home },
+            { name: "Overview", href: "/overview", icon: LayoutDashboard },
+            { name: "Full Report", href: "/report", icon: FileText },
+            { name: "Explorer", href: "/explorer", icon: Compass },
+        ],
+    },
+    {
+        label: "Strategy Toolkit",
+        items: [
+            { name: "Insights", href: "/insights", icon: Sparkles },
+            { name: "Communications", href: "/communications", icon: MessageCircle },
+            { name: "Playbooks", href: "/playbooks", icon: Target },
+        ],
+    },
+    {
+        label: "Data & Ops",
+        items: [
+            { name: "Segments", href: "/segments", icon: Users },
+            { name: "Pains", href: "/pains", icon: AlertCircle },
+            { name: "Export", href: "/export", icon: Download },
+            { name: "Settings", href: "/settings", icon: Settings },
+        ],
+    },
 ];
 
 export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
+    const [projectName, setProjectName] = useState<string>("");
 
-    // Check if we're inside a project (not "new" or other special pages)
     const projectMatch = pathname.match(/\/projects\/([a-f0-9-]+)(?:\/|$)/);
     const currentProjectId = projectMatch ? projectMatch[1] : null;
-    const isInProject = currentProjectId && currentProjectId !== 'new';
+    const isInProject = currentProjectId && currentProjectId !== "new";
+    const projectBaseHref = isInProject ? `/projects/${currentProjectId}` : null;
+
+    useEffect(() => {
+        if (!projectBaseHref) {
+            setProjectName("");
+            return;
+        }
+
+        let cancelled = false;
+        const fetchProject = async () => {
+            try {
+                const res = await fetch(`/api/projects/${currentProjectId}`);
+                const data = await res.json();
+                if (!cancelled) {
+                    if (data.name) {
+                        setProjectName(data.name);
+                    } else if (data.project?.name) {
+                        setProjectName(data.project.name);
+                    } else {
+                        setProjectName("Project");
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load project name", err);
+                if (!cancelled) {
+                    setProjectName("Project");
+                }
+            }
+        };
+        fetchProject();
+        return () => {
+            cancelled = true;
+        };
+    }, [projectBaseHref, currentProjectId]);
+
+    const projectSections = useMemo(() => {
+        if (!projectBaseHref) return [];
+        return buildProjectSections(projectBaseHref);
+    }, [projectBaseHref]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
         router.push("/login");
+    };
+
+    const renderNavigation = () => {
+        if (!isInProject || !projectBaseHref) {
+            return (
+                <nav className="flex flex-1 flex-col gap-y-1">
+                    {baseNavigation.map((item) => {
+                        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                className={cn(
+                                    "group flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                    isActive
+                                        ? "bg-bg-secondary text-accent"
+                                        : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
+                                )}
+                            >
+                                <item.icon
+                                    className={cn(
+                                        "h-5 w-5 shrink-0",
+                                        isActive ? "text-accent" : "text-text-secondary group-hover:text-text-primary"
+                                    )}
+                                />
+                                {item.name}
+                            </Link>
+                        );
+                    })}
+                </nav>
+            );
+        }
+
+        return (
+            <div className="flex flex-1 flex-col gap-6 overflow-y-auto">
+                <div>
+                    <p className="text-xs uppercase tracking-wider text-text-secondary">Current project</p>
+                    <p className="mt-1 text-sm font-semibold text-text-primary truncate">
+                        {projectName || "Project"}
+                    </p>
+                </div>
+                {projectSections.map((section) => (
+                    <div key={section.label}>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2">
+                            {section.label}
+                        </p>
+                        <div className="space-y-1">
+                            {section.items.map((item) => {
+                                const href = item.href ? `${projectBaseHref}${item.href}` : projectBaseHref;
+                                const isActive =
+                                    pathname === href ||
+                                    (!!item.href && pathname.startsWith(`${href}/`));
+
+                                return (
+                                    <Link
+                                        key={item.name}
+                                        href={href}
+                                        className={cn(
+                                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                                            isActive
+                                                ? "bg-slate-900 text-white"
+                                                : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
+                                        )}
+                                    >
+                                        <item.icon
+                                            className={cn(
+                                                "h-4 w-4",
+                                                isActive ? "text-white" : "text-text-secondary"
+                                            )}
+                                        />
+                                        <span className="truncate">{item.name}</span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
     };
 
     return (
@@ -62,7 +227,7 @@ export function Sidebar() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56">
-                            <DropdownMenuItem onClick={() => router.push('/projects/new')}>
+                            <DropdownMenuItem onClick={() => router.push("/projects/new")}>
                                 <FilePlus className="mr-2 h-4 w-4" />
                                 Start Fresh
                             </DropdownMenuItem>
@@ -81,32 +246,7 @@ export function Sidebar() {
                     </Button>
                 )}
 
-                <nav className="flex flex-1 flex-col gap-y-1">
-                    {navigation.map((item) => {
-                        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                        return (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={cn(
-                                    "group flex items-center gap-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                                    isActive
-                                        ? "bg-bg-secondary text-accent"
-                                        : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
-                                )}
-                            >
-                                <item.icon
-                                    className={cn(
-                                        "h-5 w-5 shrink-0",
-                                        isActive ? "text-accent" : "text-text-secondary group-hover:text-text-primary"
-                                    )}
-                                    aria-hidden="true"
-                                />
-                                {item.name}
-                            </Link>
-                        );
-                    })}
-                </nav>
+                {renderNavigation()}
 
                 <div className="border-t border-border pt-4">
                     <Button

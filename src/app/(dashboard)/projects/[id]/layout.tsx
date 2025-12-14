@@ -5,9 +5,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
-    Users,
-    Download,
-    AlertCircle,
     CheckCircle2,
     Lock,
     Circle,
@@ -16,43 +13,8 @@ import {
     ChevronRight,
     FileText,
     Compass,
-    Settings,
-    Sparkles,
-    MessageCircle,
-    Target,
 } from "lucide-react";
 import { use, useEffect, useState } from "react";
-
-const PROJECT_NAV_SECTIONS = [
-    {
-        label: "Project Hub",
-        items: [
-            { name: "Dashboard", href: "", icon: Home },
-            { name: "Overview", href: "/overview", icon: LayoutDashboard },
-            { name: "Full Report", href: "/report", icon: FileText },
-            { name: "Explorer", href: "/explorer", icon: Compass },
-        ],
-    },
-    {
-        label: "Strategy Toolkit",
-        items: [
-            { name: "Insights", href: "/insights", icon: Sparkles },
-            { name: "Communications", href: "/communications", icon: MessageCircle },
-            { name: "Playbooks", href: "/playbooks", icon: Target },
-        ],
-    },
-    {
-        label: "Data & Ops",
-        items: [
-            { name: "Segments", href: "/segments", icon: Users },
-            { name: "Pains", href: "/pains", icon: AlertCircle },
-            { name: "Export", href: "/export", icon: Download },
-            { name: "Settings", href: "/settings", icon: Settings },
-        ],
-    },
-];
-
-const pagesWithoutSidebar = ["/edit", "/processing", "/generate"];
 
 // Generation step configuration (21 steps - v5 with strategic modules)
 // Correct order: Portrait → Segments → Deep Analysis (per segment) → Pains/Canvas → Strategic
@@ -140,9 +102,6 @@ export default function ProjectLayout({
 
     // Check if we're on a generation page
     const isGeneratePage = pathname.includes("/generate/");
-
-    // Check if current page should hide tabs
-    const hideSidebar = pagesWithoutSidebar.some((page) => pathname.includes(page));
 
     // Get current generation step from URL
     const currentGenerateStep = pathname.split("/generate/")[1]?.split("/")[0] || "";
@@ -324,66 +283,5 @@ export default function ProjectLayout({
         );
     }
 
-    if (hideSidebar) {
-        return <>{children}</>;
-    }
-
-    return (
-        <div className="flex gap-8">
-            <aside className="w-60 shrink-0">
-                <div className="sticky top-8 rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="mb-6">
-                        <p className="text-xs uppercase tracking-wider text-slate-400">Project</p>
-                        <p className="mt-1 text-base font-semibold text-slate-900 truncate" title={projectName || "Project"}>
-                            {projectName || "Project"}
-                        </p>
-                    </div>
-                    <div className="space-y-6">
-                        {PROJECT_NAV_SECTIONS.map((section) => (
-                            <div key={section.label}>
-                                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-                                    {section.label}
-                                </p>
-                                <div className="space-y-1">
-                                    {section.items.map((item) => {
-                                        const href = `${baseHref}${item.href}`;
-                                        const isActive =
-                                            pathname === href ||
-                                            (item.href
-                                                ? pathname.startsWith(`${href}/`)
-                                                : pathname === baseHref);
-
-                                        return (
-                                            <Link
-                                                key={item.name}
-                                                href={href}
-                                                className={cn(
-                                                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                                                    isActive
-                                                        ? "bg-slate-900 text-white"
-                                                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                                                )}
-                                            >
-                                                <item.icon className={cn("h-4 w-4", isActive ? "text-white" : "text-slate-400")} />
-                                                <span className="truncate">{item.name}</span>
-                                            </Link>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="mt-6 border-t border-slate-100 pt-4">
-                        <Link
-                            href="/projects"
-                            className="text-sm font-medium text-slate-400 hover:text-slate-900 transition-colors"
-                        >
-                            ← Back to projects
-                        </Link>
-                    </div>
-                </div>
-            </aside>
-            <div className="flex-1 min-w-0">{children}</div>
-        </div>
-    );
+    return <>{children}</>;
 }
