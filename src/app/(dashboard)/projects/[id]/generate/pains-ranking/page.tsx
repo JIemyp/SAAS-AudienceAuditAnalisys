@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PainRankingDraft, PainInitial, Segment } from "@/types";
+import { PainInitial, Segment } from "@/types";
 import { BarChart3, Trophy, Star, TrendingUp, Pencil, Trash2, Check, X, Loader2, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,7 +46,7 @@ export default function PainsRankingPage({
 
   // Language translation
   const { language, setLanguage } = useLanguage();
-  const { translatedContent, isTranslating } = useTranslation({
+  const { translatedContent, isTranslating, invalidateCache } = useTranslation({
     content: rankings,
     language,
     enabled: rankings.length > 0,
@@ -183,6 +183,10 @@ export default function PainsRankingPage({
       const data = await res.json();
       if (data.success) {
         setRankings(prev => prev.map(r => r.id === rankingId ? { ...r, ...updates } : r));
+        // Invalidate translation cache after successful update
+        if (language !== 'en') {
+          invalidateCache();
+        }
       }
     } catch (err) {
       console.error("Failed to save edit:", err);
@@ -224,6 +228,11 @@ export default function PainsRankingPage({
       if (!data.success) {
         // Revert on failure
         setRankings(prev => prev.map(r => r.id === rankingId ? { ...r, is_top_pain: currentIsTop } : r));
+      } else {
+        // Invalidate translation cache after successful update
+        if (language !== 'en') {
+          invalidateCache();
+        }
       }
     } catch (err) {
       console.error("Failed to toggle star:", err);
@@ -684,7 +693,6 @@ function RankingCard({
   const [impactScore, setImpactScore] = useState((ranking.impact_score ?? 0).toString());
   const [reasoning, setReasoning] = useState(ranking.ranking_reasoning || "");
   const [isTopPain, setIsTopPain] = useState(ranking.is_top_pain ?? false);
-  const [isTogglingstar, setIsTogglingStar] = useState(false);
 
   const getScoreColor = (score: number) => {
     if (score >= 8) return "bg-rose-500";

@@ -132,10 +132,30 @@ export function useTranslation({ content, language, enabled = true }: UseTransla
     }
   }, [language]);
 
+  // Invalidate cache for current content and refetch
+  const invalidateAndRefetch = useCallback(async () => {
+    if (!contentHash || language === 'en') return;
+
+    const cacheKey = `${CACHE_PREFIX}${contentHash}_${language}`;
+    try {
+      localStorage.removeItem(cacheKey);
+      console.log('[useTranslation] Cache invalidated for:', cacheKey);
+    } catch (e) {
+      console.warn('[useTranslation] Failed to invalidate cache:', e);
+    }
+
+    // Reset translated content to trigger re-render with original
+    setTranslatedContent(null);
+
+    // Refetch translation
+    await translate();
+  }, [contentHash, language, translate]);
+
   return {
     translatedContent,
     isTranslating,
     error,
     refetch: translate,
+    invalidateCache: invalidateAndRefetch,
   };
 }
