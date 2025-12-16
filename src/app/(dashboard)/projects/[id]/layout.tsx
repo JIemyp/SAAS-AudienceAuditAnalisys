@@ -13,6 +13,8 @@ import {
     ChevronRight,
     FileText,
     Compass,
+    UserPlus,
+    Settings,
 } from "lucide-react";
 import { use, useEffect, useState } from "react";
 
@@ -229,6 +231,17 @@ export default function ProjectLayout({
                         >
                             <Compass className="w-4 h-4" />
                             Explorer
+                        </Link>
+                    </div>
+
+                    {/* Settings & Share */}
+                    <div className="pt-4 mt-4 border-t border-white/10 shrink-0 space-y-2">
+                        <Link
+                            href={`${baseHref}/settings`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-colors"
+                        >
+                            <UserPlus className="w-4 h-4" />
+                            Share Project
                         </Link>
                     </div>
 
