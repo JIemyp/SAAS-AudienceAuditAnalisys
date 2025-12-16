@@ -21,15 +21,14 @@ export const openaiAdapter: AIProviderAdapter = {
 
     // gpt-5.x / o-series / gpt-4.1 only support the Responses API
     if (isResponsesOnlyModel(modelId)) {
+      const prompt = options.systemPrompt
+        ? `System:\n${options.systemPrompt}\n\nUser:\n${options.prompt}`
+        : options.prompt;
+
       const response = await client.responses.create({
         model: modelId,
         max_output_tokens: options.maxTokens || 4096,
-        input: [
-          ...(options.systemPrompt
-            ? [{ role: 'system' as const, content: [{ type: 'text', text: options.systemPrompt }] }]
-            : []),
-          { role: 'user' as const, content: [{ type: 'text', text: options.prompt }] },
-        ],
+        input: prompt,
       });
 
       const content =
