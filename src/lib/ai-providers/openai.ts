@@ -1,7 +1,9 @@
 import OpenAI from 'openai';
 import { AIProviderAdapter, GenerateOptions } from './types';
 
-type ResponseOutput = OpenAI.Beta.Responses.Response['output'];
+type ResponseOutput = Array<{
+  content?: Array<any>;
+}> | null | undefined;
 
 function isResponsesOnlyModel(modelId: string): boolean {
   return (
