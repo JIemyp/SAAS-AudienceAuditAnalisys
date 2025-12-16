@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Jobs to Be Done - Prompt 5 (Per Segment)
 // =====================================================
 

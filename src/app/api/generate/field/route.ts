@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 import { generateWithClaude } from "@/lib/anthropic";
 import { createClient } from "@/lib/supabase/server";
 

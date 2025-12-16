@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Competitive Intelligence - Per Segment
 // Analyzes alternatives tried, competitors, switching barriers
 // =====================================================

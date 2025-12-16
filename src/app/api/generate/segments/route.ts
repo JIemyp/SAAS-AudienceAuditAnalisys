@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Segments - Prompt 9
 // Now works with just Portrait Final (Segments come BEFORE Jobs/Triggers in v4)
 // =====================================================

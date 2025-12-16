@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Validation - Prompt 1
 // =====================================================
 

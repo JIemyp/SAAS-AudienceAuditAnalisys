@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Channel Strategy - NEW MODULE (Per Segment)
 // Analyzes WHERE to find the audience and HOW to reach them
 // =====================================================

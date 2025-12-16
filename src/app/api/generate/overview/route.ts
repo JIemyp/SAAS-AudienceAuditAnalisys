@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 import { createServerClient } from "@/lib/supabase/server";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildOverviewPrompt, OverviewResponse } from "@/lib/prompts";

@@ -1,4 +1,7 @@
 // Generate Single Field for Segment Details
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Regenerates ONE field with full context awareness
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";

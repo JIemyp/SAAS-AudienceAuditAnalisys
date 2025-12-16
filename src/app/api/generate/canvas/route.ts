@@ -1,4 +1,7 @@
 // Generate Canvas - Prompt 14 (Per Segment)
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";

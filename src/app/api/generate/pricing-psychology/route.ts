@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Pricing Psychology - Per Segment
 // Analyzes budget context, price perception, value anchors
 // =====================================================

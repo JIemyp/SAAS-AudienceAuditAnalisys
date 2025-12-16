@@ -1,4 +1,7 @@
 // Generate Segment Details - Prompt 11 (v4 - uses portraitFinal, NOT triggers)
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // ALWAYS uses segments_final as the source (after review decisions applied)
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";

@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Triggers - Prompt 8 (Per Segment)
 // =====================================================
 

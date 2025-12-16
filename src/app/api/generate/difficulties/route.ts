@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Difficulties - Prompt 7 (Per Segment)
 // =====================================================
 

@@ -1,4 +1,7 @@
 // Regenerate ALL Canvas drafts for entire project
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Cleans old canvas_drafts and canvas tables, then regenerates for all TOP pains
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";

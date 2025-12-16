@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate Portrait Final - Prompt 4
 // Uses user decisions from portrait review to apply only accepted changes
 // =====================================================

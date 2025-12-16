@@ -1,4 +1,7 @@
 // Generate Segments Final - Applies decisions from Segments Review
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Similar to Portrait Final which applies Portrait Review decisions
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";

@@ -18,6 +18,9 @@ import {
   PortraitFinal
 } from "@/types";
 
+// Increase timeout for AI generation (Vercel Pro: up to 60s)
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const { projectId, segmentId, painId } = await request.json();
@@ -29,75 +32,37 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    // Get project with onboarding data
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", projectId)
-      .eq("user_id", user.id)
-      .single();
+    // Fetch all required data in parallel for speed
+    const [
+      { data: project, error: projectError },
+      { data: segment, error: segmentError },
+      { data: segmentDetails },
+      { data: jobs },
+      { data: triggers },
+      { data: preferences },
+      { data: difficulties },
+      { data: portraitFinal },
+    ] = await Promise.all([
+      supabase.from("projects").select("*").eq("id", projectId).eq("user_id", user.id).single(),
+      supabase.from("segments").select("*").eq("id", segmentId).eq("project_id", projectId).single(),
+      supabase.from("segment_details").select("*").eq("segment_id", segmentId).single(),
+      supabase.from("jobs").select("*").eq("segment_id", segmentId).single(),
+      supabase.from("triggers").select("*").eq("segment_id", segmentId).single(),
+      supabase.from("preferences").select("*").eq("segment_id", segmentId).single(),
+      supabase.from("difficulties").select("*").eq("segment_id", segmentId).single(),
+      supabase.from("portrait_final").select("*").eq("project_id", projectId).order("approved_at", { ascending: false }).limit(1).single(),
+    ]);
 
+    // Validate required data
     if (projectError || !project) throw new ApiError("Project not found", 404);
     const onboarding = project.onboarding_data as OnboardingData;
 
-    // Get segment
-    const { data: segment, error: segmentError } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("id", segmentId)
-      .eq("project_id", projectId)
-      .single();
-
     if (segmentError || !segment) throw new ApiError("Segment not found", 404);
-
-    // Get segment details (REQUIRED)
-    const { data: segmentDetails } = await supabase
-      .from("segment_details")
-      .select("*")
-      .eq("segment_id", segmentId)
-      .single();
     if (!segmentDetails) throw new ApiError("Segment details not found. Complete segment details first.", 400);
-
-    // Get jobs (REQUIRED)
-    const { data: jobs } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("segment_id", segmentId)
-      .single();
     if (!jobs) throw new ApiError("Jobs not found. Complete jobs analysis first.", 400);
-
-    // Get triggers (REQUIRED)
-    const { data: triggers } = await supabase
-      .from("triggers")
-      .select("*")
-      .eq("segment_id", segmentId)
-      .single();
     if (!triggers) throw new ApiError("Triggers not found. Complete triggers analysis first.", 400);
-
-    // Get preferences (REQUIRED)
-    const { data: preferences } = await supabase
-      .from("preferences")
-      .select("*")
-      .eq("segment_id", segmentId)
-      .single();
     if (!preferences) throw new ApiError("Preferences not found. Complete preferences analysis first.", 400);
-
-    // Get difficulties (REQUIRED)
-    const { data: difficulties } = await supabase
-      .from("difficulties")
-      .select("*")
-      .eq("segment_id", segmentId)
-      .single();
     if (!difficulties) throw new ApiError("Difficulties not found. Complete difficulties analysis first.", 400);
-
-    // Get portrait_final (REQUIRED)
-    const { data: portraitFinal } = await supabase
-      .from("portrait_final")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("approved_at", { ascending: false })
-      .limit(1)
-      .single();
     if (!portraitFinal) throw new ApiError("Portrait final not found. Complete portrait analysis first.", 400);
 
     // Determine which pains to process

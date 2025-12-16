@@ -1,4 +1,7 @@
 // =====================================================
+// Increase timeout for AI generation
+export const maxDuration = 60;
+
 // Generate JTBD Context Enhancement - Per Segment
 // Adds situational triggers, competing solutions, success metrics
 // =====================================================
