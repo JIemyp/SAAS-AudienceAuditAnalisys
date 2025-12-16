@@ -188,80 +188,27 @@ export default function CanvasExtendedPage({
       setIsGenerating(true);
       setError(null);
 
-      // Get user ID from session
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      const userId = sessionData.user?.id;
-
-      if (!userId) {
-        throw new Error("Not authenticated");
-      }
-
-      // Use streaming API for Vercel Free plan compatibility
-      const res = await fetch("/api/generate/canvas-extended/stream", {
+      const res = await fetch("/api/generate/canvas-extended", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
           segmentId: selectedSegmentId,
           painId: targetPainId,
-          userId,
         }),
       });
 
-      // Check if it's a regular JSON response (error or already exists)
-      const contentType = res.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
-        const data = await res.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-        if (data.existingDraftId) {
-          // Draft already exists, just refresh
-          await fetchDraftForPain(targetPainId);
-          await fetchData();
-          return;
-        }
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Generation failed");
       }
 
-      // Handle streaming response
-      if (contentType?.includes("text/event-stream")) {
-        const reader = res.body?.getReader();
-        if (!reader) {
-          throw new Error("No response stream");
-        }
+      // Refresh draft
+      await fetchDraftForPain(targetPainId);
 
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (data.error) {
-                  throw new Error(data.error);
-                }
-                if (data.done && data.draft) {
-                  // Generation complete
-                  await fetchDraftForPain(targetPainId);
-                  await fetchData();
-                }
-              } catch (parseErr) {
-                // Skip invalid JSON chunks
-                console.debug("Skipping chunk:", line);
-              }
-            }
-          }
-        }
-      }
+      // Update counts
+      await fetchData();
     } catch (err) {
       console.error("Generation error:", err);
       setError(err instanceof Error ? err.message : "Generation failed");
@@ -277,67 +224,19 @@ export default function CanvasExtendedPage({
       setIsGenerating(true);
       setError(null);
 
-      // Get user ID from session
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      const userId = sessionData.user?.id;
+      const res = await fetch("/api/generate/canvas-extended", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          segmentId: selectedSegmentId,
+        }),
+      });
 
-      if (!userId) {
-        throw new Error("Not authenticated");
-      }
+      const data = await res.json();
 
-      // Generate for each pain sequentially using streaming API
-      for (const pain of selectedSegmentData.topPains) {
-        const res = await fetch("/api/generate/canvas-extended/stream", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            projectId,
-            segmentId: selectedSegmentId,
-            painId: pain.pain_id,
-            userId,
-          }),
-        });
-
-        const contentType = res.headers.get("content-type");
-
-        if (contentType?.includes("application/json")) {
-          const data = await res.json();
-          if (data.error && !data.existingDraftId) {
-            console.warn(`Skipping pain ${pain.name}: ${data.error}`);
-          }
-          continue;
-        }
-
-        if (contentType?.includes("text/event-stream")) {
-          const reader = res.body?.getReader();
-          if (reader) {
-            const decoder = new TextDecoder();
-            let buffer = "";
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  try {
-                    const data = JSON.parse(line.slice(6));
-                    if (data.error) {
-                      console.warn(`Error for ${pain.name}: ${data.error}`);
-                    }
-                  } catch {
-                    // Skip invalid chunks
-                  }
-                }
-              }
-            }
-          }
-        }
+      if (!res.ok) {
+        throw new Error(data.error || "Generation failed");
       }
 
       // Refresh data
