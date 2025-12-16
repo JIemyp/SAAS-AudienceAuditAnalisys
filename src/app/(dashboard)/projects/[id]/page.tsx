@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -96,7 +95,6 @@ export default function ProjectPage({
     const [isLoading, setIsLoading] = useState(true);
     const [isResetting, setIsResetting] = useState(false);
     const [showResetModal, setShowResetModal] = useState(false);
-    const supabase = createClient();
 
     // Language & Translation
     const { language, setLanguage } = useLanguage();
@@ -108,24 +106,25 @@ export default function ProjectPage({
 
     useEffect(() => {
         async function fetchProject() {
-            const { data, error } = await supabase
-                .from("projects")
-                .select("*")
-                .eq("id", id)
-                .single();
-
-            if (error) {
+            try {
+                const res = await fetch(`/api/projects/${id}`);
+                if (!res.ok) {
+                    console.error("Error fetching project:", res.status);
+                    router.push("/projects");
+                    return;
+                }
+                const data = await res.json();
+                setProject(data);
+            } catch (error) {
                 console.error("Error fetching project:", error);
                 router.push("/projects");
-                return;
+            } finally {
+                setIsLoading(false);
             }
-
-            setProject(data);
-            setIsLoading(false);
         }
 
         fetchProject();
-    }, [id, supabase, router]);
+    }, [id, router]);
 
     const handleContinue = () => {
         if (!project) return;
