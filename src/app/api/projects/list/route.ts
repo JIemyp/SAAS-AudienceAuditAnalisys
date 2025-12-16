@@ -7,10 +7,13 @@ export async function GET() {
     const supabase = await createClient();
 
     // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    console.log("[projects/list] User:", user.id, user.email);
 
     // 1. Get projects owned by user
     const { data: ownedProjects, error: ownedError } = await supabase
@@ -20,9 +23,10 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (ownedError) {
-      console.error("Error fetching owned projects:", ownedError);
-      throw ownedError;
+      console.error("[projects/list] Owned projects error:", ownedError);
     }
+
+    console.log("[projects/list] Owned projects:", ownedProjects?.length || 0);
 
     // 2. Get projects where user is a member
     const { data: memberships, error: memberError } = await supabase
@@ -31,14 +35,17 @@ export async function GET() {
       .eq("user_id", user.id);
 
     if (memberError) {
-      console.error("Error fetching memberships:", memberError);
-      throw memberError;
+      console.error("[projects/list] Memberships error:", memberError);
     }
+
+    console.log("[projects/list] Memberships:", memberships?.length || 0, memberships);
 
     // 3. Fetch member projects if any
     let memberProjects: typeof ownedProjects = [];
     if (memberships && memberships.length > 0) {
       const projectIds = memberships.map(m => m.project_id);
+      console.log("[projects/list] Fetching shared projects:", projectIds);
+
       const { data: sharedProjects, error: sharedError } = await supabase
         .from("projects")
         .select("id, name, status, current_step, onboarding_data, created_at, updated_at")
@@ -46,10 +53,11 @@ export async function GET() {
         .order("created_at", { ascending: false });
 
       if (sharedError) {
-        console.error("Error fetching shared projects:", sharedError);
-        throw sharedError;
+        console.error("[projects/list] Shared projects error:", sharedError);
       }
+
       memberProjects = sharedProjects || [];
+      console.log("[projects/list] Shared projects found:", memberProjects.length);
     }
 
     // 4. Combine and mark roles
@@ -63,13 +71,15 @@ export async function GET() {
       role: "viewer" as const,
     }));
 
-    // Combine, owned first, then shared
+    const allProjects = [...ownedWithRole, ...memberWithRole];
+    console.log("[projects/list] Total projects:", allProjects.length);
+
     return NextResponse.json({
       success: true,
-      projects: [...ownedWithRole, ...memberWithRole],
+      projects: allProjects,
     });
   } catch (error) {
-    console.error("Projects list error:", error);
+    console.error("[projects/list] Unexpected error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
