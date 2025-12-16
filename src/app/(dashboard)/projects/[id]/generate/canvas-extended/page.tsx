@@ -29,6 +29,79 @@ import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useTranslation } from "@/lib/hooks/useTranslation";
 
+// UI translations - base English used for all non-translated languages
+const UI_EN = {
+  title: "Extended Canvas Analysis V2",
+  description: "Deep psychological analysis with customer journey, emotional mapping, narrative angles, and messaging framework for each TOP pain.",
+  approved: "approved",
+  continueToOverview: "Continue to Overview",
+  generateAllForSegment: "Generate All for Segment",
+  approveAllForSegment: "Approve All for Segment",
+  topPains: "TOP Pains",
+  noTopPains: "No TOP pains found for this segment",
+  selectPain: "Select a pain to view or generate analysis",
+  regenerate: "Regenerate",
+  approve: "Approve",
+  extendedAnalysis: "Extended Analysis V2",
+  generating: "Generating Extended Analysis V2",
+  generatingDesc: "Building customer journey, emotional map, narrative angles, and messaging framework...",
+  generateFor: "Generate Analysis for",
+  generateDesc: "Create a comprehensive psychological profile with customer journey mapping, emotional intensity analysis, narrative angles, and actionable messaging framework.",
+  generateBtn: "Generate Extended Analysis",
+  translating: "Translating...",
+  impact: "Impact",
+};
+
+const UI_TRANSLATIONS: Record<string, typeof UI_EN> = {
+  en: UI_EN,
+  ru: {
+    title: "Расширенный анализ Canvas V2",
+    description: "Глубокий психологический анализ с картой пути клиента, эмоциональным картированием, нарративными углами и фреймворком сообщений для каждой ТОП боли.",
+    approved: "одобрено",
+    continueToOverview: "Перейти к обзору",
+    generateAllForSegment: "Сгенерировать всё для сегмента",
+    approveAllForSegment: "Одобрить всё для сегмента",
+    topPains: "ТОП Боли",
+    noTopPains: "Не найдено ТОП болей для этого сегмента",
+    selectPain: "Выберите боль для просмотра или генерации анализа",
+    regenerate: "Перегенерировать",
+    approve: "Одобрить",
+    extendedAnalysis: "Расширенный анализ V2",
+    generating: "Генерация расширенного анализа V2",
+    generatingDesc: "Создание карты пути клиента, эмоциональной карты, нарративных углов и фреймворка сообщений...",
+    generateFor: "Сгенерировать анализ для",
+    generateDesc: "Создайте комплексный психологический профиль с картированием пути клиента, анализом эмоциональной интенсивности, нарративными углами и практическим фреймворком сообщений.",
+    generateBtn: "Сгенерировать расширенный анализ",
+    translating: "Перевод...",
+    impact: "Влияние",
+  },
+  uk: {
+    title: "Розширений аналіз Canvas V2",
+    description: "Глибокий психологічний аналіз з картою шляху клієнта, емоційним картуванням, наративними кутами та фреймворком повідомлень для кожного ТОП болю.",
+    approved: "схвалено",
+    continueToOverview: "Перейти до огляду",
+    generateAllForSegment: "Згенерувати все для сегмента",
+    approveAllForSegment: "Схвалити все для сегмента",
+    topPains: "ТОП Болі",
+    noTopPains: "Не знайдено ТОП болів для цього сегмента",
+    selectPain: "Виберіть біль для перегляду або генерації аналізу",
+    regenerate: "Перегенерувати",
+    approve: "Схвалити",
+    extendedAnalysis: "Розширений аналіз V2",
+    generating: "Генерація розширеного аналізу V2",
+    generatingDesc: "Створення карти шляху клієнта, емоційної карти, наративних кутів та фреймворку повідомлень...",
+    generateFor: "Згенерувати аналіз для",
+    generateDesc: "Створіть комплексний психологічний профіль з картуванням шляху клієнта, аналізом емоційної інтенсивності, наративними кутами та практичним фреймворком повідомлень.",
+    generateBtn: "Згенерувати розширений аналіз",
+    translating: "Переклад...",
+    impact: "Вплив",
+  },
+  // Other languages fall back to English
+  de: UI_EN,
+  es: UI_EN,
+  fr: UI_EN,
+};
+
 interface TopPain {
   pain_id: string;
   name: string;
@@ -64,6 +137,7 @@ export default function CanvasExtendedPage({
 
   // Language translation
   const { language, setLanguage } = useLanguage();
+  const t = UI_TRANSLATIONS[language] || UI_TRANSLATIONS.en;
   const { translatedContent: translatedDraft, isTranslating } = useTranslation({
     content: currentDraft,
     language,
@@ -144,9 +218,11 @@ export default function CanvasExtendedPage({
           generatedCount,
           approvedCount,
         });
+        console.log(`[canvas-extended] Segment "${segment.name}": ${generatedCount}/${topPains.length} generated, ${approvedCount} approved`);
       }
 
       setSegmentsWithPains(result);
+      console.log("[canvas-extended] fetchData complete:", result.map(r => ({ name: r.segment.name, gen: r.generatedCount, appr: r.approvedCount, total: r.topPains.length })));
 
       // Auto-select first segment with pains
       const firstWithPains = result.find(s => s.topPains.length > 0);
@@ -399,10 +475,10 @@ export default function CanvasExtendedPage({
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Extended Canvas Analysis V2
+            {t.title}
           </h1>
           <p className="mt-1 text-slate-500">
-            Deep psychological analysis with customer journey, emotional mapping, narrative angles, and messaging framework for each TOP pain.
+            {t.description}
           </p>
         </div>
       </motion.div>
@@ -420,7 +496,7 @@ export default function CanvasExtendedPage({
           {/* Progress Badge */}
           <div className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm">
             <span className="font-medium text-slate-700">{totalApproved}/{totalPains}</span>
-            <span className="text-slate-500 ml-1">approved</span>
+            <span className="text-slate-500 ml-1">{t.approved}</span>
           </div>
 
           {allComplete ? (
@@ -428,7 +504,7 @@ export default function CanvasExtendedPage({
               onClick={() => router.push(`/projects/${projectId}/overview`)}
               className="gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600"
             >
-              Continue to Overview
+              {t.continueToOverview}
               <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
@@ -442,7 +518,7 @@ export default function CanvasExtendedPage({
                   className="gap-2"
                 >
                   <Zap className="w-4 h-4" />
-                  Generate All for Segment
+                  {t.generateAllForSegment}
                 </Button>
               )}
               {selectedSegmentData && selectedSegmentData.generatedCount > selectedSegmentData.approvedCount && (
@@ -454,7 +530,7 @@ export default function CanvasExtendedPage({
                   className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
                 >
                   <Check className="w-4 h-4" />
-                  Approve All for Segment
+                  {t.approveAllForSegment}
                 </Button>
               )}
             </>
@@ -572,7 +648,7 @@ export default function CanvasExtendedPage({
           <div className="bg-white border border-slate-200 rounded-lg p-4 sticky top-4">
             <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
               <Target className="w-4 h-4 text-purple-500" />
-              TOP Pains
+              {t.topPains}
             </h3>
             <div className="space-y-2">
               {selectedSegmentData?.topPains.map((pain, idx) => {
@@ -607,7 +683,7 @@ export default function CanvasExtendedPage({
                         {pain.name}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Impact: {pain.impact_score}/10
+                        {t.impact}: {pain.impact_score}/10
                       </p>
                     </div>
                   </button>
@@ -617,7 +693,7 @@ export default function CanvasExtendedPage({
 
             {selectedSegmentData?.topPains.length === 0 && (
               <p className="text-sm text-slate-500 text-center py-4">
-                No TOP pains found for this segment
+                {t.noTopPains}
               </p>
             )}
           </div>
@@ -627,7 +703,7 @@ export default function CanvasExtendedPage({
         <div className="col-span-9">
           <AnimatePresence mode="wait">
             {isGenerating ? (
-              <GeneratingState key="generating" />
+              <GeneratingState key="generating" t={t} />
             ) : displayDraft ? (
               <motion.div
                 key={`draft-${displayDraft.id}`}
@@ -640,7 +716,7 @@ export default function CanvasExtendedPage({
                 {isTranslating && language !== 'en' && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
                     <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
-                    <span className="text-amber-700 text-sm">Translating...</span>
+                    <span className="text-amber-700 text-sm">{t.translating}</span>
                   </div>
                 )}
 
@@ -648,7 +724,7 @@ export default function CanvasExtendedPage({
                 <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 rounded-lg">
                   <div>
                     <h2 className="font-semibold text-purple-900">{selectedPain?.name}</h2>
-                    <p className="text-sm text-purple-600">Extended Analysis V2</p>
+                    <p className="text-sm text-purple-600">{t.extendedAnalysis}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -659,7 +735,7 @@ export default function CanvasExtendedPage({
                       className="gap-2"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Regenerate
+                      {t.regenerate}
                     </Button>
                     <Button
                       size="sm"
@@ -669,7 +745,7 @@ export default function CanvasExtendedPage({
                       className="gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600"
                     >
                       <Check className="w-4 h-4" />
-                      Approve
+                      {t.approve}
                     </Button>
                   </div>
                 </div>
@@ -687,10 +763,11 @@ export default function CanvasExtendedPage({
                 painName={selectedPain.name}
                 onGenerate={() => handleGenerate()}
                 isGenerating={isGenerating}
+                t={t}
               />
             ) : (
               <div className="flex items-center justify-center py-24 text-slate-500">
-                Select a pain to view or generate analysis
+                {t.selectPain}
               </div>
             )}
           </AnimatePresence>
@@ -700,7 +777,7 @@ export default function CanvasExtendedPage({
   );
 }
 
-function GeneratingState() {
+function GeneratingState({ t }: { t: typeof UI_TRANSLATIONS['en'] }) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
@@ -725,10 +802,10 @@ function GeneratingState() {
       </div>
 
       <h3 className="mt-8 text-xl font-semibold text-slate-900">
-        Generating Extended Analysis V2
+        {t.generating}
       </h3>
       <p className="mt-2 text-slate-500">
-        Building customer journey, emotional map, narrative angles, and messaging framework...
+        {t.generatingDesc}
       </p>
       <p className="mt-4 text-sm text-slate-400">
         {Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, '0')}
@@ -741,10 +818,12 @@ function EmptyState({
   painName,
   onGenerate,
   isGenerating,
+  t,
 }: {
   painName: string;
   onGenerate: () => void;
   isGenerating: boolean;
+  t: typeof UI_TRANSLATIONS['en'];
 }) {
   return (
     <motion.div
@@ -758,10 +837,10 @@ function EmptyState({
             <Sparkles className="w-8 h-8 text-purple-500" />
           </div>
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            Generate Analysis for "{painName}"
+            {t.generateFor} &quot;{painName}&quot;
           </h3>
           <p className="text-slate-500 text-center max-w-md mb-6">
-            Create a comprehensive psychological profile with customer journey mapping, emotional intensity analysis, narrative angles, and actionable messaging framework.
+            {t.generateDesc}
           </p>
           <Button
             onClick={onGenerate}
@@ -770,7 +849,7 @@ function EmptyState({
             className="gap-2 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
           >
             <Sparkles className="w-4 h-4" />
-            Generate Extended Analysis
+            {t.generateBtn}
           </Button>
         </CardContent>
       </Card>
