@@ -180,6 +180,52 @@ export default function CanvasExtendedPage({
     }
   };
 
+  // Helper to handle SSE streaming response
+  const handleSSEGeneration = async (body: object, onComplete: () => Promise<void>) => {
+    const res = await fetch("/api/generate/canvas-extended", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "Generation failed");
+    }
+
+    // Read SSE stream
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response body");
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = JSON.parse(line.slice(6));
+          console.log("[SSE]", data);
+
+          if (data.type === "error") {
+            throw new Error(data.message);
+          }
+
+          if (data.type === "complete") {
+            await onComplete();
+            return;
+          }
+        }
+      }
+    }
+  };
+
   const handleGenerate = async (painId?: string) => {
     const targetPainId = painId || selectedPainId;
     if (!targetPainId || !selectedSegmentId) return;
@@ -188,27 +234,19 @@ export default function CanvasExtendedPage({
       setIsGenerating(true);
       setError(null);
 
-      const res = await fetch("/api/generate/canvas-extended", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await handleSSEGeneration(
+        {
           projectId,
           segmentId: selectedSegmentId,
           painId: targetPainId,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Generation failed");
-      }
-
-      // Refresh draft
-      await fetchDraftForPain(targetPainId);
-
-      // Update counts
-      await fetchData();
+        },
+        async () => {
+          // Refresh draft
+          await fetchDraftForPain(targetPainId);
+          // Update counts
+          await fetchData();
+        }
+      );
     } catch (err) {
       console.error("Generation error:", err);
       setError(err instanceof Error ? err.message : "Generation failed");
@@ -224,28 +262,20 @@ export default function CanvasExtendedPage({
       setIsGenerating(true);
       setError(null);
 
-      const res = await fetch("/api/generate/canvas-extended", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await handleSSEGeneration(
+        {
           projectId,
           segmentId: selectedSegmentId,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Generation failed");
-      }
-
-      // Refresh data
-      await fetchData();
-
-      // Fetch current pain's draft
-      if (selectedPainId) {
-        await fetchDraftForPain(selectedPainId);
-      }
+        },
+        async () => {
+          // Refresh data
+          await fetchData();
+          // Fetch current pain's draft
+          if (selectedPainId) {
+            await fetchDraftForPain(selectedPainId);
+          }
+        }
+      );
     } catch (err) {
       console.error("Generation error:", err);
       setError(err instanceof Error ? err.message : "Generation failed");
