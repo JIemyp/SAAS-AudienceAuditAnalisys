@@ -1,6 +1,15 @@
 import OpenAI from 'openai';
 import { AIProviderAdapter, GenerateOptions } from './types';
 
+function isResponsesOnlyModel(modelId: string): boolean {
+  return (
+    modelId.startsWith('gpt-5') ||
+    modelId.startsWith('gpt-4.1') ||
+    modelId.startsWith('o3') ||
+    modelId.startsWith('o4')
+  );
+}
+
 export const openaiAdapter: AIProviderAdapter = {
   provider: 'openai',
 
@@ -10,15 +19,45 @@ export const openaiAdapter: AIProviderAdapter = {
     // Use model from options, or default to gpt-5.2
     const modelId = options.model || 'gpt-5.2';
 
-    // GPT-5.x models use max_completion_tokens, older models use max_tokens
-    const isGpt5 = modelId.startsWith('gpt-5') || modelId.startsWith('o3') || modelId.startsWith('o4');
-    const tokenParam = isGpt5
-      ? { max_completion_tokens: options.maxTokens || 4096 }
-      : { max_tokens: options.maxTokens || 4096 };
+    // gpt-5.x / o-series / gpt-4.1 only support the Responses API
+    if (isResponsesOnlyModel(modelId)) {
+      const response = await client.responses.create({
+        model: modelId,
+        max_output_tokens: options.maxTokens || 4096,
+        input: [
+          ...(options.systemPrompt
+            ? [{ role: 'system' as const, content: [{ type: 'text', text: options.systemPrompt }] }]
+            : []),
+          { role: 'user' as const, content: [{ type: 'text', text: options.prompt }] },
+        ],
+      });
+
+      const content =
+        (Array.isArray(response.output_text) && response.output_text.join('\n').trim()) ||
+        (response.output
+          ?.flatMap(block => block.content)
+          ?.map(part => {
+            if ('text' in part && part.text) return part.text;
+            if ('type' in part && part.type === 'output_text' && 'content' in part) {
+              // @ts-ignore - shape differs per SDK version
+              return part.content?.map((c: any) => c.text).join('') ?? '';
+            }
+            return null;
+          })
+          ?.filter((value): value is string => Boolean(value))
+          ?.join('')
+          .trim()) ||
+        null;
+
+      if (!content) {
+        throw new Error('No response from OpenAI');
+      }
+      return content;
+    }
 
     const response = await client.chat.completions.create({
       model: modelId,
-      ...tokenParam,
+      max_tokens: options.maxTokens || 4096,
       messages: [
         ...(options.systemPrompt
           ? [{ role: 'system' as const, content: options.systemPrompt }]
