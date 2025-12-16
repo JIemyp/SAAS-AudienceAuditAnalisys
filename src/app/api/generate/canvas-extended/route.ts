@@ -220,13 +220,13 @@ export async function POST(request: NextRequest) {
         canvas,
       });
 
-      // Generate with Claude - V2 needs more tokens for detailed output
+      // Generate with Claude - reduced tokens for faster response
       const response = await withRetry(async () => {
         const text = await generateWithAI({
           prompt: userPrompt,
           systemPrompt,
-          maxTokens: 12000,
-          userId: user.id  // Increased for V2 detailed output
+          maxTokens: 4096,
+          userId: user.id,
         });
         return parseJSONResponse<CanvasExtendedV2Response>(text);
       });
