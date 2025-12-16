@@ -1,9 +1,7 @@
 import OpenAI from 'openai';
 import { AIProviderAdapter, GenerateOptions } from './types';
 
-type ResponseOutput = Array<{
-  content?: Array<any>;
-}> | null | undefined;
+type ResponseOutput = unknown;
 
 function isResponsesOnlyModel(modelId: string): boolean {
   return (
@@ -17,9 +15,10 @@ function isResponsesOnlyModel(modelId: string): boolean {
 function extractTextFromOutput(output?: ResponseOutput): string[] {
   if (!output) return [];
 
+  const outputArray = Array.isArray(output) ? (output as Array<any>) : [];
   const chunks: string[] = [];
 
-  for (const block of output) {
+  for (const block of outputArray) {
     const blockAny = block as { content?: Array<any> };
     if (!Array.isArray(blockAny.content)) continue;
 
