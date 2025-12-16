@@ -2085,6 +2085,191 @@ Return ONLY valid JSON with this exact structure:
 }
 
 // =====================================================
+// Prompt 15 V2 PART 1: Customer Journey + Emotional Map
+// Split for parallel execution (Vercel 10s limit)
+// =====================================================
+
+export function buildCanvasExtendedPart1(input: CanvasExtendedV2PromptInput): {
+  systemPrompt: string;
+  userPrompt: string;
+} {
+  const { onboarding, segment, segmentDetails, jobs, triggers, preferences, difficulties, portraitFinal, pain, canvas } = input;
+
+  const systemPrompt = `You are a world-class consumer psychologist with 20+ years of experience studying buyer behavior for premium health products.
+
+Your task: Create CUSTOMER JOURNEY MAP and EMOTIONAL INTENSITY MAP for ONE specific pain point.
+
+Be specific. Be psychological. Be practical.
+
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON object.`;
+
+  // Build compact context sections
+  const segmentContext = segmentDetails ? `
+Needs: ${segmentDetails.needs?.slice(0, 3).map((n) => `${n.need} (${n.intensity})`).join(", ") || "N/A"}
+Values: ${segmentDetails.core_values?.slice(0, 3).map((v) => v.value).join(", ") || "N/A"}
+Awareness: ${segmentDetails.awareness_level || "N/A"}` : "";
+
+  const jobsContext = jobs ? `
+Jobs: ${jobs.functional_jobs.slice(0, 2).map(j => j.job).join("; ")}; ${jobs.emotional_jobs.slice(0, 2).map(j => j.job).join("; ")}` : "";
+
+  const triggersContext = triggers ? `
+Triggers: ${triggers.triggers.slice(0, 2).map(t => t.name).join(", ")}` : "";
+
+  const canvasContext = `
+Emotions: ${canvas.emotional_aspects.slice(0, 2).map(e => `${e.emotion} (${e.intensity})`).join(", ")}
+Patterns: ${canvas.behavioral_patterns.slice(0, 2).map(b => b.pattern).join(", ")}
+Signals: ${canvas.buying_signals.slice(0, 2).map(s => s.signal).join(", ")}`;
+
+  const userPrompt = `# Context
+
+Brand: ${onboarding.brandName} | Product: ${onboarding.productService}
+Problem: ${onboarding.problems[0]} | USP: ${onboarding.usp}
+
+Segment: ${segment.name} - ${segment.description}
+${segmentContext}${jobsContext}${triggersContext}
+
+# Pain Point: ${pain.name}
+${pain.description}
+Triggers: ${pain.deep_triggers.slice(0, 3).join("; ")}
+Examples: ${pain.examples.slice(0, 2).map(e => `"${e}"`).join("; ")}
+${canvasContext}
+
+# Generate: CUSTOMER JOURNEY + EMOTIONAL MAP
+
+## 1. CUSTOMER JOURNEY MAP
+Describe emotional journey from problem awareness to purchase.
+Stages: UNAWARE → PROBLEM AWARE → SOLUTION SEEKING → EVALUATION → DECISION → POST-PURCHASE
+For each: internal dialogue, emotional state, actions, what they need to hear.
+
+## 2. EMOTIONAL INTENSITY MAP
+Map emotional peaks and valleys.
+- PEAKS: moments of hope/excitement
+- VALLEYS: moments of despair/frustration
+- TURNING POINTS: what shifts them
+For each: trigger, internal dialogue, duration, intensity (1-10).
+
+## Output JSON:
+{
+  "customer_journey": {
+    "unaware_stage": { "life_context": "...", "internal_dialogue": "...", "emotional_state": "...", "duration": "..." },
+    "problem_aware": { "trigger_moment": "...", "internal_dialogue": "...", "emotional_state": "...", "actions": ["..."] },
+    "solution_seeking": { "where_they_look": ["..."], "what_they_try": ["..."], "internal_dialogue": "...", "frustrations": ["..."] },
+    "evaluation": { "criteria": ["..."], "comparison_behavior": "...", "internal_dialogue": "...", "dealbreakers": ["..."] },
+    "decision_trigger": { "trigger_moment": "...", "internal_dialogue": "...", "what_they_need_to_hear": "...", "final_hesitation": "..." },
+    "post_purchase": { "first_week": "...", "confirmation_moments": ["..."], "doubt_moments": ["..."], "advocacy_trigger": "..." }
+  },
+  "emotional_map": {
+    "peaks": [{ "moment": "...", "trigger": "...", "internal_dialogue": "...", "intensity": 7, "duration": "..." }],
+    "valleys": [{ "moment": "...", "trigger": "...", "internal_dialogue": "...", "intensity": 8, "duration": "..." }],
+    "turning_points": [{ "from_state": "...", "to_state": "...", "catalyst": "...", "internal_shift": "..." }]
+  }
+}`;
+
+  return { systemPrompt, userPrompt };
+}
+
+// =====================================================
+// Prompt 15 V2 PART 2: Narrative + Messaging + Voice
+// Split for parallel execution (Vercel 10s limit)
+// =====================================================
+
+export function buildCanvasExtendedPart2(input: CanvasExtendedV2PromptInput): {
+  systemPrompt: string;
+  userPrompt: string;
+} {
+  const { onboarding, segment, segmentDetails, jobs, triggers, pain, canvas } = input;
+
+  const systemPrompt = `You are a world-class conversion copywriter with 20+ years of experience writing for premium health products.
+
+Your task: Create NARRATIVE ANGLES, MESSAGING FRAMEWORK, and VOICE & TONE GUIDELINES for ONE specific pain point.
+
+Be specific. Be psychological. Be practical.
+
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON object.`;
+
+  // Build compact context
+  const objections = segmentDetails?.objections?.slice(0, 3).map(o => o.objection).join("; ") || "Price, skepticism";
+
+  const segmentContext = segmentDetails ? `
+Needs: ${segmentDetails.needs?.slice(0, 3).map((n) => `${n.need} (${n.intensity})`).join(", ") || "N/A"}
+Objections: ${objections}` : "";
+
+  const jobsContext = jobs ? `
+Jobs: ${jobs.emotional_jobs.slice(0, 2).map(j => j.job).join("; ")}` : "";
+
+  const canvasContext = `
+Emotions: ${canvas.emotional_aspects.slice(0, 2).map(e => `${e.emotion}: ${e.description}`).join("; ")}
+Signals: ${canvas.buying_signals.slice(0, 2).map(s => `${s.signal} (${s.readiness_level})`).join("; ")}`;
+
+  const userPrompt = `# Context
+
+Brand: ${onboarding.brandName} | Product: ${onboarding.productService}
+Problem: ${onboarding.problems[0]} | USP: ${onboarding.usp} | Price: ${onboarding.priceSegment}
+
+Segment: ${segment.name} - ${segment.description}
+${segmentContext}${jobsContext}
+
+# Pain Point: ${pain.name}
+${pain.description}
+Triggers: ${pain.deep_triggers.slice(0, 3).join("; ")}
+${canvasContext}
+
+# Generate: NARRATIVE + MESSAGING + VOICE
+
+## 1. NARRATIVE ANGLES (3 distinct angles)
+Each: angle_name, who_this_is, their_story, core_belief, breakthrough_moment, key_message, proof_they_need, objection_to_address
+
+## 2. MESSAGING FRAMEWORK
+- headlines (5): grab attention for this pain+segment
+- opening_hooks (3): first paragraph that creates recognition
+- bridge_statements (3): transition from problem to solution
+- proof_framing: { type, format, language }
+- objection_handlers: for "${objections}"
+- cta_options (3): match awareness level
+
+## 3. VOICE & TONE
+- do (5 things): language, tone, approach
+- dont (5 things): what to avoid
+- words_that_resonate (10)
+- words_to_avoid (10)
+
+## Output JSON:
+{
+  "narrative_angles": [
+    { "angle_name": "...", "who_this_is": "...", "their_story": "...", "core_belief": "...", "breakthrough_moment": "...", "key_message": "...", "proof_they_need": "...", "objection_to_address": "..." }
+  ],
+  "messaging_framework": {
+    "headlines": ["...", "...", "...", "...", "..."],
+    "opening_hooks": ["...", "...", "..."],
+    "bridge_statements": ["...", "...", "..."],
+    "proof_framing": { "type": "...", "format": "...", "language": "..." },
+    "objection_handlers": [{ "objection": "...", "handler": "..." }],
+    "cta_options": ["...", "...", "..."]
+  },
+  "voice_and_tone": {
+    "do": ["...", "...", "...", "...", "..."],
+    "dont": ["...", "...", "...", "...", "..."],
+    "words_that_resonate": ["...", "...", "...", "...", "...", "...", "...", "...", "...", "..."],
+    "words_to_avoid": ["...", "...", "...", "...", "...", "...", "...", "...", "...", "..."]
+  }
+}`;
+
+  return { systemPrompt, userPrompt };
+}
+
+// Response types for split prompts
+export interface CanvasExtendedPart1Response {
+  customer_journey: CanvasExtendedV2Response['customer_journey'];
+  emotional_map: CanvasExtendedV2Response['emotional_map'];
+}
+
+export interface CanvasExtendedPart2Response {
+  narrative_angles: CanvasExtendedV2Response['narrative_angles'];
+  messaging_framework: CanvasExtendedV2Response['messaging_framework'];
+  voice_and_tone: CanvasExtendedV2Response['voice_and_tone'];
+}
+
+// =====================================================
 // LEGACY PROMPTS (for backward compatibility)
 // =====================================================
 

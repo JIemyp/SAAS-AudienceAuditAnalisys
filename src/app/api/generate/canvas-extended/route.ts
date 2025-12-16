@@ -3,7 +3,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
-import { buildCanvasExtendedPromptV2, CanvasExtendedV2Response } from "@/lib/prompts";
+import {
+  buildCanvasExtendedPart1,
+  buildCanvasExtendedPart2,
+  CanvasExtendedPart1Response,
+  CanvasExtendedPart2Response,
+} from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import {
   Segment,
@@ -206,8 +211,8 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Build V2 prompt with full cascade context
-      const { systemPrompt, userPrompt } = buildCanvasExtendedPromptV2({
+      // Build SPLIT prompts for parallel execution (Vercel 10s limit)
+      const promptInput = {
         onboarding,
         segment: segment as Segment,
         segmentDetails: segmentDetails as SegmentDetails,
@@ -218,18 +223,41 @@ export async function POST(request: NextRequest) {
         portraitFinal: portraitFinal as PortraitFinal,
         pain,
         canvas,
-      });
+      };
 
-      // Generate with Claude - reduced tokens for faster response
-      const response = await withRetry(async () => {
-        const text = await generateWithAI({
-          prompt: userPrompt,
-          systemPrompt,
-          maxTokens: 4096,
-          userId: user.id,
-        });
-        return parseJSONResponse<CanvasExtendedV2Response>(text);
-      });
+      const part1Prompt = buildCanvasExtendedPart1(promptInput);
+      const part2Prompt = buildCanvasExtendedPart2(promptInput);
+
+      // Run BOTH parts in PARALLEL - each ~5-6s instead of 15-25s total
+      const [part1Response, part2Response] = await Promise.all([
+        withRetry(async () => {
+          const text = await generateWithAI({
+            prompt: part1Prompt.userPrompt,
+            systemPrompt: part1Prompt.systemPrompt,
+            maxTokens: 2048,
+            userId: user.id,
+          });
+          return parseJSONResponse<CanvasExtendedPart1Response>(text);
+        }),
+        withRetry(async () => {
+          const text = await generateWithAI({
+            prompt: part2Prompt.userPrompt,
+            systemPrompt: part2Prompt.systemPrompt,
+            maxTokens: 2048,
+            userId: user.id,
+          });
+          return parseJSONResponse<CanvasExtendedPart2Response>(text);
+        }),
+      ]);
+
+      // Merge both parts into complete response
+      const response = {
+        customer_journey: part1Response.customer_journey,
+        emotional_map: part1Response.emotional_map,
+        narrative_angles: part2Response.narrative_angles,
+        messaging_framework: part2Response.messaging_framework,
+        voice_and_tone: part2Response.voice_and_tone,
+      };
 
       // Insert into V2 table
       const { data: draft, error } = await supabase
