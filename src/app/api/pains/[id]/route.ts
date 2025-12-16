@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { handleApiError, ApiError } from "@/lib/api-utils";
+import { requireProjectAccess, requireWriteAccess } from "@/lib/permissions";
 
 // GET - Fetch pain by ID
 export async function GET(
@@ -8,9 +11,16 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        const supabase = await createServerClient();
+        const adminSupabase = createAdminClient();
 
-        const { data, error } = await supabase
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            throw new ApiError("Unauthorized", 401);
+        }
+
+        // Get pain to find project_id (use admin to bypass RLS)
+        const { data, error } = await adminSupabase
             .from("pains_initial")
             .select("*")
             .eq("id", id)
@@ -18,18 +28,17 @@ export async function GET(
 
         if (error) {
             if (error.code === "PGRST116") {
-                return NextResponse.json({ error: "Pain not found" }, { status: 404 });
+                throw new ApiError("Pain not found", 404);
             }
             throw error;
         }
 
+        // Check project access (owner or member)
+        await requireProjectAccess(supabase, adminSupabase, data.project_id, user.id);
+
         return NextResponse.json(data);
     } catch (error) {
-        console.error("Error fetching pain:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch pain" },
-            { status: 500 }
-        );
+        return handleApiError(error);
     }
 }
 
@@ -40,8 +49,28 @@ export async function PATCH(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        const supabase = await createServerClient();
+        const adminSupabase = createAdminClient();
         const body = await request.json();
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            throw new ApiError("Unauthorized", 401);
+        }
+
+        // Get pain to find project_id (use admin to bypass RLS)
+        const { data: pain } = await adminSupabase
+            .from("pains_initial")
+            .select("project_id")
+            .eq("id", id)
+            .single();
+
+        if (!pain) {
+            throw new ApiError("Pain not found", 404);
+        }
+
+        // Check write access (owner or editor only)
+        await requireWriteAccess(supabase, adminSupabase, pain.project_id, user.id);
 
         // Validate allowed fields
         const allowedFields = [
@@ -66,7 +95,8 @@ export async function PATCH(
             );
         }
 
-        const { data, error } = await supabase
+        // Use admin to bypass RLS
+        const { data, error } = await adminSupabase
             .from("pains_initial")
             .update(updateData)
             .eq("id", id)
@@ -75,18 +105,14 @@ export async function PATCH(
 
         if (error) {
             if (error.code === "PGRST116") {
-                return NextResponse.json({ error: "Pain not found" }, { status: 404 });
+                throw new ApiError("Pain not found", 404);
             }
             throw error;
         }
 
         return NextResponse.json(data);
     } catch (error) {
-        console.error("Error updating pain:", error);
-        return NextResponse.json(
-            { error: "Failed to update pain" },
-            { status: 500 }
-        );
+        return handleApiError(error);
     }
 }
 
@@ -97,9 +123,30 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createClient();
+        const supabase = await createServerClient();
+        const adminSupabase = createAdminClient();
 
-        const { error } = await supabase
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            throw new ApiError("Unauthorized", 401);
+        }
+
+        // Get pain to find project_id (use admin to bypass RLS)
+        const { data: pain } = await adminSupabase
+            .from("pains_initial")
+            .select("project_id")
+            .eq("id", id)
+            .single();
+
+        if (!pain) {
+            throw new ApiError("Pain not found", 404);
+        }
+
+        // Check write access (owner or editor only)
+        await requireWriteAccess(supabase, adminSupabase, pain.project_id, user.id);
+
+        // Use admin to bypass RLS
+        const { error } = await adminSupabase
             .from("pains_initial")
             .delete()
             .eq("id", id);
@@ -108,10 +155,6 @@ export async function DELETE(
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error("Error deleting pain:", error);
-        return NextResponse.json(
-            { error: "Failed to delete pain" },
-            { status: 500 }
-        );
+        return handleApiError(error);
     }
 }

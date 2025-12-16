@@ -4,11 +4,14 @@ export const maxDuration = 60;
 
 import { generateWithClaude } from "@/lib/anthropic";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 
 // API endpoint for regenerating individual fields with AI
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+    const adminSupabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -34,8 +37,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     // Get project info for context
-    const { data: project, error: projectError } = await supabase
+    const { data: project, error: projectError } = await adminSupabase
       .from("projects")
       .select("name, description, product_description")
       .eq("id", projectId)
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Get segment info if provided
     let segmentInfo = "";
     if (segmentId) {
-      const { data: segment } = await supabase
+      const { data: segment } = await adminSupabase
         .from("segments_final")
         .select("name, description")
         .eq("id", segmentId)

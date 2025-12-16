@@ -5,6 +5,8 @@ export const maxDuration = 60;
 // Regenerates ONE field with full context awareness
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildSingleFieldPrompt, SegmentDetailsFieldName } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -34,15 +36,19 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
 
     // 1. Get the project
     const { data: project } = await supabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
+      
       .single();
 
     if (!project) throw new ApiError("Project not found", 404);

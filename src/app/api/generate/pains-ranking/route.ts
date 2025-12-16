@@ -4,6 +4,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildPainsRankingPrompt, PainsRankingResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -15,17 +17,21 @@ export async function POST(request: NextRequest) {
     if (!projectId) throw new ApiError("Project ID is required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
 
     // Get segments from the correct table
     let segments: Segment[];
     if (segmentId) {
-      const { data: segment } = await supabase.from("segments").select("*").eq("id", segmentId).single();
+      const { data: segment } = await adminSupabase.from("segments").select("*").eq("id", segmentId).single();
       if (!segment) throw new ApiError("Segment not found", 404);
       segments = [segment as Segment];
     } else {
-      const { data: allSegments } = await supabase.from("segments").select("*").eq("project_id", projectId).order("order_index");
+      const { data: allSegments } = await adminSupabase.from("segments").select("*").eq("project_id", projectId).order("order_index");
       if (!allSegments || allSegments.length === 0) throw new ApiError("Segments not found", 400);
       segments = allSegments as Segment[];
     }
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const { data: draft, error } = await supabase.from("pains_ranking_drafts").insert({
+        const { data: draft, error } = await adminSupabase.from("pains_ranking_drafts").insert({
           project_id: projectId,
           segment_id: segment.id,
           pain_id: pain.id,
@@ -111,7 +117,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("No pains found to rank. Make sure you have approved pains first.", 400);
     }
 
-    await supabase.from("projects").update({ current_step: "pains_ranking_draft" }).eq("id", projectId);
+    await adminSupabase.from("projects").update({ current_step: "pains_ranking_draft" }).eq("id", projectId);
     return NextResponse.json({ success: true, drafts });
   } catch (error) { return handleApiError(error); }
 }

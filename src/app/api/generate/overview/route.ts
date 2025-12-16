@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const maxDuration = 60;
 
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildOverviewPrompt, OverviewResponse } from "@/lib/prompts";
 import { getFileContent } from "@/lib/upload-files";
@@ -29,12 +31,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const adminSupabase = createAdminClient();
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     // Get project with onboarding data
-    const { data: project, error: projectError } = await supabase
+    const { data: project, error: projectError } = await adminSupabase
       .from("projects")
       .select("*, project_files(*)")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) {
@@ -45,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update status
-    await supabase
+    await adminSupabase
       .from("projects")
       .update({ status: "processing", updated_at: new Date().toISOString() })
       .eq("id", projectId);
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
     if (project.project_files?.length) {
       for (const file of project.project_files) {
         try {
-          const content = await getFileContent(supabase, file.file_path);
+          const content = await getFileContent(adminSupabase, file.file_path);
           if (content) filesContent.push(content);
         } catch (e) {
           console.error(`Failed to read file ${file.file_name}:`, e);
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
     const parsed = parseJSONResponse<OverviewResponse>(response);
 
     // Save to database
-    const { data: overview, error: insertError } = await supabase
+    const { data: overview, error: insertError } = await adminSupabase
       .from("audience_overviews")
       .insert({
         project_id: projectId,
@@ -97,8 +103,8 @@ export async function POST(request: NextRequest) {
     // Update project status to failed
     if (projectId) {
       try {
-        const supabase = await createServerClient();
-        await supabase
+        const adminSupabase = createAdminClient();
+        await adminSupabase
           .from("projects")
           .update({ status: "failed" })
           .eq("id", projectId);

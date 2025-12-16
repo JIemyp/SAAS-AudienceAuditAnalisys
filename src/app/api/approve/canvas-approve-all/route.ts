@@ -2,6 +2,8 @@
 // NO regeneration, just transfer existing data
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { handleApiError, ApiError } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
@@ -11,11 +13,15 @@ export async function POST(request: NextRequest) {
     if (!projectId) throw new ApiError("Project ID is required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
+    // Check write access (owner or editor can approve)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     // Get ALL canvas_drafts for this project
-    const { data: drafts, error: draftsError } = await supabase
+    const { data: drafts, error: draftsError } = await adminSupabase
       .from("canvas_drafts")
       .select("*")
       .eq("project_id", projectId);
@@ -30,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get existing canvas records to avoid duplicates
-    const { data: existingCanvas } = await supabase
+    const { data: existingCanvas } = await adminSupabase
       .from("canvas")
       .select("pain_id")
       .eq("project_id", projectId);
@@ -46,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     for (const draft of draftsToApprove) {
       try {
-        const { data: canvas, error } = await supabase
+        const { data: canvas, error } = await adminSupabase
           .from("canvas")
           .insert({
             project_id: projectId,
@@ -98,14 +104,21 @@ export async function GET(request: NextRequest) {
     if (!projectId) throw new ApiError("Project ID is required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
+
+    // Check write access for modification operations
+    if (cleanDuplicates || searchParams.get("clearAll") === "true" ||
+        searchParams.get("cleanNonTopPains") === "true" || searchParams.get("fixOrphans") === "true") {
+      await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+    }
 
     // Clear ALL canvas records if requested
     const clearAll = searchParams.get("clearAll") === "true";
     let clearedAll = 0;
     if (clearAll) {
-      const { data: deleted } = await supabase
+      const { data: deleted } = await adminSupabase
         .from("canvas")
         .delete()
         .eq("project_id", projectId)
@@ -114,7 +127,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all canvas records
-    const { data: allCanvas } = await supabase
+    const { data: allCanvas } = await adminSupabase
       .from("canvas")
       .select("id, pain_id, created_at")
       .eq("project_id", projectId)
@@ -141,7 +154,7 @@ export async function GET(request: NextRequest) {
     let deletedCount = 0;
     if (cleanDuplicates && duplicates.length > 0) {
       const allIdsToDelete = duplicates.flatMap(d => d.idsToDelete);
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await adminSupabase
         .from("canvas")
         .delete()
         .in("id", allIdsToDelete);
@@ -157,7 +170,7 @@ export async function GET(request: NextRequest) {
 
     if (cleanNonTopPains) {
       // Get all TOP pain IDs
-      const { data: topPainsData } = await supabase
+      const { data: topPainsData } = await adminSupabase
         .from("pains_ranking")
         .select("pain_id")
         .eq("project_id", projectId)
@@ -171,7 +184,7 @@ export async function GET(request: NextRequest) {
         .map(c => c.id);
 
       if (nonTopCanvasIds.length > 0) {
-        const { error: deleteNonTopError } = await supabase
+        const { error: deleteNonTopError } = await adminSupabase
           .from("canvas")
           .delete()
           .in("id", nonTopCanvasIds);
@@ -183,30 +196,30 @@ export async function GET(request: NextRequest) {
     }
 
     // Count after cleanup
-    const { count: draftsCount } = await supabase
+    const { count: draftsCount } = await adminSupabase
       .from("canvas_drafts")
       .select("*", { count: "exact", head: true })
       .eq("project_id", projectId);
 
-    const { count: canvasCount } = await supabase
+    const { count: canvasCount } = await adminSupabase
       .from("canvas")
       .select("*", { count: "exact", head: true })
       .eq("project_id", projectId);
 
-    const { count: topPainsCount } = await supabase
+    const { count: topPainsCount } = await adminSupabase
       .from("pains_ranking")
       .select("*", { count: "exact", head: true })
       .eq("project_id", projectId)
       .eq("is_top_pain", true);
 
     // Find missing pain_ids (TOP pains without canvas_drafts)
-    const { data: topPainsForMissing } = await supabase
+    const { data: topPainsForMissing } = await adminSupabase
       .from("pains_ranking")
       .select("pain_id, segment_id")
       .eq("project_id", projectId)
       .eq("is_top_pain", true);
 
-    const { data: draftsForMissing } = await supabase
+    const { data: draftsForMissing } = await adminSupabase
       .from("canvas_drafts")
       .select("pain_id")
       .eq("project_id", projectId);
@@ -220,7 +233,7 @@ export async function GET(request: NextRequest) {
 
     if (fixOrphans && missingPainsList.length > 0) {
       // Check which pain_ids actually exist in pains_initial
-      const { data: existingPains } = await supabase
+      const { data: existingPains } = await adminSupabase
         .from("pains_initial")
         .select("id")
         .in("id", missingPainsList.map(p => p.pain_id));
@@ -232,7 +245,7 @@ export async function GET(request: NextRequest) {
 
       if (orphanPainIds.length > 0) {
         // Delete orphan records from pains_ranking
-        const { error: deleteOrphansError } = await supabase
+        const { error: deleteOrphansError } = await adminSupabase
           .from("pains_ranking")
           .delete()
           .eq("project_id", projectId)
@@ -247,14 +260,14 @@ export async function GET(request: NextRequest) {
     // Get pain names for missing ones
     let missingPainDetails: { pain_id: string; pain_name: string; segment_id: string; segment_name?: string }[] = [];
     if (missingPainsList.length > 0) {
-      const { data: painDetails } = await supabase
+      const { data: painDetails } = await adminSupabase
         .from("pains_initial")
         .select("id, name, segment_id")
         .in("id", missingPainsList.map(p => p.pain_id));
 
       // Get segment names too
       const segmentIds = [...new Set((painDetails || []).map(p => p.segment_id))];
-      const { data: segmentDetails } = await supabase
+      const { data: segmentDetails } = await adminSupabase
         .from("segments")
         .select("id, name")
         .in("id", segmentIds);

@@ -8,6 +8,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import {
@@ -152,17 +154,21 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
+      
       .single();
 
     if (projectError || !project) {

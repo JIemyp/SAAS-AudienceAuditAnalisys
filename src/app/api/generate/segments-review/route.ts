@@ -4,6 +4,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildSegmentsReviewPrompt, SegmentsReviewResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -15,13 +17,17 @@ export async function POST(request: NextRequest) {
     if (!projectId) throw new ApiError("Project ID is required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).eq("user_id", user.id).single();
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: project } = await adminSupabase.from("projects").select("*").eq("id", projectId).single();
     if (!project) throw new ApiError("Project not found", 404);
 
-    const { data: segments } = await supabase.from("segments_initial").select("*").eq("project_id", projectId).order("segment_index");
+    const { data: segments } = await adminSupabase.from("segments_initial").select("*").eq("project_id", projectId).order("segment_index");
     if (!segments || segments.length === 0) throw new ApiError("Segments not found", 400);
 
     console.log(`[segments-review] Analyzing ${segments.length} segments:`, segments.map(s => s.name));
@@ -33,7 +39,7 @@ export async function POST(request: NextRequest) {
       return parseJSONResponse<SegmentsReviewResponse>(text);
     });
 
-    const { data: draft, error } = await supabase.from("segments_review_drafts").insert({
+    const { data: draft, error } = await adminSupabase.from("segments_review_drafts").insert({
       project_id: projectId,
       segment_overlaps: response.overlaps,
       too_broad: response.too_broad,
@@ -48,7 +54,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError(`Failed to save draft: ${error.message}`, 500);
     }
 
-    await supabase.from("projects").update({ current_step: "segments_review_draft" }).eq("id", projectId);
+    await adminSupabase.from("projects").update({ current_step: "segments_review_draft" }).eq("id", projectId);
     return NextResponse.json({ success: true, draft });
   } catch (error) { return handleApiError(error); }
 }

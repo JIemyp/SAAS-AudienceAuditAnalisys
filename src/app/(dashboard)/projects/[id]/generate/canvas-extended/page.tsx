@@ -156,7 +156,10 @@ export default function CanvasExtendedPage({
         if (firstWithPains) {
           setSelectedSegmentId(firstWithPains.segment.id);
           if (firstWithPains.topPains.length > 0) {
-            setSelectedPainId(firstWithPains.topPains[0].pain_id);
+            const firstPainId = firstWithPains.topPains[0].pain_id;
+            setSelectedPainId(firstPainId);
+            // Immediately fetch draft for first pain (useEffect may not fire on initial load)
+            fetchDraftForPain(firstPainId);
           }
         }
       }
@@ -233,7 +236,7 @@ export default function CanvasExtendedPage({
     }
   };
 
-  const handleGenerate = async (painId?: string) => {
+  const handleGenerate = async (painId?: string, forceRegenerate = false) => {
     const targetPainId = painId || selectedPainId;
     if (!targetPainId || !selectedSegmentId) return;
 
@@ -247,6 +250,7 @@ export default function CanvasExtendedPage({
           segmentId: selectedSegmentId,
           painId: targetPainId,
           language, // Pass language for generation
+          regenerate: forceRegenerate, // Delete existing draft and regenerate
         },
         async () => {
           // Refresh draft
@@ -673,7 +677,7 @@ export default function CanvasExtendedPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleGenerate()}
+                      onClick={() => handleGenerate(undefined, true)}
                       disabled={isGenerating}
                       className="gap-2"
                     >

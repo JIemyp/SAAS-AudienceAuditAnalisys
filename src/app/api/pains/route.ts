@@ -1,7 +1,9 @@
 // Get approved pains for a project with ranking info (is_top_pain)
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError, ApiError } from "@/lib/api-utils";
+import { requireProjectAccess, requireWriteAccess } from "@/lib/permissions";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,13 +16,18 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    // Build query for pains
-    let query = supabase
+    // Check project access (owner or member)
+    await requireProjectAccess(supabase, adminSupabase, projectId, user.id);
+
+    // Build query for pains (use admin to bypass RLS)
+    let query = adminSupabase
       .from("pains_initial")
       .select("*")
       .eq("project_id", projectId)
@@ -36,8 +43,8 @@ export async function GET(request: NextRequest) {
       throw new ApiError(error.message, 500);
     }
 
-    // Get rankings to add is_top_pain and impact_score
-    const { data: rankings } = await supabase
+    // Get rankings to add is_top_pain and impact_score (use admin to bypass RLS)
+    const { data: rankings } = await adminSupabase
       .from("pains_ranking")
       .select("pain_id, is_top_pain, impact_score")
       .eq("project_id", projectId);
@@ -73,13 +80,18 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    // Build delete query
-    let query = supabase
+    // Check write access (owner or editor only)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    // Build delete query (use admin to bypass RLS)
+    let query = adminSupabase
       .from("pains_initial")
       .delete()
       .eq("project_id", projectId);

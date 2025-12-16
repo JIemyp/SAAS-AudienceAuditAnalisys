@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { handleApiError, ApiError, getNextStep } from "@/lib/api-utils";
 
 const MIN_SEGMENTS_FOR_APPROVE = 3;
@@ -24,16 +26,20 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
+    // Check write access (owner or editor can approve)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     // Get drafts - either by IDs or by version
     let drafts;
     if (draftIds && Array.isArray(draftIds)) {
-      const { data, error } = await supabase
+      const { data, error } = await adminSupabase
         .from("segments_drafts")
         .select("*")
         .in("id", draftIds)
@@ -43,7 +49,7 @@ export async function POST(request: NextRequest) {
       if (error) throw new ApiError("Failed to fetch drafts", 500);
       drafts = data;
     } else if (version) {
-      const { data, error } = await supabase
+      const { data, error } = await adminSupabase
         .from("segments_drafts")
         .select("*")
         .eq("project_id", projectId)
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
     console.log(`[approve/segments] Approving ${drafts.length} segments`);
 
     // Delete existing approved segments for this project (fresh start)
-    await supabase
+    await adminSupabase
       .from("segments_initial")
       .delete()
       .eq("project_id", projectId);
@@ -77,7 +83,7 @@ export async function POST(request: NextRequest) {
     // Insert approved segments
     const approved = [];
     for (const draft of drafts) {
-      const { data: segment, error: insertError } = await supabase
+      const { data: segment, error: insertError } = await adminSupabase
         .from("segments_initial")
         .insert({
           project_id: projectId,
@@ -99,7 +105,7 @@ export async function POST(request: NextRequest) {
     console.log(`[approve/segments] Approved ${approved.length} segments`);
 
     const nextStep = getNextStep("segments_draft");
-    await supabase
+    await adminSupabase
       .from("projects")
       .update({ current_step: nextStep })
       .eq("id", projectId);

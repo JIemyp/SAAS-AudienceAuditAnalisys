@@ -8,6 +8,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import {
@@ -151,24 +153,27 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    const { data: project, error: projectError } = await supabase
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: project, error: projectError } = await adminSupabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) {
       throw new ApiError("Project not found", 404);
     }
 
-    const { data: segment, error: segmentError } = await supabase
+    const { data: segment, error: segmentError } = await adminSupabase
       .from("segments")
       .select("*")
       .eq("id", segmentId)
@@ -180,14 +185,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Get pains for context (from pains_initial - approved pains)
-    const { data: pains } = await supabase
+    const { data: pains } = await adminSupabase
       .from("pains_initial")
       .select("*")
       .eq("project_id", projectId)
       .eq("segment_id", segmentId);
 
     // Get jobs for context
-    const { data: jobs } = await supabase
+    const { data: jobs } = await adminSupabase
       .from("jobs")
       .select("*")
       .eq("project_id", projectId)
@@ -206,7 +211,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Check for existing draft
-    const { data: existingDraft } = await supabase
+    const { data: existingDraft } = await adminSupabase
       .from("competitive_intelligence_drafts")
       .select("id")
       .eq("project_id", projectId)
@@ -226,7 +231,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (existingDraft) {
-      const { data: draft, error: updateError } = await supabase
+      const { data: draft, error: updateError } = await adminSupabase
         .from("competitive_intelligence_drafts")
         .update(draftData)
         .eq("id", existingDraft.id)
@@ -237,7 +242,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, draft, updated: true });
     }
 
-    const { data: draft, error: insertError } = await supabase
+    const { data: draft, error: insertError } = await adminSupabase
       .from("competitive_intelligence_drafts")
       .insert(draftData)
       .select()

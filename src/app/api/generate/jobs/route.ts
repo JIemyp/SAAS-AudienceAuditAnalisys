@@ -7,6 +7,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildJobsPrompt, JobsResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -31,11 +33,15 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    const { data: project, error: projectError } = await supabase
+    const adminSupabase = createAdminClient();
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: project, error: projectError } = await adminSupabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) {
@@ -45,7 +51,7 @@ export async function POST(request: NextRequest) {
     const typedProject = project as Project;
 
     // Get approved portrait final
-    const { data: portraitFinal, error: portraitError } = await supabase
+    const { data: portraitFinal, error: portraitError } = await adminSupabase
       .from("portrait_final")
       .select("*")
       .eq("project_id", projectId)
@@ -58,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get segment data
-    const { data: segment, error: segmentError } = await supabase
+    const { data: segment, error: segmentError } = await adminSupabase
       .from("segments")
       .select("*")
       .eq("id", segmentId)
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Save draft with segment_id
-    const { data: draft, error: insertError } = await supabase
+    const { data: draft, error: insertError } = await adminSupabase
       .from("jobs_drafts")
       .insert({
         project_id: projectId,
@@ -100,14 +106,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Update project step (only if not already at jobs_draft or later)
-    const { data: currentProject } = await supabase
+    const { data: currentProject } = await adminSupabase
       .from("projects")
       .select("current_step")
       .eq("id", projectId)
       .single();
 
     if (currentProject?.current_step === "segment_details_approved") {
-      await supabase
+      await adminSupabase
         .from("projects")
         .update({ current_step: "jobs_draft" })
         .eq("id", projectId);

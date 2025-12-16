@@ -7,6 +7,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildDifficultiesPrompt, DifficultiesResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -31,11 +33,15 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    const { data: project, error: projectError } = await supabase
+    const adminSupabase = createAdminClient();
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: project, error: projectError } = await adminSupabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) {
@@ -44,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const typedProject = project as Project;
 
-    const { data: portraitFinal } = await supabase
+    const { data: portraitFinal } = await adminSupabase
       .from("portrait_final")
       .select("*")
       .eq("project_id", projectId)
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get segment data
-    const { data: segment, error: segmentError } = await supabase
+    const { data: segment, error: segmentError } = await adminSupabase
       .from("segments")
       .select("*")
       .eq("id", segmentId)
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get approved preferences for this segment
-    const { data: preferences } = await supabase
+    const { data: preferences } = await adminSupabase
       .from("preferences")
       .select("*")
       .eq("project_id", projectId)
@@ -94,7 +100,7 @@ export async function POST(request: NextRequest) {
       return parseJSONResponse<DifficultiesResponse>(text);
     });
 
-    const { data: draft, error: insertError } = await supabase
+    const { data: draft, error: insertError } = await adminSupabase
       .from("difficulties_drafts")
       .insert({
         project_id: projectId,

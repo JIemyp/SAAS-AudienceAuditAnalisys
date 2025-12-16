@@ -4,6 +4,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildPainsPrompt, PainsResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -20,16 +22,20 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    const { data: project } = await supabase
+    const adminSupabase = createAdminClient();
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: project } = await adminSupabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
     if (!project) throw new ApiError("Project not found", 404);
 
     // Get portrait final
-    const { data: portraitFinal } = await supabase
+    const { data: portraitFinal } = await adminSupabase
       .from("portrait_final")
       .select("*")
       .eq("project_id", projectId)
@@ -40,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (!portraitFinal) throw new ApiError("Portrait final not found", 400);
 
     // Get segment
-    const { data: segment, error: segmentError } = await supabase
+    const { data: segment, error: segmentError } = await adminSupabase
       .from("segments")
       .select("*")
       .eq("id", segmentId)
@@ -50,7 +56,7 @@ export async function POST(request: NextRequest) {
     if (segmentError || !segment) throw new ApiError("Segment not found", 404);
 
     // Get approved segment details for this segment
-    const { data: segmentDetails } = await supabase
+    const { data: segmentDetails } = await adminSupabase
       .from("segment_details")
       .select("*")
       .eq("project_id", projectId)
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get approved jobs for this segment
-    const { data: jobs } = await supabase
+    const { data: jobs } = await adminSupabase
       .from("jobs")
       .select("*")
       .eq("project_id", projectId)
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (!jobs) throw new ApiError("Jobs not found. Approve jobs first.", 400);
 
     // Get approved preferences for this segment
-    const { data: preferences } = await supabase
+    const { data: preferences } = await adminSupabase
       .from("preferences")
       .select("*")
       .eq("project_id", projectId)
@@ -88,7 +94,7 @@ export async function POST(request: NextRequest) {
     if (!preferences) throw new ApiError("Preferences not found. Approve preferences first.", 400);
 
     // Get approved difficulties for this segment
-    const { data: difficulties } = await supabase
+    const { data: difficulties } = await adminSupabase
       .from("difficulties")
       .select("*")
       .eq("project_id", projectId)
@@ -100,7 +106,7 @@ export async function POST(request: NextRequest) {
     if (!difficulties) throw new ApiError("Difficulties not found. Approve difficulties first.", 400);
 
     // Get approved triggers for this segment
-    const { data: triggers } = await supabase
+    const { data: triggers } = await adminSupabase
       .from("triggers")
       .select("*")
       .eq("project_id", projectId)
@@ -130,7 +136,7 @@ export async function POST(request: NextRequest) {
     const drafts = [];
     // Insert each pain as a draft
     for (const pain of response.pains) {
-      const { data: draft, error } = await supabase
+      const { data: draft, error } = await adminSupabase
         .from("pains_drafts")
         .insert({
           project_id: projectId,

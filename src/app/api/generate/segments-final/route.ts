@@ -5,6 +5,8 @@ export const maxDuration = 60;
 // Similar to Portrait Final which applies Portrait Review decisions
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildSegmentsFinalPrompt, SegmentsFinalResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
 
     const {
       data: { user },
@@ -73,12 +76,15 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     // Get project
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
+      
       .single();
 
     if (projectError || !project) {
@@ -141,7 +147,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Delete previous drafts for this project
-    await supabase.from("segments_final_drafts").delete().eq("project_id", projectId);
+    await adminSupabase.from("segments_final_drafts").delete().eq("project_id", projectId);
 
     // Insert new drafts for each segment
     const drafts = [];
@@ -170,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update project step
-    await supabase.from("projects").update({ current_step: "segments_final_draft" }).eq("id", projectId);
+    await adminSupabase.from("projects").update({ current_step: "segments_final_draft" }).eq("id", projectId);
 
     console.log(`[segments-final] Generated ${drafts.length} final segments. Summary: ${response.summary}`);
 

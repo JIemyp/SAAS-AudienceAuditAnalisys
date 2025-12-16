@@ -8,6 +8,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildPortraitFinalPrompt, PortraitFinalResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -75,14 +77,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     // Get approved portrait
-    const { data: portrait, error: portraitError } = await supabase
+    const { data: portrait, error: portraitError } = await adminSupabase
       .from("portrait")
       .select("*")
       .eq("project_id", projectId)
@@ -95,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get approved review with decisions
-    const { data: review, error: reviewError } = await supabase
+    const { data: review, error: reviewError } = await adminSupabase
       .from("portrait_review")
       .select("*")
       .eq("project_id", projectId)
@@ -122,7 +128,7 @@ export async function POST(request: NextRequest) {
       return parseJSONResponse<PortraitFinalResponse>(text);
     });
 
-    const { data: draft, error: insertError } = await supabase
+    const { data: draft, error: insertError } = await adminSupabase
       .from("portrait_final_drafts")
       .insert({
         project_id: projectId,
@@ -149,7 +155,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Failed to save draft", 500);
     }
 
-    await supabase
+    await adminSupabase
       .from("projects")
       .update({ current_step: "portrait_final_draft" })
       .eq("id", projectId);

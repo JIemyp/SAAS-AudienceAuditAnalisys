@@ -2,6 +2,8 @@
 // Uses segments_final as the source (after review decisions applied)
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { handleApiError, ApiError, getNextStep } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
@@ -10,15 +12,19 @@ export async function POST(request: NextRequest) {
     if (!projectId || !draftIds) throw new ApiError("Project ID and Draft IDs required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
+    // Check write access (owner or editor can approve)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     const ids = Array.isArray(draftIds) ? draftIds : [draftIds];
-    const { data: drafts } = await supabase.from("segment_details_drafts").select("*").in("id", ids);
+    const { data: drafts } = await adminSupabase.from("segment_details_drafts").select("*").in("id", ids);
     if (!drafts || drafts.length === 0) throw new ApiError("Drafts not found", 404);
 
     // Get segments_final (NOT segments_initial)
-    const { data: finalSegments } = await supabase
+    const { data: finalSegments } = await adminSupabase
       .from("segments_final")
       .select("*")
       .eq("project_id", projectId);
@@ -36,7 +42,7 @@ export async function POST(request: NextRequest) {
 
       // IMPORTANT: Use UPSERT to prevent duplicates when approve is run multiple times!
       // Use the SAME ID as segments_final to maintain consistency across tables
-      const { data: combinedSegment, error: segError } = await supabase.from("segments").upsert({
+      const { data: combinedSegment, error: segError } = await adminSupabase.from("segments").upsert({
         id: segment.id, // Use the same ID from segments_final!
         project_id: projectId,
         order_index: segment.segment_index,
@@ -58,12 +64,12 @@ export async function POST(request: NextRequest) {
 
       // 2. Save to segment_details - delete existing first, then insert
       // (No unique constraint on segment_id, so can't use upsert with onConflict)
-      await supabase
+      await adminSupabase
         .from("segment_details")
         .delete()
         .eq("segment_id", combinedSegment.id);
 
-      const { data: detail, error } = await supabase.from("segment_details").insert({
+      const { data: detail, error } = await adminSupabase.from("segment_details").insert({
         project_id: projectId,
         segment_id: combinedSegment.id,
         // New behavior fields
@@ -89,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     const nextStep = getNextStep("segment_details_approved");
-    await supabase.from("projects").update({ current_step: nextStep }).eq("id", projectId);
+    await adminSupabase.from("projects").update({ current_step: nextStep }).eq("id", projectId);
 
     console.log(`[approve/segment-details] Approved ${approved.length} details, next step: ${nextStep}`);
 

@@ -4,6 +4,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { handleApiError, ApiError, getNextStep } from "@/lib/api-utils";
 
 export async function POST(request: NextRequest) {
@@ -15,13 +17,17 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    const { data: draft, error: draftError } = await supabase
+    // Check write access (owner or editor can approve)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: draft, error: draftError } = await adminSupabase
       .from("portrait_final_drafts")
       .select("*")
       .eq("id", draftId)
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Draft not found", 404);
     }
 
-    const { data: approved, error: insertError } = await supabase
+    const { data: approved, error: insertError } = await adminSupabase
       .from("portrait_final")
       .insert({
         project_id: projectId,
@@ -58,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const nextStep = getNextStep("portrait_final_draft");
-    await supabase
+    await adminSupabase
       .from("projects")
       .update({ current_step: nextStep })
       .eq("id", projectId);

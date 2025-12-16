@@ -5,6 +5,8 @@ export const maxDuration = 60;
 // ALWAYS uses segments_final as the source (after review decisions applied)
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildSegmentDetailsPrompt, SegmentDetailsResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -16,10 +18,14 @@ export async function POST(request: NextRequest) {
     if (!projectId) throw new ApiError("Project ID is required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).eq("user_id", user.id).single();
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: project } = await adminSupabase.from("projects").select("*").eq("id", projectId).single();
     if (!project) throw new ApiError("Project not found", 404);
 
     // Fetch portrait_final for context
@@ -114,7 +120,7 @@ export async function POST(request: NextRequest) {
 
       console.log(`[segment-details] ✅ Completed "${segment.name}" (awareness: ${response.awareness_level})`);
 
-      const { data: draft, error } = await supabase.from("segment_details_drafts").insert({
+      const { data: draft, error } = await adminSupabase.from("segment_details_drafts").insert({
         project_id: projectId,
         segment_id: segment.id,
         sociodemographics: response.sociodemographics || null,
@@ -168,7 +174,7 @@ export async function POST(request: NextRequest) {
     });
     console.log(`╚════════════════════════════════════════════════════════════╝\n`);
 
-    await supabase.from("projects").update({ current_step: "segment_details_draft" }).eq("id", projectId);
+    await adminSupabase.from("projects").update({ current_step: "segment_details_draft" }).eq("id", projectId);
     return NextResponse.json({ success: true, drafts });
   } catch (error) { return handleApiError(error); }
 }

@@ -8,6 +8,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildSegmentsPrompt, SegmentsResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -28,11 +30,15 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    const { data: project, error: projectError } = await supabase
+    const adminSupabase = createAdminClient();
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: project, error: projectError } = await adminSupabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) {
@@ -42,7 +48,7 @@ export async function POST(request: NextRequest) {
     const typedProject = project as Project;
 
     // Get approved Portrait Final
-    const { data: portraitFinal } = await supabase
+    const { data: portraitFinal } = await adminSupabase
       .from("portrait_final")
       .select("*")
       .eq("project_id", projectId)
@@ -66,7 +72,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Get max version for this project to determine next version number
-    const { data: existingDrafts } = await supabase
+    const { data: existingDrafts } = await adminSupabase
       .from("segments_drafts")
       .select("version")
       .eq("project_id", projectId)
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
     // Insert all 10 segments with same version
     const drafts = [];
     for (const segment of response.segments) {
-      const { data: draft, error: insertError } = await supabase
+      const { data: draft, error: insertError } = await adminSupabase
         .from("segments_drafts")
         .insert({
           project_id: projectId,
@@ -104,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[generate/segments] Created ${drafts.length} segment drafts`);
 
-    await supabase
+    await adminSupabase
       .from("projects")
       .update({ current_step: "segments_draft" })
       .eq("id", projectId);

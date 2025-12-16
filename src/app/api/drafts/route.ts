@@ -4,7 +4,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError, ApiError } from "@/lib/api-utils";
+import { requireProjectAccess, requireWriteAccess } from "@/lib/permissions";
 
 const VALID_TABLES = [
   "validation_drafts",
@@ -72,13 +74,18 @@ export async function GET(request: NextRequest) {
     if (!table || !VALID_TABLES.includes(table)) throw new ApiError("Invalid table name", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
+
+    // Check project access (owner or member)
+    await requireProjectAccess(supabase, adminSupabase, projectId, user.id);
 
     // If checkApproved is true, check the approved table instead
     if (checkApproved) {
       const approvedTable = APPROVED_TABLES[table] || table.replace("_drafts", "");
-      let query = supabase
+      let query = adminSupabase
         .from(approvedTable)
         .select("id")
         .eq("project_id", projectId);
@@ -103,8 +110,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Standard draft fetch
-    let query = supabase
+    // Standard draft fetch (use admin to bypass RLS)
+    let query = adminSupabase
       .from(table)
       .select("*")
       .eq("project_id", projectId);
@@ -139,23 +146,41 @@ export async function GET(request: NextRequest) {
 // PATCH - Update a draft
 export async function PATCH(request: NextRequest) {
   try {
-    const { table, id, updates } = await request.json();
+    const { table, id, updates, projectId } = await request.json();
 
     if (!table || !VALID_TABLES.includes(table)) throw new ApiError("Invalid table name", 400);
     if (!id) throw new ApiError("Draft ID is required", 400);
     if (!updates || typeof updates !== "object") throw new ApiError("Updates are required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
+    // Get draft to find project_id if not provided
+    let targetProjectId = projectId;
+    if (!targetProjectId) {
+      const { data: draft } = await adminSupabase
+        .from(table)
+        .select("project_id")
+        .eq("id", id)
+        .single();
+      targetProjectId = draft?.project_id;
+    }
+
+    if (!targetProjectId) throw new ApiError("Project ID not found", 400);
+
+    // Check write access (owner or editor only)
+    await requireWriteAccess(supabase, adminSupabase, targetProjectId, user.id);
+
     // Remove protected fields
-    const { id: _id, project_id, created_at, ...safeUpdates } = updates;
+    const { id: _id, project_id: _projectId, created_at, ...safeUpdates } = updates;
 
     // Increment version
     safeUpdates.version = (updates.version || 1) + 1;
 
-    const { data: draft, error } = await supabase
+    const { data: draft, error } = await adminSupabase
       .from(table)
       .update(safeUpdates)
       .eq("id", id)
@@ -181,10 +206,24 @@ export async function DELETE(request: NextRequest) {
     if (!id) throw new ApiError("Draft ID is required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    const { error } = await supabase
+    // Get draft to find project_id
+    const { data: draft } = await adminSupabase
+      .from(table)
+      .select("project_id")
+      .eq("id", id)
+      .single();
+
+    if (!draft) throw new ApiError("Draft not found", 404);
+
+    // Check write access (owner or editor only)
+    await requireWriteAccess(supabase, adminSupabase, draft.project_id, user.id);
+
+    const { error } = await adminSupabase
       .from(table)
       .delete()
       .eq("id", id);
@@ -207,10 +246,15 @@ export async function POST(request: NextRequest) {
     if (!data || typeof data !== "object") throw new ApiError("Data is required", 400);
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    const { data: draft, error } = await supabase
+    // Check write access (owner or editor only)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    const { data: draft, error } = await adminSupabase
       .from(table)
       .insert({
         ...data,

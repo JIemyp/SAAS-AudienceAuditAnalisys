@@ -7,6 +7,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildValidationPrompt, ValidationResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -28,12 +30,16 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
+    const adminSupabase = createAdminClient();
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
     // Get project with onboarding data
-    const { data: project, error: projectError } = await supabase
+    const { data: project, error: projectError } = await adminSupabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) {
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Save to validation_drafts
-    const { data: draft, error: insertError } = await supabase
+    const { data: draft, error: insertError } = await adminSupabase
       .from("validation_drafts")
       .insert({
         project_id: projectId,
@@ -74,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update project step
-    await supabase
+    await adminSupabase
       .from("projects")
       .update({ current_step: "validation_draft", status: "processing" })
       .eq("id", projectId);

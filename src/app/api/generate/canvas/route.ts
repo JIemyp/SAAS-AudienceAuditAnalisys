@@ -4,6 +4,8 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { buildCanvasPrompt, CanvasResponse } from "@/lib/prompts";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
@@ -20,17 +22,21 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    // Get project
-    const { data: project } = await supabase
+    const adminSupabase = createAdminClient();
+
+    // Check write access (owner or editor)
+    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+
+    // Get project with admin client
+    const { data: project } = await adminSupabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .eq("user_id", user.id)
       .single();
     if (!project) throw new ApiError("Project not found", 404);
 
     // Get portrait final
-    const { data: portraitFinal } = await supabase
+    const { data: portraitFinal } = await adminSupabase
       .from("portrait_final")
       .select("*")
       .eq("project_id", projectId)
@@ -40,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (!portraitFinal) throw new ApiError("Portrait final not found", 400);
 
     // Get segment
-    const { data: segment, error: segmentError } = await supabase
+    const { data: segment, error: segmentError } = await adminSupabase
       .from("segments")
       .select("*")
       .eq("id", segmentId)
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (segmentError || !segment) throw new ApiError("Segment not found", 404);
 
     // Get segment details
-    const { data: segmentDetails } = await supabase
+    const { data: segmentDetails } = await adminSupabase
       .from("segment_details")
       .select("*")
       .eq("project_id", projectId)
@@ -59,7 +65,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     // Get jobs
-    const { data: jobs } = await supabase
+    const { data: jobs } = await adminSupabase
       .from("jobs")
       .select("*")
       .eq("project_id", projectId)
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     // Get preferences
-    const { data: preferences } = await supabase
+    const { data: preferences } = await adminSupabase
       .from("preferences")
       .select("*")
       .eq("project_id", projectId)
@@ -79,7 +85,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     // Get difficulties
-    const { data: difficulties } = await supabase
+    const { data: difficulties } = await adminSupabase
       .from("difficulties")
       .select("*")
       .eq("project_id", projectId)
@@ -89,7 +95,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     // Get triggers
-    const { data: triggers } = await supabase
+    const { data: triggers } = await adminSupabase
       .from("triggers")
       .select("*")
       .eq("project_id", projectId)
@@ -103,13 +109,13 @@ export async function POST(request: NextRequest) {
 
     if (painId) {
       // Single pain specified
-      const { data: pain } = await supabase
+      const { data: pain } = await adminSupabase
         .from("pains_initial")
         .select("*")
         .eq("id", painId)
         .single();
       if (!pain) throw new ApiError("Pain not found", 404);
-      const { data: rankingCheck } = await supabase
+      const { data: rankingCheck } = await adminSupabase
         .from("pains_ranking")
         .select("is_top_pain")
         .eq("project_id", projectId)
@@ -124,7 +130,7 @@ export async function POST(request: NextRequest) {
       painsToProcess = [pain as PainInitial];
     } else {
       // Get TOP pain IDs from pains_ranking
-      const { data: rankings } = await supabase
+      const { data: rankings } = await adminSupabase
         .from("pains_ranking")
         .select("pain_id")
         .eq("project_id", projectId)
@@ -137,7 +143,7 @@ export async function POST(request: NextRequest) {
 
       // Get full pain data from pains_initial
       const painIds = rankings.map(r => r.pain_id).filter(Boolean);
-      const { data: pains } = await supabase
+      const { data: pains } = await adminSupabase
         .from("pains_initial")
         .select("*")
         .in("id", painIds);

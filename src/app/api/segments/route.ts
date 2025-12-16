@@ -4,7 +4,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError, ApiError } from "@/lib/api-utils";
+import { requireProjectAccess, Permission } from "@/lib/permissions";
 
 // GET - Fetch all approved segments for a project with optional status info
 export async function GET(request: NextRequest) {
@@ -18,13 +20,18 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    // Fetch approved segments from segments table
-    const { data: segments, error } = await supabase
+    // Check project access (owner or member)
+    await requireProjectAccess(supabase, adminSupabase, projectId, user.id);
+
+    // Fetch approved segments from segments table (use admin to bypass RLS)
+    const { data: segments, error } = await adminSupabase
       .from("segments")
       .select("*")
       .eq("project_id", projectId)
@@ -45,16 +52,16 @@ export async function GET(request: NextRequest) {
       console.log(`[segments] Checking status for stepType: ${stepType}, draftTable: ${draftTable}, approvedTable: ${approvedTable}`);
 
       for (const seg of segments) {
-        // Check drafts
-        const { data: drafts, error: draftsError } = await supabase
+        // Check drafts (use admin to bypass RLS)
+        const { data: drafts, error: draftsError } = await adminSupabase
           .from(draftTable)
           .select("id")
           .eq("project_id", projectId)
           .eq("segment_id", seg.id)
           .limit(1);
 
-        // Check approved
-        const { data: approved, error: approvedError } = await supabase
+        // Check approved (use admin to bypass RLS)
+        const { data: approved, error: approvedError } = await adminSupabase
           .from(approvedTable)
           .select("id")
           .eq("project_id", projectId)

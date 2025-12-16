@@ -4,7 +4,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError, ApiError } from "@/lib/api-utils";
+import { requireProjectAccess } from "@/lib/permissions";
 
 // Valid approved tables
 const VALID_TABLES = [
@@ -49,11 +51,16 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    // Build query
-    let query = supabase
+    // Check project access (owner or member)
+    await requireProjectAccess(supabase, adminSupabase, projectId, user.id);
+
+    // Build query (use admin to bypass RLS)
+    let query = adminSupabase
       .from(table)
       .select("*")
       .eq("project_id", projectId);

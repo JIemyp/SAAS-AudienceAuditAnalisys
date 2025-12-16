@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
 
   // Read body FIRST before creating stream
   log("Starting request...");
-  const { projectId, segmentId, painId, language } = await request.json();
-  log(`Parsed body: projectId=${projectId}, segmentId=${segmentId}, painId=${painId}, language=${language}`);
+  const { projectId, segmentId, painId, language, regenerate } = await request.json();
+  log(`Parsed body: projectId=${projectId}, segmentId=${segmentId}, painId=${painId}, language=${language}, regenerate=${regenerate}`);
 
   // Create a streaming response to avoid timeout
   const encoder = new TextEncoder();
@@ -243,8 +243,17 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (existingDraft) {
-          // Skip if already generated
-          continue;
+          if (regenerate) {
+            // Delete existing draft to regenerate
+            log(`Deleting existing draft for pain: ${pain.name} (regenerate=true)`);
+            await adminSupabase
+              .from("canvas_extended_drafts")
+              .delete()
+              .eq("id", existingDraft.id);
+          } else {
+            // Skip if already generated
+            continue;
+          }
         }
 
         // Build SPLIT prompts for parallel execution
