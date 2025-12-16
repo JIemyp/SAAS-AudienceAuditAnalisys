@@ -1,6 +1,7 @@
 // Report Data API - Unified endpoint for Overview, Full Report, and Explorer
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError, ApiError } from "@/lib/api-utils";
 
 export async function GET(request: NextRequest) {
@@ -15,20 +16,37 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    // Verify project ownership
-    const { data: project } = await supabase
-      .from("projects")
-      .select("id, name, onboarding_data")
-      .eq("id", projectId)
+    // Check if user is a member
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("id")
+      .eq("project_id", projectId)
       .eq("user_id", user.id)
+      .maybeSingle();
+
+    // Use admin client to fetch project (bypass RLS)
+    const { data: project } = await adminSupabase
+      .from("projects")
+      .select("id, name, onboarding_data, user_id")
+      .eq("id", projectId)
       .single();
 
     if (!project) {
+      throw new ApiError("Project not found", 404);
+    }
+
+    // Check if user is owner or member
+    const isOwner = project.user_id === user.id;
+    const isMember = !!membership;
+
+    if (!isOwner && !isMember) {
       throw new ApiError("Project not found", 404);
     }
 
