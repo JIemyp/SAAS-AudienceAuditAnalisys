@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { handleApiError, ApiError } from "@/lib/api-utils";
 
 // Step configuration: step name -> { draft table, approved table }
@@ -76,20 +77,35 @@ export async function GET(
     const { id: projectId } = await params;
 
     const supabase = await createServerClient();
+    const adminSupabase = createAdminClient();
+
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    // Check project ownership
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
+    // Check if user is a member
+    const { data: membership } = await supabase
+      .from("project_members")
       .select("id")
-      .eq("id", projectId)
+      .eq("project_id", projectId)
       .eq("user_id", user.id)
+      .maybeSingle();
+
+    // Use admin client to fetch project (bypass RLS)
+    const { data: project, error: projectError } = await adminSupabase
+      .from("projects")
+      .select("id, user_id")
+      .eq("id", projectId)
       .single();
 
     if (projectError || !project) throw new ApiError("Project not found", 404);
 
-    // First pass: collect all data
+    // Check if user is owner or member
+    const isOwner = project.user_id === user.id;
+    const isMember = !!membership;
+
+    if (!isOwner && !isMember) throw new ApiError("Project not found", 404);
+
+    // First pass: collect all data (use admin client to bypass RLS)
     const stepData: { step: string; hasDraft: boolean; hasApproved: boolean }[] = [];
 
     for (const stepName of STEP_ORDER) {
@@ -98,7 +114,7 @@ export async function GET(
       // Check if approved table has data
       let hasApproved = false;
       try {
-        const { data: approvedData, error: approvedError } = await supabase
+        const { data: approvedData, error: approvedError } = await adminSupabase
           .from(tables.approved)
           .select("id")
           .eq("project_id", projectId)
@@ -112,7 +128,7 @@ export async function GET(
       // Check if draft table has data
       let hasDraft = false;
       try {
-        const { data: draftData, error: draftError } = await supabase
+        const { data: draftData, error: draftError } = await adminSupabase
           .from(tables.draft)
           .select("id")
           .eq("project_id", projectId)
