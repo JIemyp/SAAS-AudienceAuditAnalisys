@@ -60,6 +60,7 @@ export default function CanvasExtendedPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isFetchingDraft, setIsFetchingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Language translation
@@ -169,26 +170,20 @@ export default function CanvasExtendedPage({
 
   const fetchDraftForPain = async (painId: string) => {
     try {
-      console.log('[canvas-extended] fetchDraftForPain called:', painId);
+      setIsFetchingDraft(true);
+      setCurrentDraft(null); // Clear immediately to prevent showing old draft
+
       const res = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_extended_drafts&painId=${painId}`);
       const data = await res.json();
-      console.log('[canvas-extended] fetchDraftForPain response:', {
-        painId,
-        success: data.success,
-        draftsCount: data.drafts?.length || 0,
-        hasDraft: data.drafts?.length > 0
-      });
 
       if (data.success && data.drafts?.length > 0) {
-        console.log('[canvas-extended] Setting currentDraft:', data.drafts[0].id);
         setCurrentDraft(data.drafts[0] as CanvasExtendedV2Draft);
-      } else {
-        console.log('[canvas-extended] No draft found, setting null');
-        setCurrentDraft(null);
       }
+      // Don't set null on else - already null
     } catch (err) {
       console.error("[canvas-extended] Failed to fetch draft:", err);
-      setCurrentDraft(null);
+    } finally {
+      setIsFetchingDraft(false);
     }
   };
 
@@ -251,6 +246,7 @@ export default function CanvasExtendedPage({
           projectId,
           segmentId: selectedSegmentId,
           painId: targetPainId,
+          language, // Pass language for generation
         },
         async () => {
           // Refresh draft
@@ -278,6 +274,7 @@ export default function CanvasExtendedPage({
         {
           projectId,
           segmentId: selectedSegmentId,
+          language, // Pass language for generation
         },
         async () => {
           // Refresh data (skipAutoSelect=true to keep current selection)
@@ -640,6 +637,16 @@ export default function CanvasExtendedPage({
           <AnimatePresence mode="wait">
             {isGenerating ? (
               <GeneratingState key="generating" />
+            ) : isFetchingDraft ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center justify-center py-24"
+              >
+                <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+              </motion.div>
             ) : displayDraft ? (
               <motion.div
                 key={`draft-${displayDraft.id}`}
@@ -647,17 +654,6 @@ export default function CanvasExtendedPage({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-6"
-                ref={() => {
-                  console.log('[canvas-extended] Rendering displayDraft:', {
-                    id: displayDraft.id,
-                    hasCustomerJourney: !!displayDraft.customer_journey,
-                    hasEmotionalMap: !!displayDraft.emotional_map,
-                    hasNarrativeAngles: !!displayDraft.narrative_angles,
-                    hasMessagingFramework: !!displayDraft.messaging_framework,
-                    hasVoiceAndTone: !!displayDraft.voice_and_tone,
-                    keys: Object.keys(displayDraft),
-                  });
-                }}
               >
                 {/* Translation banner */}
                 {isTranslating && language !== 'en' && (

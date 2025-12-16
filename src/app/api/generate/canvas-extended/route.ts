@@ -3,6 +3,8 @@
 // STREAMING: Uses streaming response to avoid Vercel timeout
 import { NextRequest } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import {
   buildCanvasExtendedPart1,
@@ -34,8 +36,8 @@ export async function POST(request: NextRequest) {
 
   // Read body FIRST before creating stream
   log("Starting request...");
-  const { projectId, segmentId, painId } = await request.json();
-  log(`Parsed body: projectId=${projectId}, segmentId=${segmentId}, painId=${painId}`);
+  const { projectId, segmentId, painId, language } = await request.json();
+  log(`Parsed body: projectId=${projectId}, segmentId=${segmentId}, painId=${painId}, language=${language}`);
 
   // Create a streaming response to avoid timeout
   const encoder = new TextEncoder();
@@ -57,9 +59,13 @@ export async function POST(request: NextRequest) {
 
       log("Creating Supabase client...");
       const supabase = await createServerClient();
+      const adminSupabase = createAdminClient();
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       log(`User fetched: ${user?.id || 'null'}, error: ${authError?.message || 'none'}`);
       if (authError || !user) throw new ApiError("Unauthorized", 401);
+
+      // Check write access (owner or editor)
+      await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
 
       await sendProgress({ type: "progress", message: "Loading data...", step: 2, total: 5 });
 
@@ -75,14 +81,14 @@ export async function POST(request: NextRequest) {
         { data: difficulties },
         { data: portraitFinal },
       ] = await Promise.all([
-        supabase.from("projects").select("*").eq("id", projectId).eq("user_id", user.id).single(),
-        supabase.from("segments").select("*").eq("id", segmentId).eq("project_id", projectId).single(),
-        supabase.from("segment_details").select("*").eq("segment_id", segmentId).single(),
-        supabase.from("jobs").select("*").eq("segment_id", segmentId).single(),
-        supabase.from("triggers").select("*").eq("segment_id", segmentId).single(),
-        supabase.from("preferences").select("*").eq("segment_id", segmentId).single(),
-        supabase.from("difficulties").select("*").eq("segment_id", segmentId).single(),
-        supabase.from("portrait_final").select("*").eq("project_id", projectId).order("approved_at", { ascending: false }).limit(1).single(),
+        adminSupabase.from("projects").select("*").eq("id", projectId).single(),
+        adminSupabase.from("segments").select("*").eq("id", segmentId).eq("project_id", projectId).single(),
+        adminSupabase.from("segment_details").select("*").eq("segment_id", segmentId).single(),
+        adminSupabase.from("jobs").select("*").eq("segment_id", segmentId).single(),
+        adminSupabase.from("triggers").select("*").eq("segment_id", segmentId).single(),
+        adminSupabase.from("preferences").select("*").eq("segment_id", segmentId).single(),
+        adminSupabase.from("difficulties").select("*").eq("segment_id", segmentId).single(),
+        adminSupabase.from("portrait_final").select("*").eq("project_id", projectId).order("approved_at", { ascending: false }).limit(1).single(),
       ]);
       log("All data fetched");
 
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
 
       if (painId) {
         // Generate for specific pain
-        const { data: pain, error: painError } = await supabase
+        const { data: pain, error: painError } = await adminSupabase
           .from("pains_initial")
           .select("*")
           .eq("id", painId)
@@ -112,7 +118,7 @@ export async function POST(request: NextRequest) {
 
         if (painError || !pain) throw new ApiError("Pain not found", 404);
 
-        const { data: rankingCheck } = await supabase
+        const { data: rankingCheck } = await adminSupabase
           .from("pains_ranking")
           .select("is_top_pain")
           .eq("project_id", projectId)
@@ -128,7 +134,7 @@ export async function POST(request: NextRequest) {
         let canvas = null;
 
         // Try approved canvas first
-        const { data: approvedCanvas } = await supabase
+        const { data: approvedCanvas } = await adminSupabase
           .from("canvas")
           .select("*")
           .eq("pain_id", painId)
@@ -139,7 +145,7 @@ export async function POST(request: NextRequest) {
           canvas = approvedCanvas;
         } else {
           // Fallback to draft
-          const { data: draftCanvas } = await supabase
+          const { data: draftCanvas } = await adminSupabase
             .from("canvas_drafts")
             .select("*")
             .eq("pain_id", painId)
@@ -158,7 +164,7 @@ export async function POST(request: NextRequest) {
         painsToProcess = [{ pain: pain as PainInitial, canvas: canvas as Canvas }];
       } else {
         // Generate for all TOP pains in this segment
-        const { data: topPains } = await supabase
+        const { data: topPains } = await adminSupabase
           .from("pains_ranking")
           .select("pain_id")
           .eq("project_id", projectId)
@@ -172,7 +178,7 @@ export async function POST(request: NextRequest) {
         const topPainIds = topPains.map(p => p.pain_id);
 
         // Get all pains
-        const { data: pains } = await supabase
+        const { data: pains } = await adminSupabase
           .from("pains_initial")
           .select("*")
           .in("id", topPainIds);
@@ -182,13 +188,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Get canvases for these pains (try approved first, fallback to drafts)
-        const { data: approvedCanvases } = await supabase
+        const { data: approvedCanvases } = await adminSupabase
           .from("canvas")
           .select("*")
           .eq("project_id", projectId)
           .in("pain_id", topPainIds);
 
-        const { data: draftCanvases } = await supabase
+        const { data: draftCanvases } = await adminSupabase
           .from("canvas_drafts")
           .select("*")
           .eq("project_id", projectId)
@@ -229,7 +235,7 @@ export async function POST(request: NextRequest) {
       const drafts = [];
       for (const { pain, canvas } of painsToProcess) {
         // Check if draft already exists for this pain
-        const { data: existingDraft } = await supabase
+        const { data: existingDraft } = await adminSupabase
           .from("canvas_extended_drafts")
           .select("id")
           .eq("project_id", projectId)
@@ -254,6 +260,7 @@ export async function POST(request: NextRequest) {
           portraitFinal: portraitFinal as PortraitFinal,
           pain,
           canvas,
+          language: language || 'en', // Pass language for generation
         };
 
         const part1Prompt = buildCanvasExtendedPart1(promptInput);
@@ -301,7 +308,7 @@ export async function POST(request: NextRequest) {
         };
 
         // Insert into V2 table
-        const { data: draft, error } = await supabase
+        const { data: draft, error } = await adminSupabase
           .from("canvas_extended_drafts")
           .insert({
             project_id: projectId,

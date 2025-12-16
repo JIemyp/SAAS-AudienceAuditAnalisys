@@ -1717,6 +1717,7 @@ export interface CanvasExtendedV2PromptInput {
   portraitFinal: PortraitFinal | null;
   pain: PainInitial;
   canvas: Canvas;
+  language?: string; // Generation language (en, uk, ru)
 }
 
 export function buildCanvasExtendedPromptV2(input: CanvasExtendedV2PromptInput): {
@@ -2093,7 +2094,11 @@ export function buildCanvasExtendedPart1(input: CanvasExtendedV2PromptInput): {
   systemPrompt: string;
   userPrompt: string;
 } {
-  const { onboarding, segment, segmentDetails, jobs, triggers, preferences, difficulties, portraitFinal, pain, canvas } = input;
+  const { onboarding, segment, segmentDetails, jobs, triggers, pain, canvas, language } = input;
+
+  // Language instruction based on selected language
+  const languageName = language === 'uk' ? 'Ukrainian' : language === 'ru' ? 'Russian' : 'English';
+  const languageInstruction = `\n\nIMPORTANT: Generate ALL text content in ${languageName} language, regardless of input language.`;
 
   const systemPrompt = `You are a world-class consumer psychologist with 20+ years of experience studying buyer behavior for premium health products.
 
@@ -2101,7 +2106,7 @@ Your task: Create CUSTOMER JOURNEY MAP and EMOTIONAL INTENSITY MAP for ONE speci
 
 Be specific. Be psychological. Be practical.
 
-IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON object.`;
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON object.${languageInstruction}`;
 
   // Build compact context sections
   const segmentContext = segmentDetails ? `
@@ -2177,7 +2182,11 @@ export function buildCanvasExtendedPart2(input: CanvasExtendedV2PromptInput): {
   systemPrompt: string;
   userPrompt: string;
 } {
-  const { onboarding, segment, segmentDetails, jobs, triggers, pain, canvas } = input;
+  const { onboarding, segment, segmentDetails, jobs, triggers, pain, canvas, language } = input;
+
+  // Language instruction based on selected language
+  const languageName = language === 'uk' ? 'Ukrainian' : language === 'ru' ? 'Russian' : 'English';
+  const languageInstruction = `\n\nIMPORTANT: Generate ALL text content in ${languageName} language, regardless of input language.`;
 
   const systemPrompt = `You are a world-class conversion copywriter with 20+ years of experience writing for premium health products.
 
@@ -2185,7 +2194,7 @@ Your task: Create NARRATIVE ANGLES, MESSAGING FRAMEWORK, and VOICE & TONE GUIDEL
 
 Be specific. Be psychological. Be practical.
 
-IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON object.`;
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanations, just the JSON object.${languageInstruction}`;
 
   // Build compact context
   const objections = segmentDetails?.objections?.slice(0, 3).map(o => o.objection).join("; ") || "Price, skepticism";
