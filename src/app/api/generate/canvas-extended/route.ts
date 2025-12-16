@@ -1,5 +1,6 @@
 // Generate Canvas Extended V2 - Prompt 15 (Per Pain)
 // V2: Uses pain_id instead of canvas_id, structured JSONB output
+// STREAMING: Uses streaming response to avoid Vercel 10s timeout
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
@@ -9,7 +10,7 @@ import {
   CanvasExtendedPart1Response,
   CanvasExtendedPart2Response,
 } from "@/lib/prompts";
-import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
+import { ApiError, withRetry, handleApiError } from "@/lib/api-utils";
 import {
   Segment,
   PainInitial,
@@ -23,21 +24,31 @@ import {
   PortraitFinal
 } from "@/types";
 
-// Increase timeout for AI generation (Vercel Pro: up to 60s)
-export const maxDuration = 60;
+// Edge runtime has 30s limit vs 10s for Node.js on Vercel Free
+export const runtime = "edge";
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const log = (msg: string) => console.log(`[canvas-extended] ${Date.now() - startTime}ms: ${msg}`);
+
   try {
+    log("Starting request...");
     const { projectId, segmentId, painId } = await request.json();
+    log(`Parsed body: projectId=${projectId}, segmentId=${segmentId}, painId=${painId}`);
 
     if (!projectId) throw new ApiError("Project ID is required", 400);
     if (!segmentId) throw new ApiError("Segment ID is required", 400);
 
+    log("Creating Supabase client...");
     const supabase = await createServerClient();
+    log("Supabase client created, getting user...");
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    log(`User fetched: ${user?.id || 'null'}, error: ${authError?.message || 'none'}`);
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
     // Fetch all required data in parallel for speed
+    log("Fetching all data in parallel...");
     const [
       { data: project, error: projectError },
       { data: segment, error: segmentError },
@@ -57,6 +68,7 @@ export async function POST(request: NextRequest) {
       supabase.from("difficulties").select("*").eq("segment_id", segmentId).single(),
       supabase.from("portrait_final").select("*").eq("project_id", projectId).order("approved_at", { ascending: false }).limit(1).single(),
     ]);
+    log("All data fetched");
 
     // Validate required data
     if (projectError || !project) throw new ApiError("Project not found", 404);
@@ -212,6 +224,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Build SPLIT prompts for parallel execution (Vercel 10s limit)
+      log(`Building prompts for pain: ${pain.name}`);
       const promptInput = {
         onboarding,
         segment: segment as Segment,
@@ -227,28 +240,34 @@ export async function POST(request: NextRequest) {
 
       const part1Prompt = buildCanvasExtendedPart1(promptInput);
       const part2Prompt = buildCanvasExtendedPart2(promptInput);
+      log("Prompts built, starting parallel AI generation...");
 
       // Run BOTH parts in PARALLEL - each ~5-6s instead of 15-25s total
       const [part1Response, part2Response] = await Promise.all([
         withRetry(async () => {
+          log("Part1 (journey+emotions) starting...");
           const text = await generateWithAI({
             prompt: part1Prompt.userPrompt,
             systemPrompt: part1Prompt.systemPrompt,
             maxTokens: 2048,
             userId: user.id,
           });
+          log(`Part1 completed, got ${text.length} chars`);
           return parseJSONResponse<CanvasExtendedPart1Response>(text);
         }),
         withRetry(async () => {
+          log("Part2 (narrative+messaging+voice) starting...");
           const text = await generateWithAI({
             prompt: part2Prompt.userPrompt,
             systemPrompt: part2Prompt.systemPrompt,
             maxTokens: 2048,
             userId: user.id,
           });
+          log(`Part2 completed, got ${text.length} chars`);
           return parseJSONResponse<CanvasExtendedPart2Response>(text);
         }),
       ]);
+      log("Both parts completed, merging...");
 
       // Merge both parts into complete response
       const response = {
