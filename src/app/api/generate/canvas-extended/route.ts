@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
             const text = await generateWithAI({
               prompt: part1Prompt.userPrompt,
               systemPrompt: part1Prompt.systemPrompt,
-              maxTokens: 2048,
+              maxTokens: 4096,
               userId: user.id,
             });
             log(`Part1 completed, got ${text.length} chars`);
@@ -280,7 +280,7 @@ export async function POST(request: NextRequest) {
             const text = await generateWithAI({
               prompt: part2Prompt.userPrompt,
               systemPrompt: part2Prompt.systemPrompt,
-              maxTokens: 2048,
+              maxTokens: 4096,
               userId: user.id,
             });
             log(`Part2 completed, got ${text.length} chars`);

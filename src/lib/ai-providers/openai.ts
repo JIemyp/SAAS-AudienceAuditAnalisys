@@ -67,6 +67,11 @@ export const openaiAdapter: AIProviderAdapter = {
         model: modelId,
         max_output_tokens: options.maxTokens || 4096,
         input: prompt,
+        text: {
+          format: {
+            type: 'json_object',
+          },
+        },
       });
 
       const content =
