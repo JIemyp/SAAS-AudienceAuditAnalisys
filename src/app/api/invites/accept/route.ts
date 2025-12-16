@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "You are the owner of this project" }, { status: 400 });
     }
 
-    // Create member record
+    // Create member record with email for display
     const { error: memberError } = await supabase
       .from("project_members")
       .insert({
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         role: invite.role,
         invited_by: invite.invited_by,
+        email: user.email, // Store email for display in settings
       });
 
     if (memberError) {

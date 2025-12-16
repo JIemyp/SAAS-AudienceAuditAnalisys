@@ -47,10 +47,10 @@ export async function GET(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // Get all members (empty array is OK)
+    // Get all members with email (stored at invite acceptance)
     const { data: members, error } = await supabase
       .from("project_members")
-      .select("*")
+      .select("id, project_id, user_id, role, invited_by, joined_at, email")
       .eq("project_id", projectId)
       .order("joined_at", { ascending: true });
 
@@ -59,7 +59,7 @@ export async function GET(
       return NextResponse.json({ error: `Failed to fetch members: ${error.message}` }, { status: 500 });
     }
 
-    // Get owner info
+    // Owner info - use current user's email if they are the owner
     const ownerMember: ProjectMember = {
       id: "owner",
       project_id: projectId,
@@ -67,16 +67,11 @@ export async function GET(
       role: "owner" as ProjectRole,
       invited_by: null,
       joined_at: "",
-      email: undefined,
+      // If current user is owner, use their email; otherwise show placeholder
+      email: isOwner ? user.email || undefined : undefined,
     };
 
-    // Get emails for members (including owner)
-    const userIds = [project.user_id, ...members.map((m: { user_id: string }) => m.user_id)];
-
-    // We need to get user emails from auth.users via a different approach
-    // Since we can't directly query auth.users, we'll use a workaround
-    // For now, just return members without emails (frontend can handle)
-
+    // Members already have email from accept invite
     const allMembers = [ownerMember, ...members];
 
     return NextResponse.json({
