@@ -79,29 +79,15 @@ export async function GET(
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    // Check project exists and get owner info
+    // Check project ownership
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .select("id, user_id")
+      .select("id")
       .eq("id", projectId)
+      .eq("user_id", user.id)
       .single();
 
     if (projectError || !project) throw new ApiError("Project not found", 404);
-
-    // Check if user is owner
-    const isOwner = project.user_id === user.id;
-
-    // If not owner, check if user is a member
-    if (!isOwner) {
-      const { data: membership } = await supabase
-        .from("project_members")
-        .select("id")
-        .eq("project_id", projectId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!membership) throw new ApiError("Project not found", 404);
-    }
 
     // First pass: collect all data
     const stepData: { step: string; hasDraft: boolean; hasApproved: boolean }[] = [];

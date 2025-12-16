@@ -17,10 +17,9 @@ export async function GET(
             throw new ApiError("Unauthorized", 401);
         }
 
-        // First get the project
         const { data: project, error } = await supabase
             .from("projects")
-            .select("id, name, status, current_step, onboarding_data, created_at, updated_at, user_id")
+            .select("id, name, status, current_step, onboarding_data, created_at, updated_at")
             .eq("id", id)
             .single();
 
@@ -31,26 +30,7 @@ export async function GET(
             throw error;
         }
 
-        // Check if user is owner
-        const isOwner = project.user_id === user.id;
-
-        // If not owner, check if user is a member
-        if (!isOwner) {
-            const { data: membership } = await supabase
-                .from("project_members")
-                .select("id")
-                .eq("project_id", id)
-                .eq("user_id", user.id)
-                .maybeSingle();
-
-            if (!membership) {
-                throw new ApiError("Project not found", 404);
-            }
-        }
-
-        // Remove user_id from response for security
-        const { user_id: _, ...projectWithoutUserId } = project;
-        return NextResponse.json(projectWithoutUserId);
+        return NextResponse.json(project);
     } catch (error) {
         return handleApiError(error);
     }
