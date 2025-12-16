@@ -89,7 +89,8 @@ export default function CanvasExtendedPage({
     }
   }, [selectedPainId, selectedSegmentId]);
 
-  const fetchData = async () => {
+  // skipAutoSelect: true means don't change selected segment/pain (used after generation)
+  const fetchData = async (skipAutoSelect = false) => {
     try {
       setIsLoading(true);
 
@@ -148,12 +149,14 @@ export default function CanvasExtendedPage({
 
       setSegmentsWithPains(result);
 
-      // Auto-select first segment with pains
-      const firstWithPains = result.find(s => s.topPains.length > 0);
-      if (firstWithPains) {
-        setSelectedSegmentId(firstWithPains.segment.id);
-        if (firstWithPains.topPains.length > 0) {
-          setSelectedPainId(firstWithPains.topPains[0].pain_id);
+      // Only auto-select on initial load, not after generation
+      if (!skipAutoSelect && !selectedSegmentId) {
+        const firstWithPains = result.find(s => s.topPains.length > 0);
+        if (firstWithPains) {
+          setSelectedSegmentId(firstWithPains.segment.id);
+          if (firstWithPains.topPains.length > 0) {
+            setSelectedPainId(firstWithPains.topPains[0].pain_id);
+          }
         }
       }
     } catch (err) {
@@ -166,16 +169,25 @@ export default function CanvasExtendedPage({
 
   const fetchDraftForPain = async (painId: string) => {
     try {
+      console.log('[canvas-extended] fetchDraftForPain called:', painId);
       const res = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_extended_drafts&painId=${painId}`);
       const data = await res.json();
+      console.log('[canvas-extended] fetchDraftForPain response:', {
+        painId,
+        success: data.success,
+        draftsCount: data.drafts?.length || 0,
+        hasDraft: data.drafts?.length > 0
+      });
 
       if (data.success && data.drafts?.length > 0) {
+        console.log('[canvas-extended] Setting currentDraft:', data.drafts[0].id);
         setCurrentDraft(data.drafts[0] as CanvasExtendedV2Draft);
       } else {
+        console.log('[canvas-extended] No draft found, setting null');
         setCurrentDraft(null);
       }
     } catch (err) {
-      console.error("Failed to fetch draft:", err);
+      console.error("[canvas-extended] Failed to fetch draft:", err);
       setCurrentDraft(null);
     }
   };
@@ -243,8 +255,8 @@ export default function CanvasExtendedPage({
         async () => {
           // Refresh draft
           await fetchDraftForPain(targetPainId);
-          // Update counts
-          await fetchData();
+          // Update counts (skipAutoSelect=true to keep current selection)
+          await fetchData(true);
         }
       );
     } catch (err) {
@@ -268,8 +280,8 @@ export default function CanvasExtendedPage({
           segmentId: selectedSegmentId,
         },
         async () => {
-          // Refresh data
-          await fetchData();
+          // Refresh data (skipAutoSelect=true to keep current selection)
+          await fetchData(true);
           // Fetch current pain's draft
           if (selectedPainId) {
             await fetchDraftForPain(selectedPainId);
@@ -308,8 +320,8 @@ export default function CanvasExtendedPage({
         throw new Error(data.error || "Approval failed");
       }
 
-      // Refresh data
-      await fetchData();
+      // Refresh data (skipAutoSelect=true to keep current segment)
+      await fetchData(true);
 
       // Move to next unapproved pain
       if (selectedSegmentData) {
@@ -360,8 +372,8 @@ export default function CanvasExtendedPage({
         }
       }
 
-      // Refresh data
-      await fetchData();
+      // Refresh data (skipAutoSelect=true to keep current segment)
+      await fetchData(true);
     } catch (err) {
       console.error("Approval error:", err);
       setError(err instanceof Error ? err.message : "Approval failed");
