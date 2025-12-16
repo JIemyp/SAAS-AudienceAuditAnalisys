@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Search, FileText, Loader2, Crown, Eye } from "lucide-react";
-import { createClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -20,72 +19,30 @@ export default function ProjectsPage() {
     const [projects, setProjects] = useState<ProjectWithRole[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const supabase = createClient();
 
     useEffect(() => {
         async function fetchProjects() {
             try {
-                // Get current user
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) {
+                // Use API route to fetch projects (handles RLS properly)
+                const res = await fetch("/api/projects/list");
+                const data = await res.json();
+
+                if (data.success && data.projects) {
+                    setProjects(data.projects);
+                } else {
+                    console.error("Error fetching projects:", data.error);
                     setProjects([]);
-                    setIsLoading(false);
-                    return;
                 }
-
-                // 1. Get projects owned by user
-                const { data: ownedProjects, error: ownedError } = await supabase
-                    .from("projects")
-                    .select("*")
-                    .eq("user_id", user.id)
-                    .order("created_at", { ascending: false });
-
-                if (ownedError) throw ownedError;
-
-                // 2. Get projects where user is a member
-                const { data: memberships, error: memberError } = await supabase
-                    .from("project_members")
-                    .select("project_id")
-                    .eq("user_id", user.id);
-
-                if (memberError) throw memberError;
-
-                // 3. Fetch member projects if any
-                let memberProjects: Project[] = [];
-                if (memberships && memberships.length > 0) {
-                    const projectIds = memberships.map(m => m.project_id);
-                    const { data: sharedProjects, error: sharedError } = await supabase
-                        .from("projects")
-                        .select("*")
-                        .in("id", projectIds)
-                        .order("created_at", { ascending: false });
-
-                    if (sharedError) throw sharedError;
-                    memberProjects = sharedProjects || [];
-                }
-
-                // 4. Combine and mark roles
-                const ownedWithRole: ProjectWithRole[] = (ownedProjects || []).map(p => ({
-                    ...p,
-                    role: "owner" as const,
-                }));
-
-                const memberWithRole: ProjectWithRole[] = memberProjects.map(p => ({
-                    ...p,
-                    role: "viewer" as const,
-                }));
-
-                // Combine, owned first, then shared
-                setProjects([...ownedWithRole, ...memberWithRole]);
             } catch (error) {
                 console.error("Error fetching projects:", error);
+                setProjects([]);
             } finally {
                 setIsLoading(false);
             }
         }
 
         fetchProjects();
-    }, [supabase]);
+    }, []);
 
     const filteredProjects = projects.filter((project) =>
         project.name.toLowerCase().includes(searchQuery.toLowerCase())
