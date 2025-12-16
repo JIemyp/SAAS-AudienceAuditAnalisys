@@ -85,6 +85,7 @@ export default function CanvasExtendedPage({
 
   // Fetch draft when pain selected
   useEffect(() => {
+    console.log("[canvas-extended] useEffect triggered:", { selectedPainId, selectedSegmentId });
     if (selectedPainId && selectedSegmentId) {
       fetchDraftForPain(selectedPainId);
     }
@@ -176,13 +177,17 @@ export default function CanvasExtendedPage({
       setIsFetchingDraft(true);
       setCurrentDraft(null); // Clear immediately to prevent showing old draft
 
+      console.log("[canvas-extended] fetchDraftForPain called:", { painId, projectId });
       const res = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_extended_drafts&painId=${painId}`);
       const data = await res.json();
+      console.log("[canvas-extended] fetchDraftForPain response:", { painId, draftsCount: data.drafts?.length || 0, success: data.success });
 
       if (data.success && data.drafts?.length > 0) {
+        console.log("[canvas-extended] Setting draft:", data.drafts[0].id);
         setCurrentDraft(data.drafts[0] as CanvasExtendedV2Draft);
+      } else {
+        console.log("[canvas-extended] No draft found for painId:", painId);
       }
-      // Don't set null on else - already null
     } catch (err) {
       console.error("[canvas-extended] Failed to fetch draft:", err);
     } finally {
