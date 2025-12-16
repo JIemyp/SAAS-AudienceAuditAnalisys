@@ -1,6 +1,8 @@
 import OpenAI from 'openai';
 import { AIProviderAdapter, GenerateOptions } from './types';
 
+type ResponseOutput = OpenAI.Beta.Responses.Response['output'];
+
 function isResponsesOnlyModel(modelId: string): boolean {
   return (
     modelId.startsWith('gpt-5') ||
@@ -8,6 +10,41 @@ function isResponsesOnlyModel(modelId: string): boolean {
     modelId.startsWith('o3') ||
     modelId.startsWith('o4')
   );
+}
+
+function extractTextFromOutput(output?: ResponseOutput): string[] {
+  if (!output) return [];
+
+  const chunks: string[] = [];
+
+  for (const block of output) {
+    const blockAny = block as { content?: Array<any> };
+    if (!Array.isArray(blockAny.content)) continue;
+
+    for (const part of blockAny.content) {
+      if (typeof part === 'string') {
+        chunks.push(part);
+        continue;
+      }
+
+      if (part && typeof part === 'object') {
+        if ('text' in part && typeof part.text === 'string') {
+          chunks.push(part.text);
+          continue;
+        }
+
+        if ('content' in part && Array.isArray(part.content)) {
+          for (const nested of part.content) {
+            if (nested && typeof nested === 'object' && 'text' in nested && typeof nested.text === 'string') {
+              chunks.push(nested.text);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return chunks;
 }
 
 export const openaiAdapter: AIProviderAdapter = {
@@ -33,19 +70,7 @@ export const openaiAdapter: AIProviderAdapter = {
 
       const content =
         (Array.isArray(response.output_text) && response.output_text.join('\n').trim()) ||
-        (response.output
-          ?.flatMap(block => block.content)
-          ?.map(part => {
-            if ('text' in part && part.text) return part.text;
-            if ('type' in part && part.type === 'output_text' && 'content' in part) {
-              // @ts-ignore - shape differs per SDK version
-              return part.content?.map((c: any) => c.text).join('') ?? '';
-            }
-            return null;
-          })
-          ?.filter((value): value is string => Boolean(value))
-          ?.join('')
-          .trim()) ||
+        extractTextFromOutput(response.output).join('').trim() ||
         null;
 
       if (!content) {
