@@ -115,7 +115,7 @@ export default function CanvasPage({
     fetchTopPains();
   }, [projectId, selectedSegmentId]);
 
-  // Load canvas draft when pain changes
+  // Load canvas draft when pain changes (check both drafts and approved)
   useEffect(() => {
     if (!selectedPainId || !selectedSegmentId) {
       setCanvasDraft(null);
@@ -124,14 +124,28 @@ export default function CanvasPage({
 
     const fetchCanvasDraft = async () => {
       try {
-        const res = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_drafts&segmentId=${selectedSegmentId}`);
-        const data = await res.json();
-        if (data.success && data.drafts) {
-          const draft = data.drafts.find((d: CanvasDraft) => d.pain_id === selectedPainId);
-          setCanvasDraft(draft || null);
+        // First try to get from drafts
+        const draftsRes = await fetch(`/api/drafts?projectId=${projectId}&table=canvas_drafts&segmentId=${selectedSegmentId}`);
+        const draftsData = await draftsRes.json();
+        if (draftsData.success && draftsData.drafts) {
+          const draft = draftsData.drafts.find((d: CanvasDraft) => d.pain_id === selectedPainId);
+          if (draft) {
+            setCanvasDraft(draft);
+            return;
+          }
+        }
+
+        // If not in drafts, try approved canvas
+        const approvedRes = await fetch(`/api/approved?projectId=${projectId}&table=canvas&segmentId=${selectedSegmentId}`);
+        const approvedData = await approvedRes.json();
+        if (approvedData.success && approvedData.data) {
+          const approved = approvedData.data.find((d: CanvasDraft) => d.pain_id === selectedPainId);
+          setCanvasDraft(approved || null);
+        } else {
+          setCanvasDraft(null);
         }
       } catch (err) {
-        console.error("Failed to fetch canvas draft:", err);
+        console.error("Failed to fetch canvas:", err);
       }
     };
     fetchCanvasDraft();

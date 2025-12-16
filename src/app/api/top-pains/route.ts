@@ -60,18 +60,32 @@ export async function GET(request: NextRequest) {
     // Create a map for quick lookup
     const painsMap = new Map((pains || []).map(p => [p.id, p]));
 
-    // Step 3: Get canvas_drafts to check which pains have canvas
-    let canvasQuery = supabase
+    // Step 3: Get canvas (both drafts and approved) to check which pains have canvas
+    let canvasDraftsQuery = supabase
       .from("canvas_drafts")
       .select("pain_id")
       .eq("project_id", projectId);
 
+    let canvasApprovedQuery = supabase
+      .from("canvas")
+      .select("pain_id")
+      .eq("project_id", projectId);
+
     if (segmentId) {
-      canvasQuery = canvasQuery.eq("segment_id", segmentId);
+      canvasDraftsQuery = canvasDraftsQuery.eq("segment_id", segmentId);
+      canvasApprovedQuery = canvasApprovedQuery.eq("segment_id", segmentId);
     }
 
-    const { data: canvasDrafts } = await canvasQuery;
-    const painsWithCanvas = new Set(canvasDrafts?.map(c => c.pain_id) || []);
+    const [{ data: canvasDrafts }, { data: canvasApproved }] = await Promise.all([
+      canvasDraftsQuery,
+      canvasApprovedQuery,
+    ]);
+
+    // Combine both drafts and approved canvas
+    const painsWithCanvas = new Set([
+      ...(canvasDrafts?.map(c => c.pain_id) || []),
+      ...(canvasApproved?.map(c => c.pain_id) || []),
+    ]);
 
     // Build response with canvas status
     const topPains = rankings.map(ranking => {
