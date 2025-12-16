@@ -220,6 +220,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Member ID is required" }, { status: 400 });
     }
 
+    // Get member info to find their email for invite cleanup
+    const { data: member } = await supabase
+      .from("project_members")
+      .select("id, email, user_id")
+      .eq("id", memberId)
+      .eq("project_id", projectId)
+      .single();
+
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
     // Delete the member
     const { error } = await supabase
       .from("project_members")
@@ -230,6 +242,15 @@ export async function DELETE(
     if (error) {
       console.error("Error removing member:", error);
       return NextResponse.json({ error: "Failed to remove member" }, { status: 500 });
+    }
+
+    // Also delete the associated invite so they can be re-invited
+    if (member.email) {
+      await supabase
+        .from("project_invites")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("email", member.email.toLowerCase());
     }
 
     return NextResponse.json({
