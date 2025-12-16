@@ -52,11 +52,11 @@ export async function GET(request: NextRequest) {
 
     switch (level) {
       case "overview":
-        return await fetchOverviewData(supabase, projectId, project);
+        return await fetchOverviewData(adminSupabase, projectId, project);
       case "full":
-        return await fetchFullReportData(supabase, projectId, project);
+        return await fetchFullReportData(adminSupabase, projectId, project);
       case "explorer":
-        return await fetchExplorerData(supabase, projectId, segmentId);
+        return await fetchExplorerData(adminSupabase, projectId, segmentId);
       default:
         throw new ApiError("Invalid level parameter", 400);
     }

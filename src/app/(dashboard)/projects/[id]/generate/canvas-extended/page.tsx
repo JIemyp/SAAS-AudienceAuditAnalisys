@@ -647,6 +647,17 @@ export default function CanvasExtendedPage({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-6"
+                ref={() => {
+                  console.log('[canvas-extended] Rendering displayDraft:', {
+                    id: displayDraft.id,
+                    hasCustomerJourney: !!displayDraft.customer_journey,
+                    hasEmotionalMap: !!displayDraft.emotional_map,
+                    hasNarrativeAngles: !!displayDraft.narrative_angles,
+                    hasMessagingFramework: !!displayDraft.messaging_framework,
+                    hasVoiceAndTone: !!displayDraft.voice_and_tone,
+                    keys: Object.keys(displayDraft),
+                  });
+                }}
               >
                 {/* Translation banner */}
                 {isTranslating && language !== 'en' && (
