@@ -85,7 +85,6 @@ export default function CanvasExtendedPage({
 
   // Fetch draft when pain selected
   useEffect(() => {
-    console.log("[canvas-extended] useEffect triggered:", { selectedPainId, selectedSegmentId });
     if (selectedPainId && selectedSegmentId) {
       fetchDraftForPain(selectedPainId);
     }
