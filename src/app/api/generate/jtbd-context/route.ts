@@ -19,130 +19,59 @@ import {
   JTBDContextResponse,
 } from "@/types";
 
-function buildPrompt(
+// Part 1: Generate job_contexts (the heavy part)
+function buildJobContextsPrompt(
   onboarding: OnboardingData,
   segment: Segment,
   jobs: unknown[],
   competitiveIntel: unknown
 ): string {
-  return `You are a Jobs-to-be-Done expert with 15+ years experience applying JTBD framework to premium health/wellness products. Enhance JTBD analysis with contextual depth.
-
-## CRITICAL: JSON STRUCTURE REQUIREMENTS
-Your response MUST match the EXACT JSON structure below. Every field is REQUIRED.
-- All enum fields must use ONLY the specified values
-- All arrays must have the minimum specified items
-- No extra fields, no missing fields
+  return `You are a Jobs-to-be-Done expert. Enhance JTBD analysis for segment "${segment.name}".
 
 ## Business Context
 - Brand: ${onboarding.brandName || "N/A"}
 - Product/Service: ${onboarding.productService || "N/A"}
 - Product Format: ${onboarding.productFormat || "N/A"}
-- Business Model: ${onboarding.businessModel || "N/A"}
-- Price Segment: ${onboarding.priceSegment || "N/A"}
 - USP: ${onboarding.usp || "N/A"}
 
-## Segment Profile
-- Name: ${segment.name}
-- Description: ${segment.description || "N/A"}
-- Sociodemographics: ${segment.sociodemographics || "N/A"}
+## Segment: ${segment.name}
+${segment.description || "N/A"}
 
-## Existing Jobs to Be Done (enhance these)
-${JSON.stringify(jobs, null, 2)}
+## Jobs to enhance (TOP 3-4 most important):
+${JSON.stringify(jobs?.slice(0, 4), null, 2)}
 
-## Competitive Intelligence (context)
+## Competitive context:
 ${JSON.stringify(competitiveIntel, null, 2)}
 
-## Your Task
+Return JSON with "job_contexts" array. For each job include:
+- job_reference_id, job_name
+- hire_triggers (2+ items): situation, frequency (daily|weekly|monthly|occasionally|rarely), urgency (low|medium|high|critical), emotional_state
+- competing_solutions (2+ items): alternative, why_chosen, when_chosen, job_completion_rate (low|medium|high|very_high), your_advantage
+- success_metrics: how_measured (3+ items), immediate_progress (2+ items), short_term_success, long_term_success, acceptable_tradeoffs (2+ items)
+- obstacles (2+ items): obstacle, blocks_progress, how_you_remove_it
+- hiring_anxieties (2+ items): anxiety, rooted_in, how_to_address
 
-For segment "${segment.name}", enhance each job with:
-1. WHEN do they "hire" this job? (situational triggers)
-2. WHAT ELSE might they "hire"? (competing solutions)
-3. HOW do they measure success?
-4. WHAT blocks them from completing the job?
-5. WHAT anxieties do they have about hiring a solution?
-
-## REQUIRED JSON OUTPUT (copy this structure exactly):
-
-{
-  "job_contexts": [
-    {
-      "job_reference_id": "ID from original job if available, otherwise sequential number",
-      "job_name": "The job statement - e.g., 'Get convenient, complete nutrition without prep time'",
-      "hire_triggers": [
-        {
-          "situation": "WHEN situation - e.g., 'Morning rush with no time for healthy breakfast'",
-          "frequency": "daily",
-          "urgency": "high",
-          "emotional_state": "How they feel - e.g., 'Stressed, guilty about skipping nutrition'"
-        }
-      ],
-      "competing_solutions": [
-        {
-          "alternative": "What else they might hire - e.g., 'Meal prep Sundays'",
-          "why_chosen": "Why they choose this - e.g., 'Feels more 'real food''",
-          "when_chosen": "Situation - e.g., 'When they have weekend time'",
-          "job_completion_rate": "low",
-          "your_advantage": "Why your solution is better for THIS segment"
-        }
-      ],
-      "success_metrics": {
-        "how_measured": ["metric 1", "metric 2", "metric 3", "metric 4"],
-        "immediate_progress": ["sign 1", "sign 2", "sign 3"],
-        "short_term_success": "What success looks like in days/weeks",
-        "long_term_success": "What success looks like in months",
-        "acceptable_tradeoffs": ["tradeoff 1", "tradeoff 2", "tradeoff 3"]
-      },
-      "obstacles": [
-        {
-          "obstacle": "Specific obstacle - e.g., 'Analysis paralysis from too many options'",
-          "blocks_progress": "How it blocks them - e.g., 'Delays purchase decision for weeks'",
-          "how_you_remove_it": "How your solution removes this - e.g., 'Single product replaces multiple decisions'"
-        }
-      ],
-      "hiring_anxieties": [
-        {
-          "anxiety": "Fear - e.g., 'What if this is just another supplement that doesn't work?'",
-          "rooted_in": "Source - e.g., 'Past supplement failures, money wasted'",
-          "how_to_address": "How to alleviate - e.g., 'Money-back guarantee + testimonials from former skeptics'"
-        }
-      ]
-    }
-  ],
-  "job_priority_ranking": [
-    {
-      "job_name": "Job statement",
-      "priority": 1,
-      "reasoning": "Why this is #1 priority for THIS segment - be specific"
-    }
-  ],
-  "job_dependencies": [
-    {
-      "primary_job": "Main job that must be completed first",
-      "enables_job": "Job that becomes possible after",
-      "relationship": "How they're connected - e.g., 'Trust in product enables willingness to subscribe'"
-    }
-  ]
+Return ONLY valid JSON: {"job_contexts": [...]}`;
 }
 
-## VALIDATION RULES:
-- frequency: ONLY "daily" | "weekly" | "monthly" | "occasionally" | "rarely"
-- urgency: ONLY "low" | "medium" | "high" | "critical"
-- job_completion_rate: ONLY "low" | "medium" | "high" | "very_high"
-- priority: Sequential integers starting from 1
+// Part 2: Generate rankings and dependencies (lighter part)
+function buildRankingsPrompt(
+  segment: Segment,
+  jobContexts: unknown[]
+): string {
+  const jobNames = (jobContexts as Array<{job_name: string}>).map(j => j.job_name);
+  return `Based on these jobs for segment "${segment.name}":
+${JSON.stringify(jobNames, null, 2)}
 
-## MINIMUM REQUIREMENTS:
-- job_contexts: Cover ALL jobs from existing jobs list (or at least 5 if many)
-- hire_triggers per job: 3+ items
-- competing_solutions per job: 3+ items
-- how_measured: 4+ items
-- immediate_progress: 3+ items
-- acceptable_tradeoffs: 3+ items
-- obstacles per job: 3+ items
-- hiring_anxieties per job: 3+ items
-- job_priority_ranking: Rank ALL jobs
-- job_dependencies: 3+ items
+Generate:
+1. job_priority_ranking - rank ALL jobs by priority for this segment
+2. job_dependencies - how jobs relate to each other (3+ items)
 
-Return ONLY valid JSON. No markdown, no explanations.`;
+Return ONLY valid JSON:
+{
+  "job_priority_ranking": [{"job_name": "...", "priority": 1, "reasoning": "..."}],
+  "job_dependencies": [{"primary_job": "...", "enables_job": "...", "relationship": "..."}]
+}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -200,17 +129,39 @@ export async function POST(request: NextRequest) {
       .eq("segment_id", segmentId)
       .single();
 
-    const prompt = buildPrompt(
+    // Part 1: Generate job_contexts (heavy part)
+    const jobContextsPrompt = buildJobContextsPrompt(
       (project as Project).onboarding_data,
       segment as Segment,
       jobs || [],
       competitiveIntel
     );
 
-    const response = await withRetry(async () => {
-      const text = await generateWithAI({ prompt, maxTokens: 8000, userId: user.id });
-      return parseJSONResponse<JTBDContextResponse>(text);
+    const jobContextsResult = await withRetry(async () => {
+      const text = await generateWithAI({ prompt: jobContextsPrompt, maxTokens: 4000, userId: user.id });
+      return parseJSONResponse<{ job_contexts: JTBDContextResponse["job_contexts"] }>(text);
     });
+
+    // Part 2: Generate rankings and dependencies (light part)
+    const rankingsPrompt = buildRankingsPrompt(
+      segment as Segment,
+      jobContextsResult.job_contexts
+    );
+
+    const rankingsResult = await withRetry(async () => {
+      const text = await generateWithAI({ prompt: rankingsPrompt, maxTokens: 2000, userId: user.id });
+      return parseJSONResponse<{
+        job_priority_ranking: JTBDContextResponse["job_priority_ranking"];
+        job_dependencies: JTBDContextResponse["job_dependencies"];
+      }>(text);
+    });
+
+    // Combine results
+    const response: JTBDContextResponse = {
+      job_contexts: jobContextsResult.job_contexts,
+      job_priority_ranking: rankingsResult.job_priority_ranking,
+      job_dependencies: rankingsResult.job_dependencies,
+    };
 
     const { data: existingDraft } = await supabase
       .from("jtbd_context_drafts")
