@@ -331,7 +331,10 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
         body: JSON.stringify({ projectId, segmentId: selectedSegmentId }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get("content-type") || "";
+      const data = contentType.includes("text/event-stream")
+        ? await readStreamingResponse(res)
+        : await res.json();
       console.log(`[SegmentGenerationPage] Generate response:`, data);
 
       if (!res.ok) {
@@ -444,13 +447,16 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
       for (const seg of segmentsWithoutData) {
         console.log(`[SegmentGenerationPage] Generating for segment: ${seg.name} (${seg.id})`);
 
-        const res = await fetch(generateEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId, segmentId: seg.id }),
-        });
+      const res = await fetch(generateEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, segmentId: seg.id }),
+      });
 
-        const data = await res.json();
+        const contentType = res.headers.get("content-type") || "";
+        const data = contentType.includes("text/event-stream")
+          ? await readStreamingResponse(res)
+          : await res.json();
 
         if (!res.ok) {
           throw new Error(data.error || `Failed to generate for segment: ${seg.name}`);
@@ -474,6 +480,54 @@ export function SegmentGenerationPage<T extends { id: string; segment_id?: strin
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const readStreamingResponse = async (res: Response) => {
+    const reader = res.body?.getReader();
+    if (!reader) {
+      throw new Error("Streaming response not available");
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let lastComplete: any = null;
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() || "";
+
+      for (const chunk of chunks) {
+        const line = chunk.trim();
+        if (!line.startsWith("data:")) continue;
+
+        const jsonText = line.replace(/^data:\s*/, "");
+        try {
+          const data = JSON.parse(jsonText);
+          if (data.type === "progress") {
+            console.log("[SegmentGenerationPage] Stream progress:", data);
+            continue;
+          }
+          if (data.type === "error") {
+            throw new Error(data.message || "Generation failed");
+          }
+          if (data.type === "complete") {
+            lastComplete = data;
+          }
+        } catch (error) {
+          throw new Error(error instanceof Error ? error.message : "Invalid streaming response");
+        }
+      }
+    }
+
+    if (!lastComplete) {
+      throw new Error("No completion event received");
+    }
+
+    return lastComplete;
   };
 
   // Approve all segments at once
