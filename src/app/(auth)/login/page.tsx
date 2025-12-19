@@ -1,8 +1,5 @@
 "use client";
 
-// Force dynamic rendering to avoid prerender issues with Supabase client
-export const dynamic = 'force-dynamic';
-
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";

@@ -98,14 +98,13 @@ export async function POST(request: NextRequest) {
     }
 
     // =========================================
-    // Update project status if complete
+    // Update project to next step if canvas-extended complete
     // =========================================
     if (allSegmentsComplete) {
       await adminSupabase
         .from("projects")
         .update({
-          current_step: "completed",
-          status: "completed",
+          current_step: "channel-strategy", // Next step after canvas-extended
         })
         .eq("id", projectId);
     }

@@ -442,10 +442,10 @@ export default function CanvasExtendedPage({
 
           {allComplete ? (
             <Button
-              onClick={() => router.push(`/projects/${projectId}/overview`)}
+              onClick={() => router.push(`/projects/${projectId}/generate/channel-strategy`)}
               className="gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600"
             >
-              Continue to Overview
+              Continue to Channel Strategy
               <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
