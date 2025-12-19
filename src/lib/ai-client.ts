@@ -177,7 +177,16 @@ export function parseJSONResponse<T>(response: string): T {
   try {
     return JSON.parse(cleaned) as T;
   } catch (error) {
-    const repaired = repairTruncatedJson(cleaned);
+    const sanitized = sanitizeJsonText(cleaned);
+    if (sanitized !== cleaned) {
+      try {
+        return JSON.parse(sanitized) as T;
+      } catch {
+        // Continue to repair attempts.
+      }
+    }
+
+    const repaired = repairTruncatedJson(sanitized);
     if (repaired) {
       try {
         return JSON.parse(repaired) as T;
@@ -187,6 +196,62 @@ export function parseJSONResponse<T>(response: string): T {
     }
     throw error;
   }
+}
+
+function sanitizeJsonText(text: string): string {
+  let inString = false;
+  let escapeNext = false;
+  let result = '';
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escapeNext) {
+        escapeNext = false;
+        result += ch;
+        continue;
+      }
+
+      if (ch === '\\') {
+        escapeNext = true;
+        result += ch;
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = false;
+        result += ch;
+        continue;
+      }
+
+      if (ch === '\n') {
+        result += '\\n';
+        continue;
+      }
+
+      if (ch === '\r') {
+        result += '\\r';
+        continue;
+      }
+
+      if (ch === '\t') {
+        result += '\\t';
+        continue;
+      }
+
+      result += ch;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+    }
+
+    result += ch;
+  }
+
+  return result;
 }
 
 function repairTruncatedJson(text: string): string | null {
