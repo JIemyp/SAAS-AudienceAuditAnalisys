@@ -174,7 +174,81 @@ export function parseJSONResponse<T>(response: string): T {
   }
   cleaned = cleaned.trim();
 
-  return JSON.parse(cleaned) as T;
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (error) {
+    const repaired = repairTruncatedJson(cleaned);
+    if (repaired) {
+      try {
+        return JSON.parse(repaired) as T;
+      } catch {
+        // Fall through to rethrow original error.
+      }
+    }
+    throw error;
+  }
+}
+
+function repairTruncatedJson(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let inString = false;
+  let escapeNext = false;
+  const stack: string[] = [];
+  let lastCompleteIndex = -1;
+
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+      if (ch === '\\') {
+        escapeNext = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === '{' || ch === '[') {
+      stack.push(ch);
+      continue;
+    }
+
+    if (ch === '}' || ch === ']') {
+      if (stack.length > 0) {
+        stack.pop();
+      }
+      if (stack.length === 0) {
+        lastCompleteIndex = i;
+      }
+    }
+  }
+
+  if (lastCompleteIndex !== -1) {
+    return text.slice(start, lastCompleteIndex + 1);
+  }
+
+  let repaired = text.slice(start);
+  if (inString) {
+    repaired += '"';
+  }
+  for (let i = stack.length - 1; i >= 0; i -= 1) {
+    repaired += stack[i] === '{' ? '}' : ']';
+  }
+
+  return repaired;
 }
 
 // Re-export for convenience
