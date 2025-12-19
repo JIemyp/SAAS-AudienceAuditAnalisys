@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       await adminSupabase
         .from("projects")
         .update({
-          current_step: "channel-strategy", // Next step after canvas-extended
+          current_step: "channel_strategy_draft", // Next step after canvas-extended
         })
         .eq("id", projectId);
     }
