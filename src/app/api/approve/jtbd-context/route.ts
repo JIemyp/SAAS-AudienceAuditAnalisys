@@ -1,6 +1,7 @@
 // =====================================================
 // Approve JTBD Context - Per Segment (FINAL STEP)
 // Uses centralized approve-utils with history tracking
+// Plus completion status checking - marks project as COMPLETED
 // =====================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -37,11 +38,45 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
 
+    // =========================================
+    // Check if all segments are complete
+    // =========================================
+    const { data: allSegments } = await adminSupabase
+      .from("segments")
+      .select("id")
+      .eq("project_id", projectId);
+
+    const segmentIds = allSegments?.map(s => s.id) || [];
+
+    const { data: approvedForSegments } = await adminSupabase
+      .from("jtbd_context")
+      .select("segment_id")
+      .eq("project_id", projectId)
+      .in("segment_id", segmentIds);
+
+    const allSegmentsComplete = approvedForSegments?.length === segmentIds.length;
+
+    // =========================================
+    // Mark project as COMPLETED if all segments done
+    // This is the FINAL step in the workflow
+    // =========================================
+    if (allSegmentsComplete) {
+      await adminSupabase
+        .from("projects")
+        .update({
+          current_step: "completed",
+          status: "completed",
+        })
+        .eq("id", projectId);
+    }
+
     return NextResponse.json({
       success: result.success,
       approved: result.approved,
       segment_id: segmentId,
       updated: result.updated,
+      all_segments_complete: allSegmentsComplete,
+      project_completed: allSegmentsComplete,
     });
   } catch (error) {
     return handleApiError(error);

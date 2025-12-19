@@ -1,6 +1,7 @@
 // =====================================================
 // Approve Trust Framework - Per Segment
 // Uses centralized approve-utils with history tracking
+// Plus completion status checking for step progression
 // =====================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -37,11 +38,42 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
 
+    // =========================================
+    // Check if all segments are complete
+    // =========================================
+    const { data: allSegments } = await adminSupabase
+      .from("segments")
+      .select("id")
+      .eq("project_id", projectId);
+
+    const segmentIds = allSegments?.map(s => s.id) || [];
+
+    const { data: approvedForSegments } = await adminSupabase
+      .from("trust_framework")
+      .select("segment_id")
+      .eq("project_id", projectId)
+      .in("segment_id", segmentIds);
+
+    const allSegmentsComplete = approvedForSegments?.length === segmentIds.length;
+
+    // =========================================
+    // Update project to next step if all segments complete
+    // =========================================
+    if (allSegmentsComplete) {
+      await adminSupabase
+        .from("projects")
+        .update({
+          current_step: "jtbd_context_draft",
+        })
+        .eq("id", projectId);
+    }
+
     return NextResponse.json({
       success: result.success,
       approved: result.approved,
       segment_id: segmentId,
       updated: result.updated,
+      all_segments_complete: allSegmentsComplete,
     });
   } catch (error) {
     return handleApiError(error);

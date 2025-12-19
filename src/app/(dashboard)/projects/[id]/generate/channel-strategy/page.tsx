@@ -26,7 +26,7 @@ export default function ChannelStrategyPage({
       approveEndpoint="/api/approve/channel-strategy"
       draftTable="channel_strategy_drafts"
       approvedTable="channel_strategy"
-      nextStepUrl="/generate/pains"
+      nextStepUrl="/generate/competitive-intelligence"
       icon={<Radio className="w-6 h-6" />}
       emptyStateMessage="Discover the exact channels, platforms, and communities where your audience spends time and how to reach them effectively."
       renderDraft={(draft, onEdit) => (
