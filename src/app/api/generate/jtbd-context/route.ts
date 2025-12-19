@@ -1,23 +1,25 @@
 // =====================================================
-// Increase timeout for AI generation
-export const maxDuration = 60;
-
 // Generate JTBD Context Enhancement - Per Segment
 // Adds situational triggers, competing solutions, success metrics
+// STREAMING: Uses streaming response to avoid Vercel timeout
 // =====================================================
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireWriteAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
-import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
+import { ApiError, withRetry } from "@/lib/api-utils";
 import {
   Project,
   Segment,
   OnboardingData,
   JTBDContextResponse,
 } from "@/types";
+
+// Edge runtime has 30s limit vs 10s for Node.js on Vercel Free
+export const runtime = "edge";
+export const maxDuration = 30;
 
 // Part 1: Generate job_contexts (the heavy part)
 function buildJobContextsPrompt(
@@ -75,135 +77,195 @@ Return ONLY valid JSON:
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const { projectId, segmentId } = await request.json();
+  const startTime = Date.now();
+  const log = (msg: string) => console.log(`[jtbd-context] ${Date.now() - startTime}ms: ${msg}`);
 
-    if (!projectId || !segmentId) {
-      throw new ApiError("Project ID and Segment ID are required", 400);
-    }
+  // Read body FIRST before creating stream
+  log("Starting request...");
+  const { projectId, segmentId } = await request.json();
+  log(`Parsed body: projectId=${projectId}, segmentId=${segmentId}`);
 
-    const supabase = await createServerClient();
-    const adminSupabase = createAdminClient();
+  // Create a streaming response to avoid timeout
+  const encoder = new TextEncoder();
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new ApiError("Unauthorized", 401);
-    }
+  // Helper to send progress updates
+  const sendProgress = async (data: object) => {
+    await writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+  };
 
-    // Check write access (owner or editor)
-    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+  // Start processing in background - response returns immediately
+  (async () => {
+    try {
+      await sendProgress({ type: "progress", message: "Starting...", step: 1, total: 4 });
 
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", projectId)
-      
-      .single();
+      if (!projectId || !segmentId) {
+        throw new ApiError("Project ID and Segment ID are required", 400);
+      }
 
-    if (projectError || !project) {
-      throw new ApiError("Project not found", 404);
-    }
+      log("Creating Supabase client...");
+      const supabase = await createServerClient();
+      const adminSupabase = createAdminClient();
 
-    const { data: segment, error: segmentError } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("id", segmentId)
-      .eq("project_id", projectId)
-      .single();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      log(`User fetched: ${user?.id || "null"}, error: ${authError?.message || "none"}`);
+      if (authError || !user) throw new ApiError("Unauthorized", 401);
 
-    if (segmentError || !segment) {
-      throw new ApiError("Segment not found", 404);
-    }
+      // Check write access (owner or editor)
+      await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
 
-    // Get approved jobs - this is the key data source
-    const { data: jobs } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("project_id", projectId)
-      .eq("segment_id", segmentId);
+      await sendProgress({ type: "progress", message: "Loading data...", step: 2, total: 4 });
 
-    const { data: competitiveIntel } = await supabase
-      .from("competitive_intelligence")
-      .select("*")
-      .eq("project_id", projectId)
-      .eq("segment_id", segmentId)
-      .single();
+      const [
+        { data: project, error: projectError },
+        { data: segment, error: segmentError },
+        { data: jobs },
+        { data: competitiveIntel },
+      ] = await Promise.all([
+        supabase
+          .from("projects")
+          .select("*")
+          .eq("id", projectId)
+          .single(),
+        supabase
+          .from("segments")
+          .select("*")
+          .eq("id", segmentId)
+          .eq("project_id", projectId)
+          .single(),
+        supabase
+          .from("jobs")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("segment_id", segmentId),
+        supabase
+          .from("competitive_intelligence")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("segment_id", segmentId)
+          .single(),
+      ]);
 
-    // Part 1: Generate job_contexts (heavy part)
-    const jobContextsPrompt = buildJobContextsPrompt(
-      (project as Project).onboarding_data,
-      segment as Segment,
-      jobs || [],
-      competitiveIntel
-    );
+      if (projectError || !project) {
+        throw new ApiError("Project not found", 404);
+      }
+      if (segmentError || !segment) {
+        throw new ApiError("Segment not found", 404);
+      }
 
-    const jobContextsResult = await withRetry(async () => {
-      const text = await generateWithAI({ prompt: jobContextsPrompt, maxTokens: 4000, userId: user.id });
-      return parseJSONResponse<{ job_contexts: JTBDContextResponse["job_contexts"] }>(text);
-    });
+      await sendProgress({ type: "progress", message: "Generating AI analysis...", step: 3, total: 4 });
 
-    // Part 2: Generate rankings and dependencies (light part)
-    const rankingsPrompt = buildRankingsPrompt(
-      segment as Segment,
-      jobContextsResult.job_contexts
-    );
+      // Part 1: Generate job_contexts (heavy part)
+      const jobContextsPrompt = buildJobContextsPrompt(
+        (project as Project).onboarding_data,
+        segment as Segment,
+        jobs || [],
+        competitiveIntel
+      );
 
-    const rankingsResult = await withRetry(async () => {
-      const text = await generateWithAI({ prompt: rankingsPrompt, maxTokens: 2000, userId: user.id });
-      return parseJSONResponse<{
-        job_priority_ranking: JTBDContextResponse["job_priority_ranking"];
-        job_dependencies: JTBDContextResponse["job_dependencies"];
-      }>(text);
-    });
+      const jobContextsResult = await withRetry(async () => {
+        log("Job contexts generation starting...");
+        const text = await generateWithAI({
+          prompt: jobContextsPrompt,
+          maxTokens: 4000,
+          userId: user.id,
+        });
+        log(`Job contexts completed, got ${text.length} chars`);
+        return parseJSONResponse<{ job_contexts: JTBDContextResponse["job_contexts"] }>(text);
+      });
 
-    // Combine results
-    const response: JTBDContextResponse = {
-      job_contexts: jobContextsResult.job_contexts,
-      job_priority_ranking: rankingsResult.job_priority_ranking,
-      job_dependencies: rankingsResult.job_dependencies,
-    };
+      // Part 2: Generate rankings and dependencies (light part)
+      const rankingsPrompt = buildRankingsPrompt(
+        segment as Segment,
+        jobContextsResult.job_contexts
+      );
 
-    const { data: existingDraft } = await supabase
-      .from("jtbd_context_drafts")
-      .select("id")
-      .eq("project_id", projectId)
-      .eq("segment_id", segmentId)
-      .single();
+      const rankingsResult = await withRetry(async () => {
+        log("Rankings generation starting...");
+        const text = await generateWithAI({
+          prompt: rankingsPrompt,
+          maxTokens: 2000,
+          userId: user.id,
+        });
+        log(`Rankings completed, got ${text.length} chars`);
+        return parseJSONResponse<{
+          job_priority_ranking: JTBDContextResponse["job_priority_ranking"];
+          job_dependencies: JTBDContextResponse["job_dependencies"];
+        }>(text);
+      });
 
-    const draftData = {
-      project_id: projectId,
-      segment_id: segmentId,
-      job_contexts: response.job_contexts,
-      job_priority_ranking: response.job_priority_ranking,
-      job_dependencies: response.job_dependencies,
-      version: 1,
-    };
+      // Combine results
+      const response: JTBDContextResponse = {
+        job_contexts: jobContextsResult.job_contexts,
+        job_priority_ranking: rankingsResult.job_priority_ranking,
+        job_dependencies: rankingsResult.job_dependencies,
+      };
 
-    if (existingDraft) {
-      const { data: draft, error: updateError } = await supabase
+      await sendProgress({ type: "progress", message: "Saving results...", step: 4, total: 4 });
+
+      const { data: existingDraft } = await supabase
         .from("jtbd_context_drafts")
-        .update(draftData)
-        .eq("id", existingDraft.id)
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("segment_id", segmentId)
+        .single();
+
+      const draftData = {
+        project_id: projectId,
+        segment_id: segmentId,
+        job_contexts: response.job_contexts,
+        job_priority_ranking: response.job_priority_ranking,
+        job_dependencies: response.job_dependencies,
+        version: 1,
+      };
+
+      if (existingDraft) {
+        const { data: draft, error: updateError } = await supabase
+          .from("jtbd_context_drafts")
+          .update(draftData)
+          .eq("id", existingDraft.id)
+          .select()
+          .single();
+
+        if (updateError) throw new ApiError("Failed to update draft", 500);
+        await sendProgress({ type: "complete", success: true, draft, updated: true });
+        return;
+      }
+
+      const { data: draft, error: insertError } = await supabase
+        .from("jtbd_context_drafts")
+        .insert(draftData)
         .select()
         .single();
 
-      if (updateError) throw new ApiError("Failed to update draft", 500);
-      return NextResponse.json({ success: true, draft, updated: true });
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        throw new ApiError("Failed to save draft", 500);
+      }
+
+      await sendProgress({ type: "complete", success: true, draft });
+    } catch (error) {
+      log(`Error: ${error}`);
+      const message = error instanceof ApiError ? error.message : "An unexpected error occurred";
+      const status = error instanceof ApiError ? error.statusCode : 500;
+      await sendProgress({
+        type: "error",
+        success: false,
+        message,
+        status,
+      });
+    } finally {
+      await writer.close();
     }
+  })();
 
-    const { data: draft, error: insertError } = await supabase
-      .from("jtbd_context_drafts")
-      .insert(draftData)
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      throw new ApiError("Failed to save draft", 500);
-    }
-
-    return NextResponse.json({ success: true, draft });
-  } catch (error) {
-    return handleApiError(error);
-  }
+  // Return streaming response immediately
+  return new Response(stream.readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
 }
