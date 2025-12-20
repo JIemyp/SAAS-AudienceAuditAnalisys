@@ -31,6 +31,13 @@ const VALID_TABLES = [
   "pricing_psychology_drafts",
   "trust_framework_drafts",
   "jtbd_context_drafts",
+  // V6 Strategy & UGC Modules
+  "strategy_summary_drafts",
+  "strategy_personalized_drafts",
+  "strategy_global_drafts",
+  "strategy_ads_drafts",
+  "ugc_creator_profiles_drafts",
+  "communications_funnel_drafts",
 ];
 
 // Approved tables corresponding to draft tables
@@ -58,6 +65,13 @@ const APPROVED_TABLES: Record<string, string> = {
   pricing_psychology_drafts: "pricing_psychology",
   trust_framework_drafts: "trust_framework",
   jtbd_context_drafts: "jtbd_context",
+  // V6 Strategy & UGC Modules
+  strategy_summary_drafts: "strategy_summary",
+  strategy_personalized_drafts: "strategy_personalized",
+  strategy_global_drafts: "strategy_global",
+  strategy_ads_drafts: "strategy_ads",
+  ugc_creator_profiles_drafts: "ugc_creator_profiles",
+  communications_funnel_drafts: "communications_funnel",
 };
 
 // GET - Fetch drafts for a project

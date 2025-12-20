@@ -64,7 +64,21 @@ interface ExportData {
       messaging_framework?: unknown;
       voice_and_tone?: unknown;
     }>;
+    // V5 Modules
+    channelStrategy?: Record<string, unknown>;
+    competitiveIntelligence?: Record<string, unknown>;
+    pricingPsychology?: Record<string, unknown>;
+    trustFramework?: Record<string, unknown>;
+    jtbdContext?: Record<string, unknown>;
+    // V6 Modules (per segment)
+    ugcCreatorProfile?: Record<string, unknown>;
+    strategyPersonalized?: Array<Record<string, unknown>>;
+    strategyAds?: Array<Record<string, unknown>>;
+    communicationsFunnels?: Array<Record<string, unknown>>;
   }>;
+  // V6 Project-level
+  strategySummary?: Record<string, unknown>;
+  strategyGlobal?: Record<string, unknown>;
 }
 
 type ExportFormat = "xlsx" | "json" | "csv";
@@ -342,6 +356,244 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
       XLSX.utils.book_append_sheet(wb, wsCanvasExt, "Canvas Extended");
     }
 
+    // Sheet 8: Channel Strategy (V5)
+    const channelStratData: (string | number)[][] = [
+      ["Segment", "Primary Channels", "Acquisition", "Engagement", "Retention"],
+    ];
+    data.segments?.forEach((seg) => {
+      if (seg.channelStrategy) {
+        const cs = seg.channelStrategy as Record<string, unknown>;
+        channelStratData.push([
+          seg.name,
+          jsonToString(cs.primary_channels),
+          jsonToString(cs.acquisition),
+          jsonToString(cs.engagement),
+          jsonToString(cs.retention),
+        ]);
+      }
+    });
+    if (channelStratData.length > 1) {
+      const wsChannelStrat = XLSX.utils.aoa_to_sheet(channelStratData);
+      XLSX.utils.book_append_sheet(wb, wsChannelStrat, "Channel Strategy");
+    }
+
+    // Sheet 9: Competitive Intelligence (V5)
+    const compIntelData: (string | number)[][] = [
+      ["Segment", "Direct Competitors", "Indirect Competitors", "Market Gaps", "Differentiation"],
+    ];
+    data.segments?.forEach((seg) => {
+      if (seg.competitiveIntelligence) {
+        const ci = seg.competitiveIntelligence as Record<string, unknown>;
+        compIntelData.push([
+          seg.name,
+          jsonToString(ci.direct_competitors),
+          jsonToString(ci.indirect_competitors),
+          jsonToString(ci.market_gaps),
+          jsonToString(ci.differentiation),
+        ]);
+      }
+    });
+    if (compIntelData.length > 1) {
+      const wsCompIntel = XLSX.utils.aoa_to_sheet(compIntelData);
+      XLSX.utils.book_append_sheet(wb, wsCompIntel, "Competitive Intel");
+    }
+
+    // Sheet 10: Pricing Psychology (V5)
+    const pricingData: (string | number)[][] = [
+      ["Segment", "Price Perception", "Value Drivers", "Price Sensitivity", "Pricing Recommendations"],
+    ];
+    data.segments?.forEach((seg) => {
+      if (seg.pricingPsychology) {
+        const pp = seg.pricingPsychology as Record<string, unknown>;
+        pricingData.push([
+          seg.name,
+          jsonToString(pp.price_perception),
+          jsonToString(pp.value_drivers),
+          jsonToString(pp.price_sensitivity),
+          jsonToString(pp.pricing_recommendations),
+        ]);
+      }
+    });
+    if (pricingData.length > 1) {
+      const wsPricing = XLSX.utils.aoa_to_sheet(pricingData);
+      XLSX.utils.book_append_sheet(wb, wsPricing, "Pricing Psychology");
+    }
+
+    // Sheet 11: Trust Framework (V5)
+    const trustData: (string | number)[][] = [
+      ["Segment", "Trust Signals", "Risk Reducers", "Social Proof", "Guarantees"],
+    ];
+    data.segments?.forEach((seg) => {
+      if (seg.trustFramework) {
+        const tf = seg.trustFramework as Record<string, unknown>;
+        trustData.push([
+          seg.name,
+          jsonToString(tf.trust_signals),
+          jsonToString(tf.risk_reducers),
+          jsonToString(tf.social_proof),
+          jsonToString(tf.guarantees),
+        ]);
+      }
+    });
+    if (trustData.length > 1) {
+      const wsTrust = XLSX.utils.aoa_to_sheet(trustData);
+      XLSX.utils.book_append_sheet(wb, wsTrust, "Trust Framework");
+    }
+
+    // Sheet 12: JTBD Context (V5)
+    const jtbdData: (string | number)[][] = [
+      ["Segment", "Main Jobs", "Progress Definition", "Forces Analysis", "Outcome Expectations"],
+    ];
+    data.segments?.forEach((seg) => {
+      if (seg.jtbdContext) {
+        const jc = seg.jtbdContext as Record<string, unknown>;
+        jtbdData.push([
+          seg.name,
+          jsonToString(jc.main_jobs),
+          jsonToString(jc.progress_definition),
+          jsonToString(jc.forces_analysis),
+          jsonToString(jc.outcome_expectations),
+        ]);
+      }
+    });
+    if (jtbdData.length > 1) {
+      const wsJtbd = XLSX.utils.aoa_to_sheet(jtbdData);
+      XLSX.utils.book_append_sheet(wb, wsJtbd, "JTBD Context");
+    }
+
+    // Sheet 13: Strategy Summary (V6 - Project level)
+    if (data.strategySummary) {
+      const ss = data.strategySummary as Record<string, unknown>;
+      const strategySummaryData = [
+        ["Strategy Summary"],
+        [""],
+        ["Growth Bets"],
+        [jsonToString(ss.growth_bets)],
+        [""],
+        ["Positioning Pillars"],
+        [jsonToString(ss.positioning_pillars)],
+        [""],
+        ["Channel Priorities"],
+        [jsonToString(ss.channel_priorities)],
+        [""],
+        ["Risk Flags"],
+        [jsonToString(ss.risk_flags)],
+      ];
+      const wsStrategySummary = XLSX.utils.aoa_to_sheet(strategySummaryData);
+      XLSX.utils.book_append_sheet(wb, wsStrategySummary, "Strategy Summary");
+    }
+
+    // Sheet 14: Strategy Global (V6 - Project level)
+    if (data.strategyGlobal) {
+      const sg = data.strategyGlobal as Record<string, unknown>;
+      const strategyGlobalData = [
+        ["Global Strategy"],
+        [""],
+        ["Email Strategy"],
+        [jsonToString(sg.email_strategy)],
+        [""],
+        ["SMS Strategy"],
+        [jsonToString(sg.sms_strategy)],
+        [""],
+        ["Messenger Strategy"],
+        [jsonToString(sg.messenger_strategy)],
+        [""],
+        ["Social Strategy"],
+        [jsonToString(sg.social_strategy)],
+        [""],
+        ["TOF Banners"],
+        [jsonToString(sg.tof_banners)],
+        [""],
+        ["Traffic Channels"],
+        [jsonToString(sg.traffic_channels)],
+      ];
+      const wsStrategyGlobal = XLSX.utils.aoa_to_sheet(strategyGlobalData);
+      XLSX.utils.book_append_sheet(wb, wsStrategyGlobal, "Strategy Global");
+    }
+
+    // Sheet 15: Strategy Personalized (V6 - per segment × pain)
+    const stratPersonalizedData: (string | number)[][] = [
+      ["Segment", "Pain", "TOF UGC Hooks", "MOF Quiz Flow", "MOF Chat Script", "BOF Creative Briefs", "BOF Landing Structure"],
+    ];
+    data.segments?.forEach((seg) => {
+      seg.strategyPersonalized?.forEach((sp) => {
+        const rec = sp as Record<string, unknown>;
+        stratPersonalizedData.push([
+          seg.name,
+          String(rec.pain_name || ""),
+          jsonToString(rec.tof_ugc_hooks),
+          jsonToString(rec.mof_quiz_flow),
+          jsonToString(rec.mof_chat_script),
+          jsonToString(rec.bof_creative_briefs),
+          jsonToString(rec.bof_landing_structure),
+        ]);
+      });
+    });
+    if (stratPersonalizedData.length > 1) {
+      const wsStratPersonalized = XLSX.utils.aoa_to_sheet(stratPersonalizedData);
+      XLSX.utils.book_append_sheet(wb, wsStratPersonalized, "Strategy Personal");
+    }
+
+    // Sheet 16: Strategy Ads (V6 - per segment × pain)
+    const stratAdsData: (string | number)[][] = [
+      ["Segment", "Pain", "Channels (Google, Meta, TikTok, etc.)"],
+    ];
+    data.segments?.forEach((seg) => {
+      seg.strategyAds?.forEach((sa) => {
+        const rec = sa as Record<string, unknown>;
+        stratAdsData.push([
+          seg.name,
+          String(rec.pain_name || ""),
+          jsonToString(rec.channels),
+        ]);
+      });
+    });
+    if (stratAdsData.length > 1) {
+      const wsStratAds = XLSX.utils.aoa_to_sheet(stratAdsData);
+      XLSX.utils.book_append_sheet(wb, wsStratAds, "Strategy Ads");
+    }
+
+    // Sheet 17: UGC Creator Profiles (V6 - per segment)
+    const ugcData: (string | number)[][] = [
+      ["Segment", "Ideal Persona", "Content Topics", "Sourcing Guidance"],
+    ];
+    data.segments?.forEach((seg) => {
+      if (seg.ugcCreatorProfile) {
+        const ugc = seg.ugcCreatorProfile as Record<string, unknown>;
+        ugcData.push([
+          seg.name,
+          jsonToString(ugc.ideal_persona),
+          jsonToString(ugc.content_topics),
+          jsonToString(ugc.sourcing_guidance),
+        ]);
+      }
+    });
+    if (ugcData.length > 1) {
+      const wsUgc = XLSX.utils.aoa_to_sheet(ugcData);
+      XLSX.utils.book_append_sheet(wb, wsUgc, "UGC Creators");
+    }
+
+    // Sheet 18: Communications Funnel (V6 - per segment × pain)
+    const commsFunnelData: (string | number)[][] = [
+      ["Segment", "Pain", "Organic Rhythm", "Conversation Funnel", "Chatbot Scripts"],
+    ];
+    data.segments?.forEach((seg) => {
+      seg.communicationsFunnels?.forEach((cf) => {
+        const rec = cf as Record<string, unknown>;
+        commsFunnelData.push([
+          seg.name,
+          String(rec.pain_name || ""),
+          jsonToString(rec.organic_rhythm),
+          jsonToString(rec.conversation_funnel),
+          jsonToString(rec.chatbot_scripts),
+        ]);
+      });
+    });
+    if (commsFunnelData.length > 1) {
+      const wsCommsFunnel = XLSX.utils.aoa_to_sheet(commsFunnelData);
+      XLSX.utils.book_append_sheet(wb, wsCommsFunnel, "Communications");
+    }
+
     XLSX.writeFile(wb, `${fileName}.xlsx`);
   };
 
@@ -353,6 +605,9 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
         ...data.project.onboarding_data,
       },
       portrait: data.portrait,
+      // V6 Project-level
+      strategySummary: data.strategySummary,
+      strategyGlobal: data.strategyGlobal,
       segments: data.segments?.map((seg) => ({
         name: seg.name,
         description: seg.description,
@@ -381,6 +636,17 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
           messagingFramework: ext.messaging_framework,
           voiceAndTone: ext.voice_and_tone,
         })),
+        // V5 Modules
+        channelStrategy: seg.channelStrategy,
+        competitiveIntelligence: seg.competitiveIntelligence,
+        pricingPsychology: seg.pricingPsychology,
+        trustFramework: seg.trustFramework,
+        jtbdContext: seg.jtbdContext,
+        // V6 Modules
+        ugcCreatorProfile: seg.ugcCreatorProfile,
+        strategyPersonalized: seg.strategyPersonalized,
+        strategyAds: seg.strategyAds,
+        communicationsFunnels: seg.communicationsFunnels,
       })),
     };
 

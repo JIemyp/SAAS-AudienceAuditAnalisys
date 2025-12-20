@@ -345,6 +345,53 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
         .limit(1)
         .single();
 
+      // V6 Modules - UGC Creator Profiles (per segment)
+      const { data: ugcCreatorProfile } = await supabase
+        .from("ugc_creator_profiles")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("segment_id", segment.id)
+        .limit(1)
+        .single();
+
+      // V6 Modules - Strategy Personalized & Ads & Communications (per segment × pain)
+      // Collect for all top pains
+      const strategyPersonalized: unknown[] = [];
+      const strategyAds: unknown[] = [];
+      const communicationsFunnels: unknown[] = [];
+
+      for (const pain of painsWithRanking.filter((p: { is_top_pain: boolean }) => p.is_top_pain)) {
+        const { data: sp } = await supabase
+          .from("strategy_personalized")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("segment_id", segment.id)
+          .eq("pain_id", pain.id)
+          .limit(1)
+          .single();
+        if (sp) strategyPersonalized.push({ ...sp, pain_name: pain.name });
+
+        const { data: sa } = await supabase
+          .from("strategy_ads")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("segment_id", segment.id)
+          .eq("pain_id", pain.id)
+          .limit(1)
+          .single();
+        if (sa) strategyAds.push({ ...sa, pain_name: pain.name });
+
+        const { data: cf } = await supabase
+          .from("communications_funnel")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("segment_id", segment.id)
+          .eq("pain_id", pain.id)
+          .limit(1)
+          .single();
+        if (cf) communicationsFunnels.push({ ...cf, pain_name: pain.name });
+      }
+
       // Separate TOP pains and Other pains
       const topPains = painsWithRanking.filter((p: { is_top_pain: boolean }) => p.is_top_pain);
       const otherPains = painsWithRanking.filter((p: { is_top_pain: boolean }) => !p.is_top_pain);
@@ -369,9 +416,29 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
         pricingPsychology,
         trustFramework,
         jtbdContext,
+        // V6 Modules
+        ugcCreatorProfile,
+        strategyPersonalized,
+        strategyAds,
+        communicationsFunnels,
       });
     }
   }
+
+  // V6 Project-level modules: Strategy Summary & Strategy Global
+  const { data: strategySummary } = await supabase
+    .from("strategy_summary")
+    .select("*")
+    .eq("project_id", projectId)
+    .limit(1)
+    .single();
+
+  const { data: strategyGlobal } = await supabase
+    .from("strategy_global")
+    .select("*")
+    .eq("project_id", projectId)
+    .limit(1)
+    .single();
 
   return NextResponse.json({
     success: true,
@@ -383,6 +450,9 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
       },
       portrait,
       segments: segmentsWithData,
+      // V6 Project-level
+      strategySummary,
+      strategyGlobal,
     },
   });
 }

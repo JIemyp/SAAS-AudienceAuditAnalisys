@@ -730,6 +730,98 @@ export const APPROVE_CONFIGS = {
     cleanupDrafts: true,
     trackHistory: true,
   },
+
+  // =========================================
+  // V6 Strategy Tables
+  // =========================================
+
+  strategySummary: {
+    draftTable: "strategy_summary_drafts",
+    approvedTable: "strategy_summary",
+    scope: "project" as ApproveScope,
+    fields: [
+      "growth_bets",
+      "positioning_pillars",
+      "channel_priorities",
+      "risk_flags",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  strategyPersonalized: {
+    draftTable: "strategy_personalized_drafts",
+    approvedTable: "strategy_personalized",
+    scope: "pain" as ApproveScope,
+    fields: [
+      "tof_ugc_hooks",
+      "mof_quiz_flow",
+      "mof_chat_script",
+      "bof_creative_briefs",
+      "bof_landing_structure",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  strategyGlobal: {
+    draftTable: "strategy_global_drafts",
+    approvedTable: "strategy_global",
+    scope: "project" as ApproveScope,
+    fields: [
+      "email_strategy",
+      "sms_strategy",
+      "messenger_strategy",
+      "social_strategy",
+      "tof_banners",
+      "traffic_channels",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  strategyAds: {
+    draftTable: "strategy_ads_drafts",
+    approvedTable: "strategy_ads",
+    scope: "pain" as ApproveScope,
+    fields: ["channels"],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  // =========================================
+  // V6 UGC Creator Tables
+  // =========================================
+
+  ugcCreatorProfiles: {
+    draftTable: "ugc_creator_profiles_drafts",
+    approvedTable: "ugc_creator_profiles",
+    scope: "segment" as ApproveScope,
+    fields: [
+      "ideal_persona",
+      "content_topics",
+      "sourcing_guidance",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  // =========================================
+  // V6 Communications Tables
+  // =========================================
+
+  communicationsFunnel: {
+    draftTable: "communications_funnel_drafts",
+    approvedTable: "communications_funnel",
+    scope: "pain" as ApproveScope,
+    fields: [
+      "organic_rhythm",
+      "conversation_funnel",
+      "chatbot_scripts",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
 };
 
 // =====================================================
@@ -943,6 +1035,15 @@ export function getApproveConfig(tableName: string): ApproveConfig | undefined {
     pricing_psychology: APPROVE_CONFIGS.pricingPsychology,
     trust_framework: APPROVE_CONFIGS.trustFramework,
     jtbd_context: APPROVE_CONFIGS.jtbdContext,
+    // V6 Strategy tables
+    strategy_summary: APPROVE_CONFIGS.strategySummary,
+    strategy_personalized: APPROVE_CONFIGS.strategyPersonalized,
+    strategy_global: APPROVE_CONFIGS.strategyGlobal,
+    strategy_ads: APPROVE_CONFIGS.strategyAds,
+    // V6 UGC Creator tables
+    ugc_creator_profiles: APPROVE_CONFIGS.ugcCreatorProfiles,
+    // V6 Communications tables
+    communications_funnel: APPROVE_CONFIGS.communicationsFunnel,
   };
 
   return configMap[tableName];

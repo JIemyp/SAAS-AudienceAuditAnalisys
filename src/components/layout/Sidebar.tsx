@@ -20,6 +20,8 @@ import {
     Users,
     AlertCircle,
     Download,
+    TrendingUp,
+    Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -53,6 +55,8 @@ const buildProjectSections = (baseHref: string) => [
             { name: "Insights", href: "/insights", icon: Sparkles },
             { name: "Communications", href: "/communications", icon: MessageCircle },
             { name: "Playbooks", href: "/playbooks", icon: Target },
+            { name: "Strategy", href: "/strategy", icon: TrendingUp },
+            { name: "UGC Creators", href: "/ugc-creators", icon: Video },
         ],
     },
     {

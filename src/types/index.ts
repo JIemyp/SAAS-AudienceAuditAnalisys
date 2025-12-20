@@ -1603,3 +1603,384 @@ export interface ProjectInviteRow {
   expires_at: string;
   accepted_at: string | null;
 }
+
+// =====================================================
+// V6 STRATEGY TYPES
+// =====================================================
+
+export interface StrategyGrowthBet {
+  title: string;
+  rationale: string;
+  score: number;
+  key_jobs: string[];
+  key_triggers: string[];
+  key_pains: string[];
+}
+
+export interface StrategyPositioningPillar {
+  pillar: string;
+  proof_points: string[];
+  objections: string[];
+}
+
+export interface StrategyChannelPriority {
+  channel: string;
+  why: string;
+  fit_score: number;
+  segments: string[];
+}
+
+export interface StrategyRiskFlag {
+  risk: string;
+  impact: string;
+  mitigation: string;
+}
+
+export interface StrategySummary {
+  id: string;
+  project_id: string;
+  growth_bets: StrategyGrowthBet[];
+  positioning_pillars: StrategyPositioningPillar[];
+  channel_priorities: StrategyChannelPriority[];
+  risk_flags: StrategyRiskFlag[] | null;
+  approved_at?: string;
+}
+
+export interface StrategySummaryDraft extends Omit<StrategySummary, 'approved_at'> {
+  version: number;
+  created_at: string;
+}
+
+// TOF - UGC Hooks
+export interface TOFUGCHook {
+  hook_type: 'problem_agitation' | 'curiosity' | 'transformation' | 'social_proof';
+  script_outline: string;
+  emotional_angle: string;
+  visual_direction: string;
+  cta: string;
+}
+
+// MOF - Quiz Flow
+export interface MOFQuizFlow {
+  quiz_title: string;
+  questions: Array<{
+    question: string;
+    options: string[];
+    segment_logic?: string;
+  }>;
+  branching_logic: string;
+  lead_magnet: string;
+}
+
+// MOF - Chat Script
+export interface MOFChatScript {
+  opening_message: string;
+  discovery_questions: string[];
+  objection_handlers: Array<{
+    objection: string;
+    response: string;
+  }>;
+  handoff_trigger: string;
+}
+
+// BOF - Creative Brief
+export interface BOFCreativeBrief {
+  format: 'static' | 'video' | 'carousel';
+  headline: string;
+  body: string;
+  visual_concept: string;
+  cta: string;
+  target_placement: 'feed' | 'stories' | 'reels';
+}
+
+// BOF - Landing Structure
+export interface BOFLandingStructure {
+  hero_headline: string;
+  hero_subheadline: string;
+  pain_section: string;
+  solution_section: string;
+  proof_section: string;
+  cta_section: string;
+}
+
+// Strategy Personalized
+export interface StrategyPersonalized {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  pain_id: string;
+  tof_ugc_hooks: TOFUGCHook[];
+  mof_quiz_flow: MOFQuizFlow;
+  mof_chat_script: MOFChatScript | null;
+  bof_creative_briefs: BOFCreativeBrief[];
+  bof_landing_structure: BOFLandingStructure;
+  approved_at?: string;
+}
+
+export interface StrategyPersonalizedDraft extends Omit<StrategyPersonalized, 'approved_at'> {
+  version: number;
+  created_at: string;
+}
+
+// Strategy Global
+export interface EmailStrategy {
+  sequence_overview: string;
+  cadence: string;
+  key_emails: Array<{
+    name: string;
+    purpose: string;
+    subject_line: string;
+    key_content: string;
+  }>;
+  segmentation_logic: string;
+}
+
+export interface SMSStrategy {
+  use_cases: string[];
+  timing: string;
+  message_templates: string[];
+  compliance_notes: string;
+}
+
+export interface MessengerStrategy {
+  platforms: string[];
+  automation_flows: string[];
+  response_templates: string[];
+}
+
+export interface SocialStrategy {
+  platforms: string[];
+  content_pillars: string[];
+  posting_cadence: Record<string, string>;
+  engagement_tactics: string[];
+}
+
+export interface TOFBanners {
+  formats: string[];
+  themes: string[];
+  targeting_approach: string;
+  creative_guidelines: string[];
+}
+
+export interface TrafficChannels {
+  organic: string[];
+  paid: string[];
+  partnerships: string[];
+  recommended_priority: string[];
+}
+
+export interface StrategyGlobal {
+  id: string;
+  project_id: string;
+  email_strategy: EmailStrategy;
+  sms_strategy: SMSStrategy;
+  messenger_strategy: MessengerStrategy;
+  social_strategy: SocialStrategy;
+  tof_banners: TOFBanners;
+  traffic_channels: TrafficChannels;
+  approved_at?: string;
+}
+
+export interface StrategyGlobalDraft extends Omit<StrategyGlobal, 'approved_at'> {
+  version: number;
+  created_at: string;
+}
+
+// Strategy Ads
+export interface AdsChannelStrategy {
+  campaign_structure?: string;
+  keyword_themes?: string[];
+  ad_copy_templates?: Array<{
+    headline: string;
+    description: string;
+    cta: string;
+  }>;
+  audience_targeting?: string;
+  budget_allocation?: string;
+  creative_specs?: string;
+  pin_formats?: string[];
+  campaign_types?: string[];
+  placements?: string[];
+  exclusions?: string[];
+}
+
+export interface StrategyAds {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  pain_id: string;
+  channels: Record<string, AdsChannelStrategy>;
+  approved_at?: string;
+}
+
+export interface StrategyAdsDraft extends Omit<StrategyAds, 'approved_at'> {
+  version: number;
+  created_at: string;
+}
+
+// =====================================================
+// V6 UGC CREATOR TYPES
+// =====================================================
+
+export interface UGCIdealPersona {
+  name: string;
+  age_range: string;
+  gender: string;
+  location_preference: string;
+  platform_presence: string[];
+  personality_traits: string[];
+  visual_aesthetic: string;
+  content_style: string;
+}
+
+export interface UGCContentTopic {
+  topic: string;
+  source_pain_id: string;
+  hook_angle: string;
+  emotional_tone: string;
+  format_suggestion: string;
+}
+
+export interface UGCSourcingGuidance {
+  where_to_find: string[];
+  outreach_template: string;
+  rate_range: string;
+  red_flags: string[];
+  green_flags: string[];
+}
+
+export interface UGCCreatorProfile {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  ideal_persona: UGCIdealPersona;
+  content_topics: UGCContentTopic[];
+  sourcing_guidance: UGCSourcingGuidance | null;
+  approved_at?: string;
+}
+
+export interface UGCCreatorProfileDraft extends Omit<UGCCreatorProfile, 'approved_at'> {
+  version: number;
+  created_at: string;
+}
+
+export type UGCCreatorStatus = 'prospect' | 'contacted' | 'negotiating' | 'contracted' | 'delivered' | 'completed';
+
+export interface UGCCreatorTracking {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  profile_id: string | null;
+  creator_name: string;
+  creator_handle: string | null;
+  platform: string;
+  contact_info: string | null;
+  status: UGCCreatorStatus;
+  videos_ordered: number;
+  videos_delivered: number;
+  videos_published: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// =====================================================
+// V6 COMMUNICATIONS TYPES
+// =====================================================
+
+export interface OrganicRhythmContent {
+  type: string;
+  topic: string;
+  format: string;
+  frequency: string;
+}
+
+export interface OrganicRhythm {
+  tof_content: OrganicRhythmContent[];
+  mof_content: OrganicRhythmContent[];
+  bof_content: OrganicRhythmContent[];
+  posting_cadence: {
+    daily_posts: number;
+    stories: number;
+    live: string;
+  };
+  channel_matrix: Record<string, string>;
+}
+
+export interface ConversationFunnel {
+  entry_points: string[];
+  dm_flow: string[];
+  chat_flow: string[];
+  qualification_criteria: string[];
+  handoff_script: string;
+}
+
+export interface ChatbotScripts {
+  welcome_flow: {
+    message: string;
+    buttons: string[];
+  };
+  need_discovery_flow: {
+    questions: string[];
+    branching: string;
+  };
+  recommendation_flow: {
+    logic: string;
+    templates: string[];
+  };
+  export_format: string;
+}
+
+export interface CommunicationsFunnel {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  pain_id: string;
+  organic_rhythm: OrganicRhythm;
+  conversation_funnel: ConversationFunnel;
+  chatbot_scripts: ChatbotScripts | null;
+  approved_at?: string;
+}
+
+export interface CommunicationsFunnelDraft extends Omit<CommunicationsFunnel, 'approved_at'> {
+  version: number;
+  created_at: string;
+}
+
+// =====================================================
+// V6 ACCESS CONTROL TYPES
+// =====================================================
+
+// Extended ProjectRole to include new roles
+export type ProjectRoleV6 = 'owner' | 'editor' | 'viewer' | 'ugc_specialist';
+
+export interface ProjectPageAccess {
+  id: string;
+  project_id: string;
+  page_key: string;
+  is_enabled: boolean;
+  created_at: string;
+}
+
+export interface ProjectMemberPageAccess {
+  id: string;
+  project_member_id: string;
+  page_key: string;
+  is_enabled: boolean;
+  created_at: string;
+}
+
+// Page keys for access control
+export type PageKey =
+  | 'dashboard'
+  | 'overview'
+  | 'report'
+  | 'explorer'
+  | 'strategy'
+  | 'communications'
+  | 'playbooks'
+  | 'paid-ads'
+  | 'ugc-creators'
+  | 'data-ops'
+  | 'settings'
+  | 'export';

@@ -32,6 +32,12 @@ import {
     Copy,
     ChevronDown,
     MessageCircle,
+    TrendingUp,
+    Users,
+    CheckCircle2,
+    Clock,
+    XCircle,
+    Megaphone,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -454,7 +460,7 @@ export default function ProjectPage({
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Insights */}
                         <Link
                             href={`/projects/${id}/insights`}
@@ -551,6 +557,72 @@ export default function ProjectPage({
                             </div>
                             {projectHasProgress && (
                                 <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-rose-500 transition-colors" />
+                            )}
+                        </Link>
+
+                        {/* Strategy */}
+                        <Link
+                            href={`/projects/${id}/strategy`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-amber-100 group-hover:bg-amber-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <TrendingUp className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-amber-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>Strategy</h4>
+                                <p className="text-sm text-slate-500">Personalized, Global & Ads</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-amber-500 transition-colors" />
+                            )}
+                        </Link>
+
+                        {/* UGC Creators */}
+                        <Link
+                            href={`/projects/${id}/ugc-creators`}
+                            className={cn(
+                                "group flex items-center gap-4 p-4 rounded-xl border-2 transition-all",
+                                projectHasProgress
+                                    ? "border-slate-200 hover:border-pink-300 hover:bg-pink-50/50 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50/50 opacity-60 pointer-events-none"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-lg transition-colors",
+                                projectHasProgress
+                                    ? "bg-pink-100 group-hover:bg-pink-200"
+                                    : "bg-slate-100"
+                            )}>
+                                <Users className={cn(
+                                    "w-5 h-5",
+                                    projectHasProgress ? "text-pink-600" : "text-slate-400"
+                                )} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className={cn(
+                                    "font-semibold",
+                                    projectHasProgress ? "text-slate-900" : "text-slate-500"
+                                )}>UGC Creators</h4>
+                                <p className="text-sm text-slate-500">Profiles & tracking</p>
+                            </div>
+                            {projectHasProgress && (
+                                <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-pink-500 transition-colors" />
                             )}
                         </Link>
                     </div>

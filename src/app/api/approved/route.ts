@@ -34,6 +34,13 @@ const VALID_TABLES = [
   "pricing_psychology",
   "trust_framework",
   "jtbd_context",
+  // V6 Strategy & UGC Modules
+  "strategy_summary",
+  "strategy_personalized",
+  "strategy_global",
+  "strategy_ads",
+  "ugc_creator_profiles",
+  "communications_funnel",
 ];
 
 // GET - Fetch approved data for a project
