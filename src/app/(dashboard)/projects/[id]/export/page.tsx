@@ -36,10 +36,25 @@ interface ExportData {
     order_index: number;
     sociodemographics?: string;
     details?: Record<string, unknown>;
-    jobs?: Record<string, unknown>;
+    // Jobs array
+    jobs?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      category?: string;
+      frequency?: string;
+    }>;
     preferences?: Record<string, unknown>;
     difficulties?: Record<string, unknown>;
-    triggers?: Record<string, unknown>;
+    // Triggers array
+    triggers?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      category?: string;
+      urgency?: string;
+    }>;
+    // Pains array
     pains: Array<{
       id: string;
       name: string;
@@ -47,9 +62,40 @@ interface ExportData {
       impact_score: number;
       is_top_pain: boolean;
     }>;
+    // Objections array
+    objections?: Array<{
+      id: string;
+      name: string;
+      pain_name?: string;
+      category?: string;
+      strength?: string;
+      response_strategy?: string;
+    }>;
+    // Desires array
+    desires?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      pain_name?: string;
+      intensity?: string;
+    }>;
+    // Features array
+    features?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      pain_name?: string;
+      priority?: string;
+    }>;
+    // Canvas array
     canvas: Array<{
       id: string;
       pain_id: string;
+      pain_name?: string;
+      elevator_pitch?: string;
+      unique_value_proposition?: string;
+      high_level_concept?: string;
+      solution?: string;
       emotional_aspects?: unknown;
       behavioral_patterns?: unknown;
       buying_signals?: unknown;
@@ -659,48 +705,344 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
     URL.revokeObjectURL(url);
   };
 
-  const exportToCsv = (data: ExportData, fileName: string) => {
-    // Create a comprehensive CSV with all segments and their pains
-    const rows: string[][] = [
-      [
-        "Segment #",
-        "Segment Name",
-        "Description",
-        "Pain Name",
-        "Pain Description",
-        "Impact Score",
-        "Is Top Pain",
-      ],
-    ];
+  // Helper to escape CSV value
+  const csvEscape = (val: unknown): string => {
+    if (val === null || val === undefined) return "";
+    const str = typeof val === "object" ? JSON.stringify(val) : String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
 
+  const exportToCsv = (data: ExportData, fileName: string) => {
+    // Create multiple CSV sections separated by blank lines
+    const allRows: string[] = [];
+
+    // === Section 1: Segments ===
+    allRows.push("=== SEGMENTS ===");
+    allRows.push(["#", "Name", "Description", "Details"].map(csvEscape).join(","));
     data.segments?.forEach((seg) => {
-      if (seg.pains?.length > 0) {
-        seg.pains.forEach((pain, idx) => {
-          rows.push([
-            idx === 0 ? String(seg.order_index + 1) : "",
-            idx === 0 ? seg.name : "",
-            idx === 0 ? `"${seg.description.replace(/"/g, '""')}"` : "",
-            pain.name,
-            `"${pain.description.replace(/"/g, '""')}"`,
-            String(pain.impact_score),
-            pain.is_top_pain ? "Yes" : "No",
-          ]);
-        });
-      } else {
-        rows.push([
-          String(seg.order_index + 1),
+      allRows.push([
+        seg.order_index + 1,
+        seg.name,
+        seg.description,
+        jsonToString(seg.details),
+      ].map(csvEscape).join(","));
+    });
+    allRows.push("");
+
+    // === Section 2: Jobs ===
+    allRows.push("=== JOBS ===");
+    allRows.push(["Segment", "Job Name", "Category", "Frequency", "Description"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.jobs?.forEach((job) => {
+        allRows.push([
           seg.name,
-          `"${seg.description.replace(/"/g, '""')}"`,
-          "",
-          "",
-          "",
-          "",
-        ]);
+          job.name,
+          job.category,
+          job.frequency,
+          job.description,
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 3: Triggers ===
+    allRows.push("=== TRIGGERS ===");
+    allRows.push(["Segment", "Trigger Name", "Category", "Urgency", "Description"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.triggers?.forEach((trigger) => {
+        allRows.push([
+          seg.name,
+          trigger.name,
+          trigger.category,
+          trigger.urgency,
+          trigger.description,
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 4: Pains ===
+    allRows.push("=== PAINS ===");
+    allRows.push(["Segment", "Pain Name", "Impact Score", "Is Top Pain", "Description"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.pains?.forEach((pain) => {
+        allRows.push([
+          seg.name,
+          pain.name,
+          pain.impact_score,
+          pain.is_top_pain ? "Yes" : "No",
+          pain.description,
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 5: Objections ===
+    allRows.push("=== OBJECTIONS ===");
+    allRows.push(["Segment", "Pain", "Objection", "Category", "Strength", "Response Strategy"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.objections?.forEach((obj) => {
+        allRows.push([
+          seg.name,
+          obj.pain_name || "",
+          obj.name,
+          obj.category,
+          obj.strength,
+          obj.response_strategy,
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 6: Desires ===
+    allRows.push("=== DESIRES ===");
+    allRows.push(["Segment", "Pain", "Desire", "Intensity", "Description"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.desires?.forEach((des) => {
+        allRows.push([
+          seg.name,
+          des.pain_name || "",
+          des.name,
+          des.intensity,
+          des.description,
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 7: Features ===
+    allRows.push("=== FEATURES ===");
+    allRows.push(["Segment", "Pain", "Feature", "Priority", "Description"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.features?.forEach((feat) => {
+        allRows.push([
+          seg.name,
+          feat.pain_name || "",
+          feat.name,
+          feat.priority,
+          feat.description,
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 8: Canvas ===
+    allRows.push("=== CANVAS ===");
+    allRows.push(["Segment", "Pain", "Elevator Pitch", "Unique Value Prop", "High Level Concept", "Solution"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.canvas?.forEach((can) => {
+        allRows.push([
+          seg.name,
+          can.pain_name || "",
+          can.elevator_pitch,
+          can.unique_value_proposition,
+          can.high_level_concept,
+          can.solution,
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 9: Canvas Extended ===
+    allRows.push("=== CANVAS EXTENDED ===");
+    allRows.push(["Segment", "Pain ID", "Customer Journey", "Emotional Map", "Narrative Angles", "Messaging Framework", "Voice And Tone"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.canvasExtended?.forEach((ext) => {
+        allRows.push([
+          seg.name,
+          ext.pain_id,
+          jsonToString(ext.customer_journey),
+          jsonToString(ext.emotional_map),
+          jsonToString(ext.narrative_angles),
+          jsonToString(ext.messaging_framework),
+          jsonToString(ext.voice_and_tone),
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 10: Channel Strategy (V5) ===
+    allRows.push("=== CHANNEL STRATEGY (V5) ===");
+    allRows.push(["Segment", "Primary Channels", "Acquisition", "Engagement", "Retention"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      if (seg.channelStrategy) {
+        const cs = seg.channelStrategy as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          jsonToString(cs.primary_channels),
+          jsonToString(cs.acquisition),
+          jsonToString(cs.engagement),
+          jsonToString(cs.retention),
+        ].map(csvEscape).join(","));
       }
     });
+    allRows.push("");
 
-    const csvContent = rows.map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    // === Section 11: Competitive Intelligence (V5) ===
+    allRows.push("=== COMPETITIVE INTELLIGENCE (V5) ===");
+    allRows.push(["Segment", "Direct Competitors", "Indirect Competitors", "Market Gaps", "Differentiation"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      if (seg.competitiveIntelligence) {
+        const ci = seg.competitiveIntelligence as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          jsonToString(ci.direct_competitors),
+          jsonToString(ci.indirect_competitors),
+          jsonToString(ci.market_gaps),
+          jsonToString(ci.differentiation),
+        ].map(csvEscape).join(","));
+      }
+    });
+    allRows.push("");
+
+    // === Section 12: Pricing Psychology (V5) ===
+    allRows.push("=== PRICING PSYCHOLOGY (V5) ===");
+    allRows.push(["Segment", "Price Perception", "Value Drivers", "Price Sensitivity", "Pricing Recommendations"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      if (seg.pricingPsychology) {
+        const pp = seg.pricingPsychology as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          jsonToString(pp.price_perception),
+          jsonToString(pp.value_drivers),
+          jsonToString(pp.price_sensitivity),
+          jsonToString(pp.pricing_recommendations),
+        ].map(csvEscape).join(","));
+      }
+    });
+    allRows.push("");
+
+    // === Section 13: Trust Framework (V5) ===
+    allRows.push("=== TRUST FRAMEWORK (V5) ===");
+    allRows.push(["Segment", "Trust Signals", "Risk Reducers", "Social Proof", "Guarantees"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      if (seg.trustFramework) {
+        const tf = seg.trustFramework as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          jsonToString(tf.trust_signals),
+          jsonToString(tf.risk_reducers),
+          jsonToString(tf.social_proof),
+          jsonToString(tf.guarantees),
+        ].map(csvEscape).join(","));
+      }
+    });
+    allRows.push("");
+
+    // === Section 14: JTBD Context (V5) ===
+    allRows.push("=== JTBD CONTEXT (V5) ===");
+    allRows.push(["Segment", "Main Jobs", "Progress Definition", "Forces Analysis", "Outcome Expectations"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      if (seg.jtbdContext) {
+        const jc = seg.jtbdContext as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          jsonToString(jc.main_jobs),
+          jsonToString(jc.progress_definition),
+          jsonToString(jc.forces_analysis),
+          jsonToString(jc.outcome_expectations),
+        ].map(csvEscape).join(","));
+      }
+    });
+    allRows.push("");
+
+    // === Section 15: Strategy Summary (V6) ===
+    if (data.strategySummary) {
+      allRows.push("=== STRATEGY SUMMARY (V6) ===");
+      const ss = data.strategySummary as Record<string, unknown>;
+      allRows.push(["Field", "Value"].map(csvEscape).join(","));
+      allRows.push(["Growth Bets", jsonToString(ss.growth_bets)].map(csvEscape).join(","));
+      allRows.push(["Positioning Pillars", jsonToString(ss.positioning_pillars)].map(csvEscape).join(","));
+      allRows.push(["Channel Priorities", jsonToString(ss.channel_priorities)].map(csvEscape).join(","));
+      allRows.push(["Risk Flags", jsonToString(ss.risk_flags)].map(csvEscape).join(","));
+      allRows.push("");
+    }
+
+    // === Section 16: Strategy Global (V6) ===
+    if (data.strategyGlobal) {
+      allRows.push("=== STRATEGY GLOBAL (V6) ===");
+      const sg = data.strategyGlobal as Record<string, unknown>;
+      allRows.push(["Field", "Value"].map(csvEscape).join(","));
+      allRows.push(["Email Strategy", jsonToString(sg.email_strategy)].map(csvEscape).join(","));
+      allRows.push(["SMS Strategy", jsonToString(sg.sms_strategy)].map(csvEscape).join(","));
+      allRows.push(["Messenger Strategy", jsonToString(sg.messenger_strategy)].map(csvEscape).join(","));
+      allRows.push(["Social Strategy", jsonToString(sg.social_strategy)].map(csvEscape).join(","));
+      allRows.push(["TOF Banners", jsonToString(sg.tof_banners)].map(csvEscape).join(","));
+      allRows.push(["Traffic Channels", jsonToString(sg.traffic_channels)].map(csvEscape).join(","));
+      allRows.push("");
+    }
+
+    // === Section 17: Strategy Personalized (V6) ===
+    allRows.push("=== STRATEGY PERSONALIZED (V6) ===");
+    allRows.push(["Segment", "Pain", "TOF UGC Hooks", "MOF Quiz Flow", "MOF Chat Script", "BOF Creative Briefs", "BOF Landing Structure"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.strategyPersonalized?.forEach((sp) => {
+        const rec = sp as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          rec.pain_name || "",
+          jsonToString(rec.tof_ugc_hooks),
+          jsonToString(rec.mof_quiz_flow),
+          jsonToString(rec.mof_chat_script),
+          jsonToString(rec.bof_creative_briefs),
+          jsonToString(rec.bof_landing_structure),
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 18: Strategy Ads (V6) ===
+    allRows.push("=== STRATEGY ADS (V6) ===");
+    allRows.push(["Segment", "Pain", "Channels"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.strategyAds?.forEach((sa) => {
+        const rec = sa as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          rec.pain_name || "",
+          jsonToString(rec.channels),
+        ].map(csvEscape).join(","));
+      });
+    });
+    allRows.push("");
+
+    // === Section 19: UGC Creator Profiles (V6) ===
+    allRows.push("=== UGC CREATOR PROFILES (V6) ===");
+    allRows.push(["Segment", "Ideal Persona", "Content Topics", "Sourcing Guidance"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      if (seg.ugcCreatorProfile) {
+        const ugc = seg.ugcCreatorProfile as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          jsonToString(ugc.ideal_persona),
+          jsonToString(ugc.content_topics),
+          jsonToString(ugc.sourcing_guidance),
+        ].map(csvEscape).join(","));
+      }
+    });
+    allRows.push("");
+
+    // === Section 20: Communications Funnel (V6) ===
+    allRows.push("=== COMMUNICATIONS FUNNEL (V6) ===");
+    allRows.push(["Segment", "Pain", "Organic Rhythm", "Conversation Funnel", "Chatbot Scripts"].map(csvEscape).join(","));
+    data.segments?.forEach((seg) => {
+      seg.communicationsFunnels?.forEach((cf) => {
+        const rec = cf as Record<string, unknown>;
+        allRows.push([
+          seg.name,
+          rec.pain_name || "",
+          jsonToString(rec.organic_rhythm),
+          jsonToString(rec.conversation_funnel),
+          jsonToString(rec.chatbot_scripts),
+        ].map(csvEscape).join(","));
+      });
+    });
+
+    const csvContent = allRows.join("\n");
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" }); // BOM for Excel UTF-8
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
