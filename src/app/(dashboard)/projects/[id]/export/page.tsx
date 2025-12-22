@@ -36,24 +36,12 @@ interface ExportData {
     order_index: number;
     sociodemographics?: string;
     details?: Record<string, unknown>;
-    // Jobs array
-    jobs?: Array<{
-      id: string;
-      name: string;
-      description: string;
-      category?: string;
-      frequency?: string;
-    }>;
+    // Jobs - JSONB object from DB
+    jobs?: Record<string, unknown>;
     preferences?: Record<string, unknown>;
     difficulties?: Record<string, unknown>;
-    // Triggers array
-    triggers?: Array<{
-      id: string;
-      name: string;
-      description: string;
-      category?: string;
-      urgency?: string;
-    }>;
+    // Triggers - JSONB object from DB
+    triggers?: Record<string, unknown>;
     // Pains array
     pains: Array<{
       id: string;
@@ -732,35 +720,29 @@ export default function ExportPage({ params }: { params: Promise<{ id: string }>
     });
     allRows.push("");
 
-    // === Section 2: Jobs ===
+    // === Section 2: Jobs (JSONB object) ===
     allRows.push("=== JOBS ===");
-    allRows.push(["Segment", "Job Name", "Category", "Frequency", "Description"].map(csvEscape).join(","));
+    allRows.push(["Segment", "Jobs Data"].map(csvEscape).join(","));
     data.segments?.forEach((seg) => {
-      seg.jobs?.forEach((job) => {
+      if (seg.jobs) {
         allRows.push([
           seg.name,
-          job.name,
-          job.category,
-          job.frequency,
-          job.description,
+          jsonToString(seg.jobs),
         ].map(csvEscape).join(","));
-      });
+      }
     });
     allRows.push("");
 
-    // === Section 3: Triggers ===
+    // === Section 3: Triggers (JSONB object) ===
     allRows.push("=== TRIGGERS ===");
-    allRows.push(["Segment", "Trigger Name", "Category", "Urgency", "Description"].map(csvEscape).join(","));
+    allRows.push(["Segment", "Triggers Data"].map(csvEscape).join(","));
     data.segments?.forEach((seg) => {
-      seg.triggers?.forEach((trigger) => {
+      if (seg.triggers) {
         allRows.push([
           seg.name,
-          trigger.name,
-          trigger.category,
-          trigger.urgency,
-          trigger.description,
+          jsonToString(seg.triggers),
         ].map(csvEscape).join(","));
-      });
+      }
     });
     allRows.push("");
 
