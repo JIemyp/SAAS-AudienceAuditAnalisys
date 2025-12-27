@@ -33,13 +33,15 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { useEffect, useMemo, useState } from "react";
+import { usePageAccess } from "@/lib/hooks/usePageAccess";
+import { getPageKeyFromSlug } from "@/lib/page-access";
 
 const baseNavigation = [
     { name: "Projects", href: "/projects", icon: LayoutDashboard },
     { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-const buildProjectSections = (baseHref: string) => [
+const buildProjectSections = () => [
     {
         label: "Project Hub",
         items: [
@@ -80,6 +82,9 @@ export function Sidebar() {
     const currentProjectId = projectMatch ? projectMatch[1] : null;
     const isInProject = currentProjectId && currentProjectId !== "new";
     const projectBaseHref = isInProject ? `/projects/${currentProjectId}` : null;
+    const { accessMap, isLoading: accessLoading } = usePageAccess(
+        isInProject ? currentProjectId : null
+    );
 
     useEffect(() => {
         if (!projectBaseHref) {
@@ -116,8 +121,24 @@ export function Sidebar() {
 
     const projectSections = useMemo(() => {
         if (!projectBaseHref) return [];
-        return buildProjectSections(projectBaseHref);
+        return buildProjectSections();
     }, [projectBaseHref]);
+
+    const filteredProjectSections = useMemo(() => {
+        if (!projectSections.length || accessLoading) return projectSections;
+
+        return projectSections
+            .map((section) => {
+                const items = section.items.filter((item) => {
+                    const slug = item.href.replace("/", "");
+                    const key = getPageKeyFromSlug(slug);
+                    if (!key) return true;
+                    return accessMap[key] !== false;
+                });
+                return { ...section, items };
+            })
+            .filter((section) => section.items.length > 0);
+    }, [projectSections, accessMap, accessLoading]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -163,7 +184,7 @@ export function Sidebar() {
                         {projectName || "Project"}
                     </p>
                 </div>
-                {projectSections.map((section) => (
+                {filteredProjectSections.map((section) => (
                     <div key={section.label}>
                         <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-2">
                             {section.label}

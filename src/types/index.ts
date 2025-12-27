@@ -1558,7 +1558,7 @@ export interface SegmentFinal {
 // Project Collaboration Types
 // =====================================================
 
-export type ProjectRole = 'owner' | 'viewer';
+export type ProjectRole = 'owner' | 'editor' | 'viewer' | 'ugc_specialist';
 
 export interface ProjectMember {
   id: string;
@@ -1951,8 +1951,8 @@ export interface CommunicationsFunnelDraft extends Omit<CommunicationsFunnel, 'a
 // V6 ACCESS CONTROL TYPES
 // =====================================================
 
-// Extended ProjectRole to include new roles
-export type ProjectRoleV6 = 'owner' | 'editor' | 'viewer' | 'ugc_specialist';
+// Back-compat alias for V6 docs
+export type ProjectRoleV6 = ProjectRole;
 
 export interface ProjectPageAccess {
   id: string;
@@ -1984,3 +1984,161 @@ export type PageKey =
   | 'data-ops'
   | 'settings'
   | 'export';
+
+// =====================================================
+// V7: Insights & Takeaways
+// =====================================================
+
+export interface InsightsExecutive {
+  id: string;
+  project_id: string;
+  growth_bets: Array<{
+    title: string;
+    rationale: string;
+    score: number;
+    key_jobs: string[];
+    key_triggers: string[];
+    key_pains: string[];
+  }>;
+  segment_priorities: Array<{
+    segment_id: string;
+    segment_name: string;
+    priority_score: number;
+    market_size_estimate: string;
+    urgency_level: string;
+  }>;
+  positioning_summary: {
+    pillars: string[];
+    value_proposition: string;
+    differentiation: string;
+  };
+  validation_questions: string[];
+  evidence_sources: Array<{ table_name: string; field_used: string; record_count: number }>;
+  validation_metrics: Array<{ metric: string; how_to_test: string; expected_outcome: string }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InsightsExecutiveDraft extends InsightsExecutive {}
+
+export interface InsightsSnapshot {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  who: string;
+  what: string;
+  why: string;
+  when_active: string;
+  top_pains: Array<{ pain_id: string; pain_name: string; severity: number }>;
+  adoption_barriers: Array<{ barrier: string; severity: string; mitigation: string }>;
+  evidence_sources: Array<{ table_name: string; field_used: string; record_count: number }>;
+  validation_metrics: Array<{ metric: string; how_to_test: string; expected_outcome: string }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InsightsSnapshotDraft extends InsightsSnapshot {}
+
+export interface InsightsRadar {
+  id: string;
+  project_id: string;
+  jobs_vs_benefits_gap: {
+    gaps: Array<{ 
+      job: string; 
+      missing_benefits?: string[];
+      gap_description?: string;
+      current_coverage?: string;
+      severity?: "critical" | "high" | "medium" | "low";
+    }>;
+    coverage_score: number;
+  };
+  triggers_vs_timeline: {
+    timeline_mapping: Array<{ 
+      trigger: string; 
+      expected_timeline?: string;
+      actual_timeline?: string;
+      typical_timing?: string;
+      urgency?: string;
+      best_window?: string;
+      risk_window?: string;
+      alignment_score?: number;
+    }>;
+    urgency_distribution: { high: number; medium: number; low: number; critical?: number };
+  };
+  risk_alerts: Array<{ risk: string; severity: string; impact: string; recommendation: string }>;
+  evidence_sources: Array<{ table_name: string; field_used: string; record_count: number }>;
+  validation_metrics: Array<{ 
+    metric: string; 
+    how_to_test: string; 
+    expected_outcome: string;
+    success_signal?: string;
+    risk_signal?: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InsightsRadarDraft extends InsightsRadar {}
+
+// =====================================================
+// V7: Playbooks
+// =====================================================
+
+export interface PlaybooksCanvas {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  pain_id: string;
+  hero_section: {
+    headline: string;
+    subheadline: string;
+    hook: string;
+  };
+  insight_section: {
+    pain_story: string;
+    root_cause: string;
+    why_now: string;
+  };
+  ritual_section: {
+    ritual_steps: string[];
+    how_it_fits: string;
+  };
+  proof_section: {
+    proof_points: string[];
+    trust_assets: string[];
+  };
+  cta_section: {
+    primary_cta: string;
+    secondary_cta: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaybooksCanvasDraft extends PlaybooksCanvas {}
+
+export interface PlaybooksFunnel {
+  id: string;
+  project_id: string;
+  segment_id: string;
+  pain_id: string;
+  tof_assets: Array<{
+    format: string;
+    message: string;
+    cta: string;
+  }>;
+  mof_assets: Array<{
+    format: string;
+    message: string;
+    cta: string;
+  }>;
+  bof_assets: Array<{
+    format: string;
+    message: string;
+    cta: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaybooksFunnelDraft extends PlaybooksFunnel {}

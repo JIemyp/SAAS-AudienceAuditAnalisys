@@ -38,6 +38,13 @@ const VALID_TABLES = [
   "strategy_ads_drafts",
   "ugc_creator_profiles_drafts",
   "communications_funnel_drafts",
+  // V7 Insights Modules
+  "insights_executive_drafts",
+  "insights_snapshots_drafts",
+  "insights_radar_drafts",
+  // V7 Playbooks Modules
+  "playbooks_canvas_drafts",
+  "playbooks_funnel_drafts",
 ];
 
 // Approved tables corresponding to draft tables
@@ -72,6 +79,13 @@ const APPROVED_TABLES: Record<string, string> = {
   strategy_ads_drafts: "strategy_ads",
   ugc_creator_profiles_drafts: "ugc_creator_profiles",
   communications_funnel_drafts: "communications_funnel",
+  // V7 Insights Modules
+  insights_executive_drafts: "insights_executive",
+  insights_snapshots_drafts: "insights_snapshots",
+  insights_radar_drafts: "insights_radar",
+  // V7 Playbooks Modules
+  playbooks_canvas_drafts: "playbooks_canvas",
+  playbooks_funnel_drafts: "playbooks_funnel",
 };
 
 // GET - Fetch drafts for a project

@@ -355,10 +355,13 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
         .single();
 
       // V6 Modules - Strategy Personalized & Ads & Communications (per segment × pain)
+      // V7 Modules - Playbooks (per segment × pain)
       // Collect for all top pains
       const strategyPersonalized: unknown[] = [];
       const strategyAds: unknown[] = [];
       const communicationsFunnels: unknown[] = [];
+      const playbooksCanvas: unknown[] = [];
+      const playbooksFunnel: unknown[] = [];
 
       for (const pain of painsWithRanking.filter((p: { is_top_pain: boolean }) => p.is_top_pain)) {
         const { data: sp } = await supabase
@@ -390,7 +393,40 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
           .limit(1)
           .single();
         if (cf) communicationsFunnels.push({ ...cf, pain_name: pain.name });
+
+        // V7 Playbooks
+        const { data: pc } = await supabase
+          .from("playbooks_canvas")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("segment_id", segment.id)
+          .eq("pain_id", pain.id)
+          .order("approved_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (pc) playbooksCanvas.push({ ...pc, pain_name: pain.name });
+
+        const { data: pf } = await supabase
+          .from("playbooks_funnel")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("segment_id", segment.id)
+          .eq("pain_id", pain.id)
+          .order("approved_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (pf) playbooksFunnel.push({ ...pf, pain_name: pain.name });
       }
+
+      // V7 Insights - Segment Snapshots (per segment)
+      const { data: insightsSnapshot } = await supabase
+        .from("insights_snapshots")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("segment_id", segment.id)
+        .order("approved_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       // Separate TOP pains and Other pains
       const topPains = painsWithRanking.filter((p: { is_top_pain: boolean }) => p.is_top_pain);
@@ -421,6 +457,10 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
         strategyPersonalized,
         strategyAds,
         communicationsFunnels,
+        // V7 Modules
+        insightsSnapshot,
+        playbooksCanvas,
+        playbooksFunnel,
       });
     }
   }
@@ -440,6 +480,23 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
     .limit(1)
     .single();
 
+  // V7 Project-level modules: Insights Executive & Insights Radar
+  const { data: insightsExecutive } = await supabase
+    .from("insights_executive")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("approved_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: insightsRadar } = await supabase
+    .from("insights_radar")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("approved_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   return NextResponse.json({
     success: true,
     data: {
@@ -453,6 +510,9 @@ async function fetchFullReportData(supabase: any, projectId: string, project: an
       // V6 Project-level
       strategySummary,
       strategyGlobal,
+      // V7 Project-level
+      insightsExecutive,
+      insightsRadar,
     },
   });
 }
@@ -762,6 +822,47 @@ async function fetchExplorerData(supabase: any, projectId: string, segmentId: st
     .limit(1)
     .single();
 
+  // V7 Insights - Segment Snapshots
+  const { data: insightsSnapshot } = await supabase
+    .from("insights_snapshots")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("segment_id", targetSegmentId)
+    .order("approved_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // V7 Playbooks - Collect for all top pains
+  const playbooksCanvas: unknown[] = [];
+  const playbooksFunnel: unknown[] = [];
+
+  for (const painId of topPainIds) {
+    const pain = painsWithRanking.find((p: { id: string }) => p.id === painId);
+    if (!pain) continue;
+
+    const { data: pc } = await supabase
+      .from("playbooks_canvas")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", targetSegmentId)
+      .eq("pain_id", painId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pc) playbooksCanvas.push({ ...pc, pain_name: pain.name });
+
+    const { data: pf } = await supabase
+      .from("playbooks_funnel")
+      .select("*")
+      .eq("project_id", projectId)
+      .eq("segment_id", targetSegmentId)
+      .eq("pain_id", painId)
+      .order("approved_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pf) playbooksFunnel.push({ ...pf, pain_name: pain.name });
+  }
+
   return NextResponse.json({
     success: true,
     data: {
@@ -782,6 +883,10 @@ async function fetchExplorerData(supabase: any, projectId: string, segmentId: st
         pricingPsychology,
         trustFramework,
         jtbdContext,
+        // V7 Modules
+        insightsSnapshot,
+        playbooksCanvas,
+        playbooksFunnel,
       },
     },
   });

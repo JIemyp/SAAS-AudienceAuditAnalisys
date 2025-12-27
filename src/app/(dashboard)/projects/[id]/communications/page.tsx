@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { NoSegmentsAlert, NoTopPainsAlert } from "@/components/ui/MissingDataAlert";
 import { CommunicationsFunnel, Segment } from "@/types";
 
 interface CommunicationsData {
@@ -200,6 +201,26 @@ export default function CommunicationsPage({
   const isGeneratingCurrent = generating === `${selectedSegmentId}-${selectedPainId}`;
   const isApprovingCurrent = approving === `${selectedSegmentId}-${selectedPainId}`;
 
+  // Check for missing data
+  const hasNoSegments = !data?.segments || data.segments.length === 0;
+
+  if (hasNoSegments) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl text-white shadow-lg">
+            <MessageCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Communications</h1>
+            <p className="text-slate-500">Organic rhythm, conversation funnels & chatbot scripts</p>
+          </div>
+        </div>
+        <NoSegmentsAlert projectId={projectId} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -283,12 +304,7 @@ export default function CommunicationsPage({
 
       {/* No top pains warning */}
       {selectedSegment && selectedSegment.topPains.length === 0 && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600" />
-          <p className="text-amber-700">
-            No top pains found for this segment. Generate and approve pains first.
-          </p>
-        </div>
+        <NoTopPainsAlert projectId={projectId} segmentName={selectedSegment.name} />
       )}
 
       {/* Content */}

@@ -6,7 +6,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api-utils";
 
 // Permission levels
-export type ProjectRole = "owner" | "editor" | "viewer";
+export type ProjectRole = "owner" | "editor" | "viewer" | "ugc_specialist";
 
 // Available permissions
 export enum Permission {
@@ -19,6 +19,7 @@ export enum Permission {
   EDIT_PROJECT = "edit_project",
   GENERATE_CONTENT = "generate_content",
   APPROVE_CONTENT = "approve_content",
+  MANAGE_UGC = "manage_ugc",
 
   // Admin permissions
   MANAGE_MEMBERS = "manage_members",
@@ -35,6 +36,7 @@ const ROLE_PERMISSIONS: Record<ProjectRole, Permission[]> = {
     Permission.EDIT_PROJECT,
     Permission.GENERATE_CONTENT,
     Permission.APPROVE_CONTENT,
+    Permission.MANAGE_UGC,
     Permission.MANAGE_MEMBERS,
     Permission.DELETE_PROJECT,
     Permission.RESET_PROJECT,
@@ -46,11 +48,16 @@ const ROLE_PERMISSIONS: Record<ProjectRole, Permission[]> = {
     Permission.EDIT_PROJECT,
     Permission.GENERATE_CONTENT,
     Permission.APPROVE_CONTENT,
+    Permission.MANAGE_UGC,
   ],
   viewer: [
     Permission.VIEW_PROJECT,
     Permission.VIEW_REPORTS,
     Permission.VIEW_MEMBERS,
+  ],
+  ugc_specialist: [
+    Permission.VIEW_PROJECT,
+    Permission.MANAGE_UGC,
   ],
 };
 
@@ -181,6 +188,18 @@ export async function requireWriteAccess(
   userId: string
 ): Promise<PermissionContext> {
   return requirePermission(supabase, adminSupabase, projectId, userId, Permission.EDIT_PROJECT);
+}
+
+/**
+ * Check if user can manage UGC data (owner/editor/ugc_specialist)
+ */
+export async function requireUGCAccess(
+  supabase: SupabaseClient,
+  adminSupabase: SupabaseClient,
+  projectId: string,
+  userId: string
+): Promise<PermissionContext> {
+  return requirePermission(supabase, adminSupabase, projectId, userId, Permission.MANAGE_UGC);
 }
 
 /**

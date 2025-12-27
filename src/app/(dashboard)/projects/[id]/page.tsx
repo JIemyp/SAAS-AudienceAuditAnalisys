@@ -10,6 +10,9 @@ import { Modal } from "@/components/ui/Modal";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/contexts/LanguageContext";
 import { useTranslation } from "@/lib/hooks/useTranslation";
+import { ResearchHealthMatrix } from "@/components/dashboard/ResearchHealthMatrix";
+import { StrategicHighlights } from "@/components/dashboard/StrategicHighlights";
+import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import {
     Play,
     Pencil,
@@ -90,6 +93,30 @@ interface Project {
     created_at: string;
 }
 
+interface DashboardResponse {
+    research_health: {
+        segments: Array<{
+            id: string;
+            name: string;
+            steps: Record<string, "complete" | "pending" | "missing">;
+        }>;
+    };
+    strategic_highlights: {
+        top_segments: Array<{ id: string; name: string; priority_score: number }>;
+        top_pains: Array<{ id: string; name: string; segment_name: string; impact_score: number }>;
+        key_triggers: string[];
+        strategy_summary?: {
+            growth_bets?: Array<{ title: string; score?: number }>;
+            positioning_pillars?: Array<{ pillar: string }>;
+        };
+    };
+    alerts: Array<{
+        type: "missing_data" | "incomplete_segment" | "stale_data";
+        message: string;
+        action_url: string;
+    }>;
+}
+
 export default function ProjectPage({
     params,
 }: {
@@ -99,6 +126,9 @@ export default function ProjectPage({
     const router = useRouter();
     const [project, setProject] = useState<Project | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+    const [dashboardLoading, setDashboardLoading] = useState(false);
+    const [dashboardError, setDashboardError] = useState<string | null>(null);
     const [isResetting, setIsResetting] = useState(false);
     const [showResetModal, setShowResetModal] = useState(false);
 
@@ -131,6 +161,36 @@ export default function ProjectPage({
 
         fetchProject();
     }, [id, router]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const fetchDashboard = async () => {
+            try {
+                setDashboardLoading(true);
+                setDashboardError(null);
+                const res = await fetch(`/api/projects/${id}/dashboard`);
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to load dashboard");
+                }
+                if (!cancelled) {
+                    setDashboardData(data);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setDashboardError(err instanceof Error ? err.message : "Failed to load dashboard");
+                }
+            } finally {
+                if (!cancelled) {
+                    setDashboardLoading(false);
+                }
+            }
+        };
+        fetchDashboard();
+        return () => {
+            cancelled = true;
+        };
+    }, [id]);
 
     const handleContinue = () => {
         if (!project) return;
@@ -628,6 +688,52 @@ export default function ProjectPage({
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Research Health + Highlights + Alerts */}
+            {dashboardLoading && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Dashboard Insights</CardTitle>
+                        <CardDescription>Loading health and highlights…</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            <Skeleton className="h-6 w-1/3" />
+                            <Skeleton className="h-32 w-full" />
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {!dashboardLoading && dashboardError && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Dashboard Insights</CardTitle>
+                        <CardDescription className="text-red-500">{dashboardError}</CardDescription>
+                    </CardHeader>
+                </Card>
+            )}
+
+            {!dashboardLoading && dashboardData && (
+                <div className="space-y-6">
+                    <ResearchHealthMatrix
+                        segments={dashboardData.research_health?.segments || []}
+                        title="Research Health Matrix"
+                        description="Completion status per segment across research and V5 modules."
+                    />
+                    <StrategicHighlights
+                        topSegments={dashboardData.strategic_highlights?.top_segments || []}
+                        topPains={dashboardData.strategic_highlights?.top_pains || []}
+                        keyTriggers={dashboardData.strategic_highlights?.key_triggers || []}
+                        strategySummary={dashboardData.strategic_highlights?.strategy_summary}
+                    />
+                    <AlertsPanel
+                        alerts={dashboardData.alerts || []}
+                        title="Alerts & Next Actions"
+                        description="Resolve missing or pending data before scaling activation."
+                    />
+                </div>
+            )}
 
             {/* Your Input Section */}
             <Card>

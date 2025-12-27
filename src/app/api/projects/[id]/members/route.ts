@@ -128,6 +128,11 @@ export async function POST(
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
+    const allowedRoles: ProjectRole[] = ["viewer", "editor", "ugc_specialist"];
+    if (!allowedRoles.includes(role)) {
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+
     // Don't allow inviting yourself
     if (email.toLowerCase() === user.email?.toLowerCase()) {
       return NextResponse.json({ error: "You cannot invite yourself" }, { status: 400 });

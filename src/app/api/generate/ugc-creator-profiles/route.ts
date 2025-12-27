@@ -9,7 +9,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireWriteAccess } from "@/lib/permissions";
+import { requireUGCAccess } from "@/lib/permissions";
 import { generateWithAI, parseJSONResponse } from "@/lib/ai-client";
 import { handleApiError, ApiError, withRetry } from "@/lib/api-utils";
 import { Project, OnboardingData, Segment, UGCCreatorProfile } from "@/types";
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+    await requireUGCAccess(supabase, adminSupabase, projectId, user.id);
 
     // Get project
     const { data: project, error: projectError } = await supabase

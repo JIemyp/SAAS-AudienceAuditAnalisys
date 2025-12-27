@@ -822,6 +822,91 @@ export const APPROVE_CONFIGS = {
     cleanupDrafts: true,
     trackHistory: true,
   },
+
+  // =========================================
+  // V7 Insights Tables
+  // =========================================
+
+  insightsExecutive: {
+    draftTable: "insights_executive_drafts",
+    approvedTable: "insights_executive",
+    scope: "project" as ApproveScope,
+    fields: [
+      "growth_bets",
+      "segment_priorities",
+      "positioning_summary",
+      "validation_questions",
+      "evidence_sources",
+      "validation_metrics",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  insightsSnapshots: {
+    draftTable: "insights_snapshots_drafts",
+    approvedTable: "insights_snapshots",
+    scope: "segment" as ApproveScope,
+    fields: [
+      "who",
+      "what",
+      "why",
+      "when_active",
+      "top_pains",
+      "adoption_barriers",
+      "evidence_sources",
+      "validation_metrics",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  insightsRadar: {
+    draftTable: "insights_radar_drafts",
+    approvedTable: "insights_radar",
+    scope: "project" as ApproveScope,
+    fields: [
+      "jobs_vs_benefits_gap",
+      "triggers_vs_timeline",
+      "risk_alerts",
+      "evidence_sources",
+      "validation_metrics",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  // =========================================
+  // V7 Playbooks Tables
+  // =========================================
+
+  playbooksCanvas: {
+    draftTable: "playbooks_canvas_drafts",
+    approvedTable: "playbooks_canvas",
+    scope: "pain" as ApproveScope,
+    fields: [
+      "hero_section",
+      "insight_section",
+      "ritual_section",
+      "proof_section",
+      "cta_section",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
+
+  playbooksFunnel: {
+    draftTable: "playbooks_funnel_drafts",
+    approvedTable: "playbooks_funnel",
+    scope: "pain" as ApproveScope,
+    fields: [
+      "tof_assets",
+      "mof_assets",
+      "bof_assets",
+    ],
+    cleanupDrafts: true,
+    trackHistory: true,
+  },
 };
 
 // =====================================================
@@ -1044,6 +1129,13 @@ export function getApproveConfig(tableName: string): ApproveConfig | undefined {
     ugc_creator_profiles: APPROVE_CONFIGS.ugcCreatorProfiles,
     // V6 Communications tables
     communications_funnel: APPROVE_CONFIGS.communicationsFunnel,
+    // V7 Insights tables
+    insights_executive: APPROVE_CONFIGS.insightsExecutive,
+    insights_snapshots: APPROVE_CONFIGS.insightsSnapshots,
+    insights_radar: APPROVE_CONFIGS.insightsRadar,
+    // V7 Playbooks tables
+    playbooks_canvas: APPROVE_CONFIGS.playbooksCanvas,
+    playbooks_funnel: APPROVE_CONFIGS.playbooksFunnel,
   };
 
   return configMap[tableName];

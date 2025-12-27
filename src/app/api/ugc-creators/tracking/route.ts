@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireWriteAccess, requireProjectAccess } from "@/lib/permissions";
+import { requireProjectAccess, requireUGCAccess } from "@/lib/permissions";
 import { handleApiError, ApiError } from "@/lib/api-utils";
 
 // GET - List all tracking records for a project/segment
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+    await requireUGCAccess(supabase, adminSupabase, projectId, user.id);
 
     // Verify segment exists
     const { data: segment, error: segmentError } = await adminSupabase
@@ -162,7 +162,7 @@ export async function PATCH(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+    await requireUGCAccess(supabase, adminSupabase, projectId, user.id);
 
     // Build update object with allowed fields only
     const allowedFields = [
@@ -233,7 +233,7 @@ export async function DELETE(request: NextRequest) {
       throw new ApiError("Unauthorized", 401);
     }
 
-    await requireWriteAccess(supabase, adminSupabase, projectId, user.id);
+    await requireUGCAccess(supabase, adminSupabase, projectId, user.id);
 
     const { error: deleteError } = await adminSupabase
       .from("ugc_creator_tracking")

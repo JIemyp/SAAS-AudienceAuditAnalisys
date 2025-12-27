@@ -23,6 +23,119 @@
 
 ---
 
+## Принципы качества (обязательные)
+
+1) Качество выше скорости: не сокращать выводы ради тайминга.  
+2) Глубина важнее объема: per-segment + per-pain генерации предпочтительнее.  
+3) Только approved данные для генерации.  
+4) Полная трассируемость: каждое решение должно ссылаться на Evidence Sources.  
+5) Все подсказки/гайд-блоки должны объяснять “что это” и “что делать дальше”.
+
+---
+
+## Связь V6 и V7
+
+- V6 = основной roadmap (Dashboard, Strategy, UGC, Communications, Data & Ops, Access Control).  
+- V7 = детальный под‑план для Insights/Playbooks.  
+- V7 выполняется внутри V6, когда доходим до этапа Insights/Playbooks.
+- V7 содержит: dependency matrix per component, per‑tab missing‑data guides, QA JSON examples.
+
+---
+
+## Data Dependency Map (V6 modules)
+
+Strategy Summary (project):
+- portrait_final, segments, jobs, triggers, pains_ranking, channel_strategy, pricing_psychology, trust_framework, competitive_intelligence, jtbd_context
+
+Strategy Personalized (segment x top pain):
+- segment_details, pain, canvas_extended, channel_strategy, trust_framework, jtbd_context
+
+Strategy Global (project):
+- portrait_final, segments, top pains, channel_strategy, competitive_intelligence, pricing_psychology, jtbd_context
+
+Strategy Ads (segment x top pain):
+- channel_strategy, pricing_psychology, competitive_intelligence, pain, segment_details
+
+Communications (segment x top pain):
+- segment_details, jobs, preferences, triggers, canvas_extended, trust_framework, channel_strategy, jtbd_context
+
+UGC Creators (segment):
+- segment_details, portrait_final, top pains, canvas_extended, channel_strategy, trust_framework, jtbd_context
+
+Data & Ops:
+- steps status + drafts/approved coverage across all modules
+
+---
+
+## Field-Level Data Map (V6 modules)
+
+Strategy Summary:
+- portrait_final: positioning cues, key differentiators
+- jobs: frequency, why_it_matters
+- triggers: urgency, timing context
+- pains_ranking: impact_score, is_top_pain
+- channel_strategy: preferred channels, content formats
+- pricing_psychology: price sensitivity, spending sweet spot
+- trust_framework: trust signals, objections
+- competitive_intelligence: weak points, switching barriers
+- jtbd_context: job priorities and dependencies
+
+Strategy Personalized:
+- segment_details: psychographics, buying behavior
+- canvas_extended: narrative angles, messaging framework
+- jtbd_context: job context + hiring anxieties
+- trust_framework: objections + proof angles
+- channel_strategy: platform usage + content preference
+- pricing_psychology: offer framing and price anchors
+
+Strategy Global:
+- portrait_final: brand voice cues
+- segments: macro personas
+- pains_ranking: top pains by project
+- channel_strategy: platform mix
+- competitive_intelligence: category beliefs
+- pricing_psychology: price positioning
+
+Strategy Ads:
+- channel_strategy: platform-level behavior
+- pricing_psychology: price sensitivity + anchors
+- competitive_intelligence: competitor angles
+- pains_ranking: pain framing
+- segment_details: targeting nuances
+
+Communications:
+- triggers: timing + urgency
+- preferences: content formats + attention span
+- jobs: messaging intent
+- canvas_extended: story/angle
+- trust_framework: proof assets
+- channel_strategy: channel-by-channel cadence
+
+UGC Creators:
+- portrait_final: persona traits
+- segment_details: audience archetype
+- pains_ranking: topic prioritization
+- canvas_extended: story hooks
+- trust_framework: proof elements to include
+
+Data & Ops:
+- steps: completion status per module
+- drafts/approved: coverage and gaps
+
+---
+
+## Missing Data Handling (UX rules)
+
+- If required tables are missing, show a clear empty-state with:
+  - What is missing (table + step name)
+  - Link to the correct generation step (plain link, no action button)
+  - Short explanation of why it is needed
+- Do not generate partial outputs without required inputs.
+- Evidence Sources block must list only tables actually used.
+- Per‑tab guidance and next steps are defined in V7 and must be mirrored in UI.
+
+---
+
 ## PHASE 1: DATABASE MIGRATIONS
 
 **Важно:** RLS policies должны учитывать `project_members` (owner/editor/viewer/ugc_specialist), а не только owner.
@@ -1418,6 +1531,7 @@ Return ONLY valid JSON matching the specified structure.
 - [ ] Data & Ops coverage matrix accurate
 - [ ] Data & Ops missing alerts accurate
 - [ ] Data & Ops batch actions (approve/regenerate) work
+- [ ] Insights/Playbooks outputs validated against V7 JSON examples
 - [ ] Strategy personalized generates for top pains only
 - [ ] Strategy global generates per project
 - [ ] Strategy ads generates channels (Google/Pinterest/Reddit/Meta/TikTok/YouTube)
@@ -1441,10 +1555,10 @@ Return ONLY valid JSON matching the specified structure.
 ### Performance Tests
 
 - [ ] Dashboard loads < 2s
-- [ ] Strategy generation < 30s (Edge runtime)
-- [ ] UGC generation < 20s
-- [ ] Communications generation < 25s
-- [ ] No N+1 queries
+- [ ] Strategy generation completes without truncation (Edge + streaming)
+- [ ] UGC generation completes without truncation
+- [ ] Communications generation completes without truncation
+- [ ] No quality loss due to performance optimizations
 
 ---
 
@@ -1475,7 +1589,7 @@ Return ONLY valid JSON matching the specified structure.
 | Breaking existing | Regression tests before each deploy |
 | AI timeouts | Edge runtime + streaming for heavy generations |
 | Data inconsistency | Validate segment_id/pain_id at API level |
-| Performance | Batch queries in dashboard API |
+| Performance | Do not sacrifice quality for speed; use streaming if slow |
 | Missing data | Empty states + helpful guidance |
 | Access control | Default open for owner/editor + explicit per-page toggles |
 
@@ -1490,3 +1604,4 @@ Return ONLY valid JSON matching the specified structure.
 5. **Permissions:** UGC Creator Dock может быть доступен отдельно для UGC специалиста
 6. **Page Access:** Пер-page access контролируется через Settings
 7. **Prompts:** Все промпты вынесены в `docs/PROMPTS_V6.md`
+8. **V7:** Insights/Playbooks реализуются по `docs/IMPLEMENTATION_PLAN_V7_INSIGHTS_PLAYBOOKS.md` и добавляются в report/export.

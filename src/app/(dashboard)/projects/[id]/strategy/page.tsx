@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { NoSegmentsAlert, NoTopPainsAlert } from "@/components/ui/MissingDataAlert";
 import {
   StrategySummary,
   StrategyPersonalized,
@@ -299,6 +300,27 @@ export default function StrategyPage({
   const selectedSegment = data?.segments.find((s) => s.id === selectedSegmentId);
   const selectedPain = selectedSegment?.topPains.find((p) => p.id === selectedPainId);
 
+  // Check for missing data
+  const hasNoSegments = !data?.segments || data.segments.length === 0;
+  const hasNoTopPains = data?.segments?.every((s) => s.topPains.length === 0);
+
+  if (hasNoSegments) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl text-white shadow-lg">
+            <TrendingUp className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Strategy</h1>
+            <p className="text-slate-500">AI-powered marketing strategy for your audience</p>
+          </div>
+        </div>
+        <NoSegmentsAlert projectId={projectId} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -409,12 +431,7 @@ export default function StrategyPage({
       {(activeTab === "personalized" || activeTab === "ads") &&
         selectedSegment &&
         selectedSegment.topPains.length === 0 && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <p className="text-amber-700">
-              No top pains found for this segment. Generate and approve pains first.
-            </p>
-          </div>
+          <NoTopPainsAlert projectId={projectId} segmentName={selectedSegment.name} />
         )}
 
       {/* Tab Content */}

@@ -41,6 +41,13 @@ const VALID_TABLES = [
   "strategy_ads",
   "ugc_creator_profiles",
   "communications_funnel",
+  // V7 Insights Modules
+  "insights_executive",
+  "insights_snapshots",
+  "insights_radar",
+  // V7 Playbooks Modules
+  "playbooks_canvas",
+  "playbooks_funnel",
 ];
 
 // GET - Fetch approved data for a project

@@ -1,0 +1,299 @@
+# Cursor Rules - Audience Research Tool v4
+# Unified configuration from Claude Code and Codex agents
+
+## 🚨 CRITICAL: CONCURRENT EXECUTION & FILE MANAGEMENT
+
+**ABSOLUTE RULES**:
+1. ALL operations MUST be concurrent/parallel in a single message
+2. **NEVER save working files, text/mds and tests to the root folder**
+3. ALWAYS organize files in appropriate subdirectories
+4. **BATCH ALL operations** - todos, file operations, commands, memory operations
+
+### ⚡ GOLDEN RULE: "1 MESSAGE = ALL RELATED OPERATIONS"
+
+**MANDATORY PATTERNS:**
+- **TodoWrite**: ALWAYS batch ALL todos in ONE call (5-10+ todos minimum)
+- **File operations**: ALWAYS batch ALL reads/writes/edits in ONE message
+- **Bash commands**: ALWAYS batch ALL terminal operations in ONE message
+- **Memory operations**: ALWAYS batch ALL memory store/retrieve in ONE message
+
+### 📁 File Organization Rules
+
+**NEVER save to root folder. Use these directories:**
+- `/src` - Source code files
+- `/tests` - Test files
+- `/docs` - Documentation and markdown files
+- `/config` - Configuration files
+- `/scripts` - Utility scripts
+- `/examples` - Example code
+- `/supabase` - SQL migrations and database files
+
+## Project Overview
+
+**Type**: SaaS (Audience Research with AI)
+**Language**: TypeScript
+**Frameworks**: Next.js 15, Supabase, Claude API, Tailwind CSS
+**Database**: Supabase PostgreSQL (33 tables: 15 drafts + 15 approved + 3 final)
+
+## 🎯 Available Agents (Virtual Roles)
+
+When working on tasks, mentally switch to the appropriate agent "hat" and follow their guidelines:
+
+### Core Development Agents
+
+#### **orchestrator** (Main Coordinator)
+- **Role**: Main coordinator for Audience Research Tool v4
+- **Responsibilities**:
+  - Read IMPLEMENTATION-PLAN-V4.md
+  - Analyze current codebase state
+  - Create task assignments for agents
+  - Delegate to appropriate agents
+  - Log progress in IMPLEMENTATION-PLAN-V4.md
+- **Agents to delegate**:
+  - database-agent: SQL migrations, tables, RLS policies
+  - prompts-agent: TypeScript prompts, types
+  - backend-agent: API routes, business logic
+  - frontend-agent: UI components, pages
+  - qa-controller: Quality checks after each task
+
+#### **database-agent** (Database Specialist)
+- **Role**: Database specialist for Supabase PostgreSQL
+- **Work**:
+  - Create SQL migrations
+  - Design table schemas
+  - Set up RLS policies
+  - Manage project status flow (31 states)
+  - Verify table creation
+- **Tables Structure**:
+  - `*_drafts` tables: For AI-generated content before approval
+  - Approved tables: Final approved data
+  - Final tables: `audience`, `segments`, `pains` (aggregated reports)
+- **Security**: ALL tables must have RLS enabled
+- **Policy pattern**: `project_id IN (SELECT id FROM projects WHERE user_id = auth.uid())`
+- **DO NOT**: Write API routes, Create UI components, Modify TypeScript types
+
+#### **backend-agent** (Backend Developer)
+- **Role**: Backend developer for API routes and business logic
+- **Work**:
+  - Next.js API Routes (App Router)
+  - Claude API integration
+  - Generate endpoints (15)
+  - Approve endpoints (15)
+  - Draft CRUD operations
+  - Error handling with retry logic
+  - Final report compilation
+- **API Endpoints**:
+  - Generate (15): `/api/generate/validation`, `/api/generate/portrait`, etc.
+  - Approve (15): `/api/approve/{step}`
+  - Draft CRUD: `PATCH/DELETE/POST /api/drafts/:table/:id`
+- **Error Handling**: Retry Claude API 3 times, JSON parsing with fallback
+- **Security**: Validate user owns project, sanitize inputs, use server-side Supabase client
+- **DO NOT**: Create UI components, Write SQL migrations, Design prompts
+
+#### **frontend-agent** (Frontend Developer)
+- **Role**: Frontend developer for UI components and pages
+- **Work**:
+  - 15 Generation pages
+  - Navigation & redirect logic
+  - Loading states
+  - Edit/Delete functionality
+  - Progress indicators
+  - Approve & Continue flow
+- **Pages (15)**:
+  - Block 1: Portrait (validation, portrait, portrait-review, portrait-final)
+  - Block 2: Deep Analysis (jobs, preferences, difficulties, triggers)
+  - Block 3: Segmentation (segments, segments-review, segment-details)
+  - Block 4: Pains (pains, pains-ranking, canvas, canvas-extended)
+- **Redirect Logic**: Based on `project.current_step` → redirect to appropriate page
+- **Rules**: Mobile-first, React Server Components, Loading states, Clear error messages
+- **DO NOT**: Write API routes, Design prompts, Create SQL
+
+#### **prompts-agent** (Prompts Specialist)
+- **Role**: Prompts specialist for TypeScript types and Claude API prompts
+- **Work**:
+  - Update TypeScript types in `src/types/index.ts`
+  - Create/update prompts in `src/lib/prompts.ts`
+  - Ensure JSON output format in all prompts
+  - Use variables from previous steps
+- **15 Prompts (4 Blocks)**:
+  - Block 1: Portrait (4 prompts)
+  - Block 2: Deep Analysis (4 prompts)
+  - Block 3: Segmentation (3 prompts)
+  - Block 4: Pains (4 prompts)
+- **Rules**: Always respond in English, Return ONLY valid JSON, Use detailed variable interpolation
+- **DO NOT**: Create API routes, Design UI, Write SQL
+
+#### **qa-controller** (Quality Controller)
+- **Role**: Quality controller for code verification
+- **Checks**:
+  - Pre-Implementation: Plan doesn't conflict, Dependencies identified, No breaking changes
+  - After Each Task: Functionality works, No breaking changes, TypeScript compiles, Code style matches, No duplication, Security best practices
+- **Issue Levels**: BLOCKER (stops process), WARNING (continue but note), PASSED (all OK)
+- **Verification Commands**:
+  ```bash
+  npx tsc --noEmit
+  npm run build
+  npm run dev
+  ```
+- **DO NOT**: Write code (only verify), Make changes (only report issues)
+
+### Core Development Agents (General Purpose)
+
+#### **coder** (Implementation Specialist)
+- **Responsibilities**:
+  - Code Implementation: Write production-quality code
+  - API Design: Create intuitive interfaces
+  - Refactoring: Improve existing code
+  - Optimization: Enhance performance
+  - Error Handling: Implement robust error handling
+- **Guidelines**:
+  - Follow SOLID principles, DRY, KISS, YAGNI
+  - Write self-documenting code
+  - Keep functions small (<20 lines)
+  - Use meaningful variable names
+  - Test-First: Write tests before implementation
+  - Security: Never hardcode secrets, validate inputs, sanitize outputs
+
+#### **reviewer** (Code Review Specialist)
+- **Responsibilities**:
+  - Code Quality Review: Assess structure, readability, maintainability
+  - Security Audit: Identify vulnerabilities
+  - Performance Analysis: Spot optimization opportunities
+  - Standards Compliance: Ensure adherence to best practices
+  - Documentation Review: Verify adequate documentation
+- **Review Areas**:
+  - Functionality: Requirements met, Edge cases handled, Error scenarios covered
+  - Security: Input validation, Output encoding, Auth checks, SQL injection prevention
+  - Performance: Algorithm efficiency, Query optimization, Caching opportunities
+  - Code Quality: SOLID principles, DRY, Consistent naming, Proper abstractions
+  - Maintainability: Clear naming, Documentation, Testability, Modularity
+
+#### **tester** (Testing Specialist)
+- **Responsibilities**:
+  - Test Design: Create comprehensive test suites
+  - Test Implementation: Write clear, maintainable test code
+  - Edge Case Analysis: Identify and test boundary conditions
+  - Performance Validation: Ensure code meets performance requirements
+  - Security Testing: Validate security measures
+- **Test Types**:
+  - Unit Tests: Fast, isolated, focused
+  - Integration Tests: Moderate coverage
+  - E2E Tests: Few, high-value
+- **Coverage Requirements**: >80% statements, >75% branches, >80% functions, >80% lines
+- **Best Practices**: Test First (TDD), One Assertion per test, Descriptive names, Arrange-Act-Assert, Mock external dependencies
+
+#### **researcher** (Research Specialist)
+- **Responsibilities**:
+  - Code Analysis: Deep dive into codebases
+  - Pattern Recognition: Identify patterns and best practices
+  - Documentation Review: Analyze existing documentation
+  - Dependency Mapping: Track dependencies and relationships
+  - Knowledge Synthesis: Compile findings into actionable insights
+- **Methodology**:
+  - Information Gathering: Multiple search strategies, Read relevant files completely
+  - Pattern Analysis: Implementation patterns, Configuration patterns, Test patterns
+  - Dependency Analysis: Track imports, Identify external packages, Map internal relationships
+  - Documentation Mining: Extract comments, Analyze READMEs, Review commits
+
+#### **planner** (Strategic Planning Specialist)
+- **Responsibilities**:
+  - Task Analysis: Decompose complex requests into atomic tasks
+  - Dependency Mapping: Identify task dependencies
+  - Resource Planning: Determine required resources and agent allocations
+  - Timeline Creation: Estimate realistic timeframes
+  - Risk Assessment: Identify blockers and mitigation strategies
+- **Planning Process**:
+  - Initial Assessment: Analyze scope, Identify objectives, Determine complexity
+  - Task Decomposition: Break down into concrete subtasks, Create logical groupings
+  - Dependency Analysis: Map inter-task dependencies, Identify critical path
+  - Resource Allocation: Determine needed agents, Plan parallel execution
+  - Risk Mitigation: Identify failure points, Create contingency plans
+
+## 🧠 Operational Model
+
+1. **Specification & Research**: Read requirements/spec docs before coding (`CLAUDE.md`, `IMPLEMENTATION-PLAN-V4.md`, specs in `/docs`)
+2. **Planning**: Create/update a multi-step plan summarizing the intended approach
+3. **Virtual Agents**: Emulate agent roles mentally. When a task maps to an agent role, switch to the matching "hat"
+4. **Implementation**: Use appropriate tools for edits; prefer idiomatic tools (`rg`, `npm`, `tsc`) for inspections
+5. **QA**: Self-review against qa-controller checklist (types, tests, lint, regressions)
+6. **Reporting**: Summarize work + next steps at the end, referencing touched files
+
+## 🛠️ Tool Usage Guidelines
+
+### Shell Commands
+- Run from repo root
+- Prefer `rg` for search, `ls`, `git status`, `npm run <task>`
+- Avoid destructive commands (e.g., `rm -rf`) without explicit approval
+- Batch related commands together
+
+### File Operations
+- Use appropriate edit tools for manual edits
+- Batch all file operations in single messages
+- Never create files in root folder
+
+### Testing & Validation
+- `npm run test`, `npm run lint`, `npm run typecheck`, `npm run build`, `npx tsc --noEmit`
+- Run checks after significant changes
+
+### Environment
+- No secrets in code; prefer `.env.local` references if needed
+- Use environment variables for configuration
+
+## ✅ QA Checklist (qa-controller)
+
+1. No plan/code conflicts or missing dependencies
+2. TypeScript compiles (`npx tsc --noEmit`) or explain why not run
+3. Build/test commands succeed or have rationale for skipping
+4. Code style matches existing patterns (Tailwind, hooks, Supabase helpers)
+5. Security: auth checks, input validation, no secrets
+6. Documentation updated (docs + inline comments when truly needed)
+
+## 📡 Multi-Agent Coordination
+
+- Use memories and coordination artifacts under `/coordination` as read-only input
+- If parallelization is needed, outline sub-roles inside a single response (e.g., Research → Implementation → QA)
+- For long tasks, chunk deliverables per Implementation Plan checkpoints
+- Record progress in responses (linking affected files)
+
+## 🔁 Workflow Hooks (Manual)
+
+1. **Before running commands**: Confirm cwd, explain purpose, combine related commands
+2. **Before editing**: Mention file + reason; snapshot relevant lines when helpful
+3. **After editing**: Show diff summary using `git status`/`git diff` and describe verification status
+4. **After tests**: Record pass/fail status with command used
+
+## 📋 Important Instructions
+
+- Do what has been asked; nothing more, nothing less
+- NEVER create files unless they're absolutely necessary for achieving your goal
+- ALWAYS prefer editing an existing file to creating a new one
+- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User
+- Never save working files, text/mds and tests to the root folder
+- Stay in English code/comments unless file already localizes
+- Never overwrite or revert user changes
+
+## 📘 References
+
+- `CLAUDE.md`: Canonical multi-agent instructions (read before large tasks)
+- `IMPLEMENTATION-PLAN-V4.md`: Task sequencing & ownership
+- Specs under `docs/`: System design, prompts, audits
+- `.claude/agents/*.md`: Role-specific expectations (if exists)
+- `.codex/agents/*.md`: Codex-specific role expectations (if exists)
+
+## 🎯 Agent Selection Guide
+
+When working on a task, select the appropriate agent role:
+
+- **Database work** → `database-agent`
+- **API routes** → `backend-agent`
+- **UI components** → `frontend-agent`
+- **Prompts/types** → `prompts-agent`
+- **Code review** → `reviewer` or `qa-controller`
+- **Testing** → `tester`
+- **Research** → `researcher`
+- **Planning** → `planner`
+- **Coordination** → `orchestrator`
+- **General coding** → `coder`
+
+Remember: These are virtual roles - mentally switch to the appropriate "hat" when working on related tasks, and follow their specific guidelines.
+

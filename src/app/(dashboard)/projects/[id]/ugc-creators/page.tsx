@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { NoSegmentsAlert } from "@/components/ui/MissingDataAlert";
 import { UGCCreatorProfile, Segment } from "@/types";
 
 type TabId = "profiles" | "tracking";
@@ -260,6 +261,26 @@ export default function UGCCreatorsPage({
   }
 
   const selectedSegment = data?.segments.find((s) => s.id === selectedSegmentId);
+
+  // Check for missing data
+  const hasNoSegments = !data?.segments || data.segments.length === 0;
+
+  if (hasNoSegments) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl text-white shadow-lg">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">UGC Creator Dock</h1>
+            <p className="text-slate-500">AI-generated creator profiles and tracking</p>
+          </div>
+        </div>
+        <NoSegmentsAlert projectId={projectId} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
